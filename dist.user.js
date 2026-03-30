@@ -451,7 +451,7 @@ class Pixels {
     this.exactColor = exactColor;
     if (exactColor) {
       this.resolution = 1;
-      this.width = 1000;
+      this.width = image.naturalWidth;
     } else
       this.resolution = this.image.naturalWidth / this.image.naturalHeight;
     this.update();
@@ -600,35 +600,41 @@ function extractScreenPositionFromStar($star) {
 
 class WorldPosition {
   bot;
+  static floorDiv(value, divider) {
+    return Math.floor(value / divider);
+  }
+  static positiveMod(value, divider) {
+    return (value % divider + divider) % divider;
+  }
   static fromJSON(bot, data) {
     return new WorldPosition(bot, ...data);
   }
   static fromScreenPosition(bot, position) {
     const { anchorScreenPosition, pixelSize, anchorWorldPosition } = bot.findAnchorsForScreen(position);
-    return new WorldPosition(bot, anchorWorldPosition.x + (position.x - anchorScreenPosition.x) / pixelSize | 0, anchorWorldPosition.y + (position.y - anchorScreenPosition.y) / pixelSize | 0);
+    return new WorldPosition(bot, Math.floor(anchorWorldPosition.x + (position.x - anchorScreenPosition.x) / pixelSize), Math.floor(anchorWorldPosition.y + (position.y - anchorScreenPosition.y) / pixelSize));
   }
   globalX = 0;
   globalY = 0;
   get tileX() {
-    return this.globalX / WORLD_TILE_SIZE | 0;
+    return WorldPosition.floorDiv(this.globalX, WORLD_TILE_SIZE);
   }
   set tileX(value) {
     this.globalX = value * WORLD_TILE_SIZE + this.x;
   }
   get tileY() {
-    return this.globalY / WORLD_TILE_SIZE | 0;
+    return WorldPosition.floorDiv(this.globalY, WORLD_TILE_SIZE);
   }
   set tileY(value) {
     this.globalY = value * WORLD_TILE_SIZE + this.y;
   }
   get x() {
-    return this.globalX % WORLD_TILE_SIZE;
+    return WorldPosition.positiveMod(this.globalX, WORLD_TILE_SIZE);
   }
   set x(value) {
     this.globalX = this.tileX * WORLD_TILE_SIZE + value;
   }
   get y() {
-    return this.globalY % WORLD_TILE_SIZE;
+    return WorldPosition.positiveMod(this.globalY, WORLD_TILE_SIZE);
   }
   set y(value) {
     this.globalY = this.tileY * WORLD_TILE_SIZE + value;
@@ -1740,12 +1746,12 @@ class WPlaceBot {
       for (let index = 0;index < save2.images.length; index++) {
         const image = save2.images[index];
         addFavoriteLocation({
-          x: image.position[0] - 1000,
-          y: image.position[1] - 1000
+          x: image.position[0] - WORLD_TILE_SIZE,
+          y: image.position[1] - WORLD_TILE_SIZE
         });
         addFavoriteLocation({
-          x: image.position[0] + 1000,
-          y: image.position[1] + 1000
+          x: image.position[0] + WORLD_TILE_SIZE,
+          y: image.position[1] + WORLD_TILE_SIZE
         });
       }
       this.strategy = save2.strategy;
@@ -1905,7 +1911,7 @@ class WPlaceBot {
     const imagesToDownload = new Set;
     for (let index = 0;index < this.images.length; index++) {
       const image = this.images[index];
-      const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length, image.position.globalY + image.pixels.pixels.length);
+      const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length - 1, image.position.globalY + image.pixels.pixels.length - 1);
       for (let tileX = image.position.tileX;tileX <= tileXEnd; tileX++)
         for (let tileY = image.position.tileY;tileY <= tileYEnd; tileY++)
           imagesToDownload.add(`${tileX}/${tileY}`);
