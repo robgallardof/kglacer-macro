@@ -48,6 +48,8 @@ export type Me = {
 }
 
 const SAVE_VERSION = 2
+const DEBUG_STORAGE_KEY = 'wbot:debug'
+const LOG_PREFIX = '[ReadingMap]'
 
 /**
  * Main class. Initializes everything.
@@ -82,6 +84,19 @@ export class WPlaceBot {
   /** Last color drawn */
   protected lastColor?: number
 
+  protected get debugEnabled() {
+    return localStorage.getItem(DEBUG_STORAGE_KEY) === '1'
+  }
+
+  protected log(message: string, ...args: unknown[]) {
+    if (!this.debugEnabled) return
+    console.log(LOG_PREFIX, message, ...args)
+  }
+
+  protected logError(message: string, ...args: unknown[]) {
+    console.error(`${LOG_PREFIX}[ERROR]`, message, ...args)
+  }
+
   public constructor() {
     // Try to load save
     const save = loadSave()
@@ -103,6 +118,9 @@ export class WPlaceBot {
     }
 
     this.registerFetchInterceptor()
+    this.log(
+      'Debug logs are enabled. Set localStorage "wbot:debug" to "0" to disable.',
+    )
 
     // Embed styles
     const style = document.createElement('style')
@@ -304,6 +322,7 @@ export class WPlaceBot {
 
   /** Read and cache the map */
   public readMap() {
+    this.log('Starting map read operation.')
     this.mapsCache.clear()
     const imagesToDownload = new Set<string>()
     for (let index = 0; index < this.images.length; index++) {
@@ -317,18 +336,31 @@ export class WPlaceBot {
         for (let tileY = image.position.tileY; tileY <= tileYEnd; tileY++)
           imagesToDownload.add(`${tileX}/${tileY}`)
     }
+    this.log(
+      `Map read queued ${imagesToDownload.size} tiles for ${this.images.length} image(s).`,
+      [...imagesToDownload].slice(0, 10),
+    )
     let done = 0
     return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () =>
       Promise.all(
         [...imagesToDownload].map(async (x) => {
-          this.mapsCache.set(
-            x,
-            await Pixels.fromJSON(this, {
-              url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-              exactColor: true,
-            }),
-          )
+          try {
+            this.log(`Downloading tile ${x}.`)
+            this.mapsCache.set(
+              x,
+              await Pixels.fromJSON(this, {
+                url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
+                exactColor: true,
+              }),
+            )
+          } catch (error) {
+            this.logError(`Failed to download tile ${x}.`, error)
+            throw error
+          }
           this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`
+          this.log(
+            `Downloaded tile ${x}. Progress ${done}/${imagesToDownload.size}.`,
+          )
         }),
       ),
     )
@@ -495,6 +527,7 @@ export class WPlaceBot {
       else if (request instanceof Request) url = request.url
       else if (request instanceof URL) url = request.href
       if (response.url === 'https://backend.wplace.live/me') {
+        this.log('Intercepted /me response.')
         this.me = (await cloned.json()) as Me
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
         this.me.maxFavoriteLocations = Infinity
@@ -502,6 +535,9 @@ export class WPlaceBot {
       }
       const pixelMatch = pixelRegExp.exec(url)
       if (pixelMatch) {
+        this.log(
+          `Captured marker pixel response for world (${pixelMatch[1]}, ${pixelMatch[2]}) and tile pixel (${pixelMatch[3]}, ${pixelMatch[4]}).`,
+        )
         for (
           let index = 0;
           index < this.markerPixelPositionResolvers.length;
@@ -541,11 +577,13 @@ export class WPlaceBot {
     name: string,
     selector: string,
   ): Promise<T> {
+    this.log(`Waiting for element "${name}" using selector "${selector}".`)
     return this.widget.run(`Waiting for ${name}`, () => {
       return new Promise<T>((resolve) => {
         // If element already exists, resolve immediately
         const existing = document.querySelector<T>(selector)
         if (existing) {
+          this.log(`Element "${name}" already exists.`)
           resolve(existing)
           return
         }
@@ -553,6 +591,7 @@ export class WPlaceBot {
         const observer = new MutationObserver(() => {
           const element = document.querySelector<T>(selector)
           if (element) {
+            this.log(`Element "${name}" detected via mutation observer.`)
             observer.disconnect()
             resolve(element)
           }
