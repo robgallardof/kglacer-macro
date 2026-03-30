@@ -1,7 +1,7 @@
 import { wait } from '@softsky/utils'
 
 import { BotImage, DrawTask } from './image'
-import { Pixels } from './pixels'
+import { FetchImageError, Pixels } from './pixels'
 import { loadSave } from './save'
 // @ts-ignore
 import css from './style.css' with { type: 'text' }
@@ -101,6 +101,10 @@ export class WPlaceBot {
 
   protected logError(message: string, ...args: unknown[]) {
     console.error(`${LOG_PREFIX}[ERROR]`, message, ...args)
+  }
+
+  protected logWarning(message: string, ...args: unknown[]) {
+    console.warn(`${LOG_PREFIX}[WARN]`, message, ...args)
   }
 
   public logMissingTile(tileId: string) {
@@ -382,7 +386,11 @@ export class WPlaceBot {
               )
             } catch (error) {
               this.missingTiles.add(x)
-              this.logError(`Failed to download tile ${x}.`, error)
+              if (error instanceof FetchImageError && error.status === 404)
+                this.log(
+                  `Tile ${x} returned 404. It may be outside generated world bounds.`,
+                )
+              else this.logError(`Failed to download tile ${x}.`, error)
             } finally {
               this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`
             }
@@ -392,7 +400,7 @@ export class WPlaceBot {
           }),
         )
         if (this.missingTiles.size !== 0)
-          this.logError(
+          this.logWarning(
             `Skipped ${this.missingTiles.size} tile(s) that failed to download.`,
             [...this.missingTiles].slice(0, 10),
           )
@@ -424,12 +432,25 @@ export class WPlaceBot {
 
   /** Find anchor data for screen postition */
   public findAnchorsForScreen(position: Position) {
+    if (this.$stars.length < 2) {
+      return {
+        anchorScreenPosition: {
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+        },
+        anchorWorldPosition: FAVORITE_LOCATIONS_POSITIONS[0] ?? {
+          x: 0,
+          y: 0,
+        },
+        pixelSize: 1,
+      }
+    }
     let anchorIndex = 0
     let minI2 = 1
     let min1 = Infinity
     let min2 = Infinity
     for (let index = 0; index < this.$stars.length; index++) {
-      const { x, y } = extractScreenPositionFromStar(this.$stars[index]!)
+      const { x, y } = extractScreenPositionFromStar(this.$stars[index])
       if (x < position.x && y < position.y) {
         const delta = position.x - x + (position.y - y)
         if (delta < min1) {
@@ -445,14 +466,14 @@ export class WPlaceBot {
       }
     }
     const anchorScreenPosition = extractScreenPositionFromStar(
-      this.$stars[anchorIndex]!,
+      this.$stars[anchorIndex],
     )
     const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex]!
     return {
       anchorScreenPosition,
       anchorWorldPosition,
       pixelSize:
-        (extractScreenPositionFromStar(this.$stars[minI2]!).x -
+        (extractScreenPositionFromStar(this.$stars[minI2]).x -
           anchorScreenPosition.x) /
         (FAVORITE_LOCATIONS_POSITIONS[minI2]!.x - anchorWorldPosition.x),
     }
@@ -640,11 +661,12 @@ export class WPlaceBot {
 
   /** Simply update $stars property */
   protected updateStars() {
-    this.$stars = [
+    const candidates = [
       ...document.querySelectorAll<HTMLDivElement>(
-        '.text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center',
+        '.maplibregl-marker.maplibregl-marker-anchor-center',
       ),
-    ].slice(0, FAVORITE_LOCATIONS.length)
+    ]
+    this.$stars = candidates.slice(0, FAVORITE_LOCATIONS.length)
   }
 
   /** Update images position and contents */
