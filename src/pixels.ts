@@ -16,9 +16,14 @@ export class Pixels {
   ) {
     const image = new Image()
     image.src = data.url.startsWith('http')
-      ? await fetch(data.url, { cache: 'no-store' })
-          .then((x) => x.blob())
-          .then((X) => URL.createObjectURL(X))
+      ? await fetch(data.url, { cache: 'no-store' }).then(async (response) => {
+          if (!response.ok)
+            throw new Error(
+              `Failed to fetch image (${response.status} ${response.statusText}) from ${data.url}`,
+            )
+          const blob = await response.blob()
+          return URL.createObjectURL(blob)
+        })
       : data.url
     await promisifyEventSource(image, ['load'], ['error'])
     return new Pixels(bot, image, data.width, data.brightness, data.exactColor)

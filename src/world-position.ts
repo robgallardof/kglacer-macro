@@ -187,9 +187,13 @@ export class WorldPosition {
 
   /** Get map color at this position */
   public getMapColor() {
-    return this.bot.mapsCache.get(this.tileX + '/' + this.tileY)!.pixels[
-      this.y
-    ]![this.x]!
+    const tileId = this.tileX + '/' + this.tileY
+    const tile = this.bot.mapsCache.get(tileId)
+    if (!tile) {
+      this.bot.logMissingTile(tileId)
+      return 0
+    }
+    return tile.pixels[this.y]![this.x]!
   }
 
   /** Scroll screen to this position */

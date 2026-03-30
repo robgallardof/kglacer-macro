@@ -423,7 +423,12 @@ class Pixels {
   exactColor;
   static async fromJSON(bot, data) {
     const image = new Image;
-    image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then((x) => x.blob()).then((X) => URL.createObjectURL(X)) : data.url;
+    image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then(async (response) => {
+      if (!response.ok)
+        throw new Error(`Failed to fetch image (${response.status} ${response.statusText}) from ${data.url}`);
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    }) : data.url;
     await promisifyEventSource(image, ["load"], ["error"]);
     return new Pixels(bot, image, data.width, data.brightness, data.exactColor);
   }
@@ -675,7 +680,13 @@ class WorldPosition {
     };
   }
   getMapColor() {
-    return this.bot.mapsCache.get(this.tileX + "/" + this.tileY).pixels[this.y][this.x];
+    const tileId = this.tileX + "/" + this.tileY;
+    const tile = this.bot.mapsCache.get(tileId);
+    if (!tile) {
+      this.bot.logMissingTile(tileId);
+      return 0;
+    }
+    return tile.pixels[this.y][this.x];
   }
   scrollScreenTo() {
     const { x, y } = this.toScreenPosition();
@@ -1695,6 +1706,8 @@ var LOG_PREFIX = "[ReadingMap]";
 class WPlaceBot {
   unavailableColors = new Set;
   mapsCache = new Map;
+  missingTiles = new Set;
+  notifiedMissingTiles = new Set;
   me;
   $stars = [];
   strategy = "SEQUENTIAL" /* SEQUENTIAL */;
@@ -1712,6 +1725,14 @@ class WPlaceBot {
   }
   logError(message, ...args) {
     console.error(`${LOG_PREFIX}[ERROR]`, message, ...args);
+  }
+  logMissingTile(tileId) {
+    if (!this.missingTiles.has(tileId))
+      return;
+    if (this.notifiedMissingTiles.has(tileId))
+      return;
+    this.notifiedMissingTiles.add(tileId);
+    this.logError(`Tile ${tileId} is not available in cache. Treating map pixel as transparent.`);
   }
   constructor() {
     const save2 = loadSave();
@@ -1879,6 +1900,8 @@ class WPlaceBot {
   readMap() {
     this.log("Starting map read operation.");
     this.mapsCache.clear();
+    this.missingTiles.clear();
+    this.notifiedMissingTiles.clear();
     const imagesToDownload = new Set;
     for (let index = 0;index < this.images.length; index++) {
       const image = this.images[index];
@@ -1889,20 +1912,25 @@ class WPlaceBot {
     }
     this.log(`Map read queued ${imagesToDownload.size} tiles for ${this.images.length} image(s).`, [...imagesToDownload].slice(0, 10));
     let done = 0;
-    return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () => Promise.all([...imagesToDownload].map(async (x) => {
-      try {
-        this.log(`Downloading tile ${x}.`);
-        this.mapsCache.set(x, await Pixels.fromJSON(this, {
-          url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-          exactColor: true
-        }));
-      } catch (error) {
-        this.logError(`Failed to download tile ${x}.`, error);
-        throw error;
-      }
-      this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
-      this.log(`Downloaded tile ${x}. Progress ${done}/${imagesToDownload.size}.`);
-    })));
+    return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, async () => {
+      await Promise.all([...imagesToDownload].map(async (x) => {
+        try {
+          this.log(`Downloading tile ${x}.`);
+          this.mapsCache.set(x, await Pixels.fromJSON(this, {
+            url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
+            exactColor: true
+          }));
+        } catch (error) {
+          this.missingTiles.add(x);
+          this.logError(`Failed to download tile ${x}.`, error);
+        } finally {
+          this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
+        }
+        this.log(`Processed tile ${x}. Progress ${done}/${imagesToDownload.size}.`);
+      }));
+      if (this.missingTiles.size !== 0)
+        this.logError(`Skipped ${this.missingTiles.size} tile(s) that failed to download.`, [...this.missingTiles].slice(0, 10));
+    });
   }
   waitForUnfocus() {
     return this.widget.run("UNFOCUS WINDOW", () => new Promise((resolve) => {
