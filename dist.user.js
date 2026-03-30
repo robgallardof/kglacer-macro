@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         wplace-bot
-// @namespace    https://github.com/SoundOfTheSky
+// @name         kglacer macro
+// @namespace    https://github.com/robgallardof
 // @version      4.5.1
 // @description  Bot to automate painting on website https://wplace.live
-// @author       SoundOfTheSky
+// @author       robgallardof
 // @license      MPL-2.0
-// @homepageURL  https://github.com/SoundOfTheSky/wplace-bot
-// @updateURL    https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
-// @downloadURL  https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
+// @homepageURL  https://github.com/robgallardof/kglacer-macro
+// @updateURL    https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
+// @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
 // @grant        none
@@ -1925,33 +1925,52 @@ class WPlaceBot {
     }
   }
   drawTask(task) {
-    if (this.lastColor !== task.color) {
-      document.getElementById("color-" + task.color).click();
-      this.lastColor = task.color;
-    }
-    const halfPixel = task.position.pixelSize / 2;
-    const position = task.position.toScreenPosition();
-    document.documentElement.dispatchEvent(new MouseEvent("mousemove", {
+    this.selectColor(task.color);
+    const { x, y } = this.getPixelCenterOnScreen(task.position);
+    this.paintScreenPoint(x, y);
+  }
+  selectColor(color) {
+    if (this.lastColor === color)
+      return;
+    document.getElementById("color-" + color).click();
+    this.lastColor = color;
+  }
+  getPixelCenterOnScreen(position) {
+    const screenPosition = position.toScreenPosition();
+    const halfPixel = position.pixelSize / 2;
+    return {
+      x: screenPosition.x + halfPixel,
+      y: screenPosition.y + halfPixel
+    };
+  }
+  paintScreenPoint(x, y) {
+    const paintSurface = document.querySelector("#map canvas") ?? document.querySelector(".maplibregl-canvas") ?? document.documentElement;
+    paintSurface.dispatchEvent(new MouseEvent("mousemove", {
       bubbles: true,
-      clientX: position.x + halfPixel,
-      clientY: position.y + halfPixel,
-      shiftKey: true
+      clientX: x,
+      clientY: y
     }));
-    document.documentElement.dispatchEvent(new KeyboardEvent("keydown", {
-      key: " ",
-      code: "Space",
-      keyCode: 32,
-      which: 32,
+    paintSurface.dispatchEvent(new MouseEvent("mousedown", {
       bubbles: true,
-      cancelable: true
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0,
+      buttons: 1
     }));
-    document.documentElement.dispatchEvent(new KeyboardEvent("keyup", {
-      key: " ",
-      code: "Space",
-      keyCode: 32,
-      which: 32,
+    paintSurface.dispatchEvent(new MouseEvent("mouseup", {
       bubbles: true,
-      cancelable: true
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0
+    }));
+    paintSurface.dispatchEvent(new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0
     }));
   }
   registerFetchInterceptor() {
