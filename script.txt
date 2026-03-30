@@ -10,9 +10,9 @@
 // @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
-// @grant        none
+// @inject-into  content
+// @grant        GM_addStyle
 // ==/UserScript==
 
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
-
