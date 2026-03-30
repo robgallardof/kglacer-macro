@@ -61,7 +61,7 @@ export class Pixels {
   ) {
     if (exactColor) {
       this.resolution = 1
-      this.width = 1000
+      this.width = image.naturalWidth
     } else this.resolution = this.image.naturalWidth / this.image.naturalHeight
     this.update()
   }

@@ -63,6 +63,14 @@ export function extractScreenPositionFromStar($star: HTMLDivElement) {
 }
 
 export class WorldPosition {
+  protected static floorDiv(value: number, divider: number) {
+    return Math.floor(value / divider)
+  }
+
+  protected static positiveMod(value: number, divider: number) {
+    return ((value % divider) + divider) % divider
+  }
+
   public static fromJSON(
     bot: WPlaceBot,
     data: ReturnType<WorldPosition['toJSON']>,
@@ -75,12 +83,14 @@ export class WorldPosition {
       bot.findAnchorsForScreen(position)
     return new WorldPosition(
       bot,
-      (anchorWorldPosition.x +
-        (position.x - anchorScreenPosition.x) / pixelSize) |
-        0,
-      (anchorWorldPosition.y +
-        (position.y - anchorScreenPosition.y) / pixelSize) |
-        0,
+      Math.floor(
+        anchorWorldPosition.x +
+          (position.x - anchorScreenPosition.x) / pixelSize,
+      ),
+      Math.floor(
+        anchorWorldPosition.y +
+          (position.y - anchorScreenPosition.y) / pixelSize,
+      ),
     )
   }
 
@@ -89,28 +99,28 @@ export class WorldPosition {
   public globalY = 0
 
   public get tileX(): number {
-    return (this.globalX / WORLD_TILE_SIZE) | 0
+    return WorldPosition.floorDiv(this.globalX, WORLD_TILE_SIZE)
   }
   public set tileX(value: number) {
     this.globalX = value * WORLD_TILE_SIZE + this.x
   }
 
   public get tileY(): number {
-    return (this.globalY / WORLD_TILE_SIZE) | 0
+    return WorldPosition.floorDiv(this.globalY, WORLD_TILE_SIZE)
   }
   public set tileY(value: number) {
     this.globalY = value * WORLD_TILE_SIZE + this.y
   }
 
   public get x(): number {
-    return this.globalX % WORLD_TILE_SIZE
+    return WorldPosition.positiveMod(this.globalX, WORLD_TILE_SIZE)
   }
   public set x(value: number) {
     this.globalX = this.tileX * WORLD_TILE_SIZE + value
   }
 
   public get y(): number {
-    return this.globalY % WORLD_TILE_SIZE
+    return WorldPosition.positiveMod(this.globalY, WORLD_TILE_SIZE)
   }
   public set y(value: number) {
     this.globalY = this.tileY * WORLD_TILE_SIZE + value

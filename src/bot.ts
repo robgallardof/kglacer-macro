@@ -12,6 +12,7 @@ import {
   FAVORITE_LOCATIONS,
   FAVORITE_LOCATIONS_POSITIONS,
   Position,
+  WORLD_TILE_SIZE,
   WorldPosition,
 } from './world-position'
 
@@ -120,12 +121,12 @@ export class WPlaceBot {
       for (let index = 0; index < save.images.length; index++) {
         const image = save.images[index]!
         addFavoriteLocation({
-          x: image.position[0] - 1000,
-          y: image.position[1] - 1000,
+          x: image.position[0] - WORLD_TILE_SIZE,
+          y: image.position[1] - WORLD_TILE_SIZE,
         })
         addFavoriteLocation({
-          x: image.position[0] + 1000,
-          y: image.position[1] + 1000,
+          x: image.position[0] + WORLD_TILE_SIZE,
+          y: image.position[1] + WORLD_TILE_SIZE,
         })
       }
       this.strategy = save.strategy
@@ -353,8 +354,8 @@ export class WPlaceBot {
       const image = this.images[index]!
       const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(
         this,
-        image.position.globalX + image.pixels.pixels[0]!.length,
-        image.position.globalY + image.pixels.pixels.length,
+        image.position.globalX + image.pixels.pixels[0]!.length - 1,
+        image.position.globalY + image.pixels.pixels.length - 1,
       )
       for (let tileX = image.position.tileX; tileX <= tileXEnd; tileX++)
         for (let tileY = image.position.tileY; tileY <= tileYEnd; tileY++)
