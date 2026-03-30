@@ -10,12 +10,12 @@
 // @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
-// @grant        none
+// @inject-into  content
+// @grant        GM_addStyle
 // ==/UserScript==
 
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
-
 // node_modules/@softsky/utils/dist/arrays.js
 function swap(array, index, index2) {
   const temporary = array[index2];
@@ -1689,6 +1689,8 @@ class Widget extends Base2 {
 
 // src/bot.ts
 var SAVE_VERSION = 2;
+var DEBUG_STORAGE_KEY = "wbot:debug";
+var LOG_PREFIX = "[ReadingMap]";
 
 class WPlaceBot {
   unavailableColors = new Set;
@@ -1700,6 +1702,17 @@ class WPlaceBot {
   widget = new Widget(this);
   markerPixelPositionResolvers = [];
   lastColor;
+  get debugEnabled() {
+    return localStorage.getItem(DEBUG_STORAGE_KEY) === "1";
+  }
+  log(message, ...args) {
+    if (!this.debugEnabled)
+      return;
+    console.log(LOG_PREFIX, message, ...args);
+  }
+  logError(message, ...args) {
+    console.error(`${LOG_PREFIX}[ERROR]`, message, ...args);
+  }
   constructor() {
     const save2 = loadSave();
     if (save2) {
@@ -1717,9 +1730,15 @@ class WPlaceBot {
       this.strategy = save2.strategy;
     }
     this.registerFetchInterceptor();
-    const style = document.createElement("style");
-    style.textContent = style_default.replace("FAKE_FAVORITE_LOCATIONS", FAVORITE_LOCATIONS.length.toString());
-    document.head.append(style);
+    this.log('Debug logs are enabled. Set localStorage "wbot:debug" to "0" to disable.');
+    const widgetCss = style_default.replace("FAKE_FAVORITE_LOCATIONS", FAVORITE_LOCATIONS.length.toString());
+    if (typeof GM_addStyle === "function")
+      GM_addStyle(widgetCss);
+    else {
+      const style = document.createElement("style");
+      style.textContent = widgetCss;
+      document.head.append(style);
+    }
     this.widget.run("Initializing", async () => {
       await this.waitForElement("login", ".avatar.center-absolute.absolute");
       await this.waitForElement("pixel count", ".btn.btn-primary.btn-lg.relative.z-30 canvas");
@@ -1760,10 +1779,14 @@ class WPlaceBot {
       if (!event.shiftKey)
         event.stopPropagation();
     };
+    const wheelListenerOptions = {
+      capture: true,
+      passive: true
+    };
     return this.widget.run("Drawing", async () => {
       await this.widget.run("Initializing draw", () => Promise.all([this.updateColors(), this.readMap()]));
       globalThis.addEventListener("mousemove", prevent, true);
-      $canvas.addEventListener("wheel", prevent, true);
+      $canvas.addEventListener("wheel", prevent, wheelListenerOptions);
       this.updateTasks();
       let n = 0;
       for (let index = 0;index < this.images.length; index++)
@@ -1815,7 +1838,7 @@ class WPlaceBot {
       this.widget.update();
     }, () => {
       globalThis.removeEventListener("mousemove", prevent, true);
-      $canvas.removeEventListener("wheel", prevent, true);
+      $canvas.removeEventListener("wheel", prevent, wheelListenerOptions);
       this.widget.setDisabled("draw", false);
     });
   }
@@ -1854,6 +1877,7 @@ class WPlaceBot {
     fire("mouseup", endX, endY);
   }
   readMap() {
+    this.log("Starting map read operation.");
     this.mapsCache.clear();
     const imagesToDownload = new Set;
     for (let index = 0;index < this.images.length; index++) {
@@ -1863,13 +1887,21 @@ class WPlaceBot {
         for (let tileY = image.position.tileY;tileY <= tileYEnd; tileY++)
           imagesToDownload.add(`${tileX}/${tileY}`);
     }
+    this.log(`Map read queued ${imagesToDownload.size} tiles for ${this.images.length} image(s).`, [...imagesToDownload].slice(0, 10));
     let done = 0;
     return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () => Promise.all([...imagesToDownload].map(async (x) => {
-      this.mapsCache.set(x, await Pixels.fromJSON(this, {
-        url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-        exactColor: true
-      }));
+      try {
+        this.log(`Downloading tile ${x}.`);
+        this.mapsCache.set(x, await Pixels.fromJSON(this, {
+          url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
+          exactColor: true
+        }));
+      } catch (error) {
+        this.logError(`Failed to download tile ${x}.`, error);
+        throw error;
+      }
       this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
+      this.log(`Downloaded tile ${x}. Progress ${done}/${imagesToDownload.size}.`);
     })));
   }
   waitForUnfocus() {
@@ -1987,6 +2019,7 @@ class WPlaceBot {
       else if (request instanceof URL)
         url = request.href;
       if (response.url === "https://backend.wplace.live/me") {
+        this.log("Intercepted /me response.");
         this.me = await cloned.json();
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS);
         this.me.maxFavoriteLocations = Infinity;
@@ -1994,6 +2027,7 @@ class WPlaceBot {
       }
       const pixelMatch = pixelRegExp.exec(url);
       if (pixelMatch) {
+        this.log(`Captured marker pixel response for world (${pixelMatch[1]}, ${pixelMatch[2]}) and tile pixel (${pixelMatch[3]}, ${pixelMatch[4]}).`);
         for (let index = 0;index < this.markerPixelPositionResolvers.length; index++)
           this.markerPixelPositionResolvers[index](new WorldPosition(this, +pixelMatch[1], +pixelMatch[2], +pixelMatch[3], +pixelMatch[4]));
         this.markerPixelPositionResolvers.length = 0;
@@ -2010,16 +2044,19 @@ class WPlaceBot {
     }
   }
   waitForElement(name, selector) {
+    this.log(`Waiting for element "${name}" using selector "${selector}".`);
     return this.widget.run(`Waiting for ${name}`, () => {
       return new Promise((resolve) => {
         const existing = document.querySelector(selector);
         if (existing) {
+          this.log(`Element "${name}" already exists.`);
           resolve(existing);
           return;
         }
         const observer = new MutationObserver(() => {
           const element = document.querySelector(selector);
           if (element) {
+            this.log(`Element "${name}" detected via mutation observer.`);
             observer.disconnect();
             resolve(element);
           }

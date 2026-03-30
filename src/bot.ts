@@ -50,6 +50,7 @@ export type Me = {
 const SAVE_VERSION = 2
 const DEBUG_STORAGE_KEY = 'wbot:debug'
 const LOG_PREFIX = '[ReadingMap]'
+declare const GM_addStyle: ((css: string) => HTMLStyleElement) | undefined
 
 /**
  * Main class. Initializes everything.
@@ -123,12 +124,16 @@ export class WPlaceBot {
     )
 
     // Embed styles
-    const style = document.createElement('style')
-    style.textContent = (css as string).replace(
+    const widgetCss = (css as string).replace(
       'FAKE_FAVORITE_LOCATIONS',
       FAVORITE_LOCATIONS.length.toString(),
     )
-    document.head.append(style)
+    if (typeof GM_addStyle === 'function') GM_addStyle(widgetCss)
+    else {
+      const style = document.createElement('style')
+      style.textContent = widgetCss
+      document.head.append(style)
+    }
 
     void this.widget.run('Initializing', async () => {
       // Waiting for all of website to load
