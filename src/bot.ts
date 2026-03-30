@@ -185,6 +185,10 @@ export class WPlaceBot {
     const prevent = (event: MouseEvent | WheelEvent) => {
       if (!event.shiftKey) event.stopPropagation()
     }
+    const wheelListenerOptions: AddEventListenerOptions = {
+      capture: true,
+      passive: true,
+    }
     return this.widget.run(
       'Drawing',
       async () => {
@@ -193,7 +197,7 @@ export class WPlaceBot {
         )
         // Stop mouse messing with drawing by capturing event
         globalThis.addEventListener('mousemove', prevent, true)
-        $canvas.addEventListener('wheel', prevent, true)
+        $canvas.addEventListener('wheel', prevent, wheelListenerOptions)
         this.updateTasks()
         let n = 0
         for (let index = 0; index < this.images.length; index++)
@@ -268,7 +272,7 @@ export class WPlaceBot {
       },
       () => {
         globalThis.removeEventListener('mousemove', prevent, true)
-        $canvas.removeEventListener('wheel', prevent, true)
+        $canvas.removeEventListener('wheel', prevent, wheelListenerOptions)
         this.widget.setDisabled('draw', false)
       },
     )
