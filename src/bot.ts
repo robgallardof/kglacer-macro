@@ -419,40 +419,64 @@ export class WPlaceBot {
 
   /** Draw one task */
   protected drawTask(task: DrawTask) {
-    if (this.lastColor !== task.color) {
-      ;(
-        document.getElementById('color-' + task.color) as HTMLButtonElement
-      ).click()
-      this.lastColor = task.color
+    this.selectColor(task.color)
+    const { x, y } = this.getPixelCenterOnScreen(task.position)
+    this.paintScreenPoint(x, y)
+  }
+
+  protected selectColor(color: number) {
+    if (this.lastColor === color) return
+    ;(document.getElementById('color-' + color) as HTMLButtonElement).click()
+    this.lastColor = color
+  }
+
+  protected getPixelCenterOnScreen(position: WorldPosition) {
+    const screenPosition = position.toScreenPosition()
+    const halfPixel = position.pixelSize / 2
+    return {
+      x: screenPosition.x + halfPixel,
+      y: screenPosition.y + halfPixel,
     }
-    const halfPixel = task.position.pixelSize / 2
-    const position = task.position.toScreenPosition()
-    document.documentElement.dispatchEvent(
+  }
+
+  protected paintScreenPoint(x: number, y: number) {
+    const paintSurface =
+      document.querySelector<HTMLElement>('#map canvas') ??
+      document.querySelector<HTMLElement>('.maplibregl-canvas') ??
+      document.documentElement
+    paintSurface.dispatchEvent(
       new MouseEvent('mousemove', {
         bubbles: true,
-        clientX: position.x + halfPixel,
-        clientY: position.y + halfPixel,
-        shiftKey: true,
+        clientX: x,
+        clientY: y,
       }),
     )
-    document.documentElement.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: ' ',
-        code: 'Space',
-        keyCode: 32,
-        which: 32,
+    paintSurface.dispatchEvent(
+      new MouseEvent('mousedown', {
         bubbles: true,
         cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        buttons: 1,
       }),
     )
-    document.documentElement.dispatchEvent(
-      new KeyboardEvent('keyup', {
-        key: ' ',
-        code: 'Space',
-        keyCode: 32,
-        which: 32,
+    paintSurface.dispatchEvent(
+      new MouseEvent('mouseup', {
         bubbles: true,
         cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+      }),
+    )
+    paintSurface.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
       }),
     )
   }
