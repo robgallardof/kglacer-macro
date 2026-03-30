@@ -62,6 +62,10 @@ export class WPlaceBot {
 
   /** Cache of parsed images of world map */
   public mapsCache = new Map<string, Pixels>()
+  /** Missing tiles in the latest map read cycle */
+  public missingTiles = new Set<string>()
+  /** Missing tiles that were already reported to the console */
+  protected notifiedMissingTiles = new Set<string>()
 
   /** Data about account */
   public me?: Me
@@ -96,6 +100,15 @@ export class WPlaceBot {
 
   protected logError(message: string, ...args: unknown[]) {
     console.error(`${LOG_PREFIX}[ERROR]`, message, ...args)
+  }
+
+  public logMissingTile(tileId: string) {
+    if (!this.missingTiles.has(tileId)) return
+    if (this.notifiedMissingTiles.has(tileId)) return
+    this.notifiedMissingTiles.add(tileId)
+    this.logError(
+      `Tile ${tileId} is not available in cache. Treating map pixel as transparent.`,
+    )
   }
 
   public constructor() {
@@ -333,6 +346,8 @@ export class WPlaceBot {
   public readMap() {
     this.log('Starting map read operation.')
     this.mapsCache.clear()
+    this.missingTiles.clear()
+    this.notifiedMissingTiles.clear()
     const imagesToDownload = new Set<string>()
     for (let index = 0; index < this.images.length; index++) {
       const image = this.images[index]!
@@ -350,28 +365,37 @@ export class WPlaceBot {
       [...imagesToDownload].slice(0, 10),
     )
     let done = 0
-    return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () =>
-      Promise.all(
-        [...imagesToDownload].map(async (x) => {
-          try {
-            this.log(`Downloading tile ${x}.`)
-            this.mapsCache.set(
-              x,
-              await Pixels.fromJSON(this, {
-                url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-                exactColor: true,
-              }),
+    return this.widget.run(
+      `Reading map [0/${imagesToDownload.size}]`,
+      async () => {
+        await Promise.all(
+          [...imagesToDownload].map(async (x) => {
+            try {
+              this.log(`Downloading tile ${x}.`)
+              this.mapsCache.set(
+                x,
+                await Pixels.fromJSON(this, {
+                  url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
+                  exactColor: true,
+                }),
+              )
+            } catch (error) {
+              this.missingTiles.add(x)
+              this.logError(`Failed to download tile ${x}.`, error)
+            } finally {
+              this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`
+            }
+            this.log(
+              `Processed tile ${x}. Progress ${done}/${imagesToDownload.size}.`,
             )
-          } catch (error) {
-            this.logError(`Failed to download tile ${x}.`, error)
-            throw error
-          }
-          this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`
-          this.log(
-            `Downloaded tile ${x}. Progress ${done}/${imagesToDownload.size}.`,
+          }),
+        )
+        if (this.missingTiles.size !== 0)
+          this.logError(
+            `Skipped ${this.missingTiles.size} tile(s) that failed to download.`,
+            [...this.missingTiles].slice(0, 10),
           )
-        }),
-      ),
+      },
     )
   }
 
