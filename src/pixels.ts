@@ -9,6 +9,17 @@ export type PixelColorStat = {
   realColor: number
 }
 
+export class FetchImageError extends Error {
+  public constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly url: string,
+  ) {
+    super(`Failed to fetch image (${status} ${statusText}) from ${url}`)
+    this.name = 'FetchImageError'
+  }
+}
+
 export class Pixels {
   public static async fromJSON(
     bot: WPlaceBot,
@@ -18,8 +29,10 @@ export class Pixels {
     image.src = data.url.startsWith('http')
       ? await fetch(data.url, { cache: 'no-store' }).then(async (response) => {
           if (!response.ok)
-            throw new Error(
-              `Failed to fetch image (${response.status} ${response.statusText}) from ${data.url}`,
+            throw new FetchImageError(
+              response.status,
+              response.statusText,
+              data.url,
             )
           const blob = await response.blob()
           return URL.createObjectURL(blob)

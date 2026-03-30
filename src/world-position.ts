@@ -54,12 +54,21 @@ addFavoriteLocation({
 //   }
 // }
 
-export function extractScreenPositionFromStar($star: HTMLDivElement) {
-  const [x, y] = $star.style.transform
-    .slice(32, -31)
-    .split(', ')
-    .map((x) => Number.parseFloat(x)) as [number, number]
-  return { x, y }
+export function extractScreenPositionFromStar($star?: HTMLDivElement) {
+  if (!$star) return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+  const translated =
+    /translate\(\s*(-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/.exec(
+      $star.style.transform,
+    ) ??
+    /translate3d\(\s*(-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px,\s*-?\d+(?:\.\d+)?px\)/.exec(
+      $star.style.transform,
+    )
+  if (!translated)
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+  return {
+    x: Number.parseFloat(translated[1]!),
+    y: Number.parseFloat(translated[2]!),
+  }
 }
 
 export class WorldPosition {
@@ -134,11 +143,17 @@ export class WorldPosition {
 
   /** Pixel size around with world position. Calculated on every read */
   public get pixelSize() {
+    const anchor1 = this.bot.$stars[this.anchor1Index]
+    const anchor2 = this.bot.$stars[this.anchor2Index]
+    if (!anchor1 || !anchor2) return 1
+    const worldDelta =
+      FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!.x -
+      FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!.x
+    if (worldDelta === 0) return 1
     return (
-      (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]!).x -
-        extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]!).x) /
-      (FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!.x -
-        FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!.x)
+      (extractScreenPositionFromStar(anchor2).x -
+        extractScreenPositionFromStar(anchor1).x) /
+      worldDelta
     )
   }
 
@@ -187,7 +202,7 @@ export class WorldPosition {
   public toScreenPosition(): Position {
     const worldPosition = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!
     const screenPosition = extractScreenPositionFromStar(
-      this.bot.$stars[this.anchor1Index]!,
+      this.bot.$stars[this.anchor1Index],
     )
     return {
       x: (this.globalX - worldPosition.x) * this.pixelSize + screenPosition.x,
