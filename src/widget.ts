@@ -39,6 +39,7 @@ export class Widget extends Base {
 	protected readonly $settings!: HTMLDivElement;
 	protected readonly $status!: HTMLDivElement;
 	protected readonly $minimize!: HTMLButtonElement;
+	protected readonly $hideWidget!: HTMLButtonElement;
 	protected readonly $topbar!: HTMLDivElement;
 	protected readonly $draw!: HTMLButtonElement;
 	protected readonly $addImage!: HTMLButtonElement;
@@ -61,6 +62,7 @@ export class Widget extends Base {
 			$settings: '.wform',
 			$status: '.wstatus',
 			$minimize: '.minimize',
+			$hideWidget: '.hide-widget',
 			$topbar: '.wtopbar',
 			$draw: '.draw',
 			$addImage: '.add-image',
@@ -73,6 +75,12 @@ export class Widget extends Base {
 
 		// Button actions
 		this.$wopenButton.addEventListener('click', () => (this.open = !this.open));
+		this.$minimize.addEventListener('click', () => {
+			this.minimize();
+		});
+		this.$hideWidget.addEventListener('click', () => {
+			this.open = false;
+		});
 		this.$draw.addEventListener('click', () => this.bot.draw());
 		// this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
 		this.$addImage.addEventListener('click', () => this.addImage());
@@ -234,7 +242,8 @@ export class Widget extends Base {
 
 	/** Hides content */
 	protected minimize() {
-		this.$settings.classList.toggle('hidden');
+		const minimized = this.$settings.classList.toggle('hidden');
+		this.$minimize.textContent = minimized ? '▢' : '▁';
 	}
 
 	// protected async pumpkinHunt() {

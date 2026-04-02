@@ -48,6 +48,8 @@ export type Me = {
 };
 
 const SAVE_VERSION = 2;
+const DRAW_STEP_WAIT_MS = 8;
+const DRAW_FAIL_RETRY_LIMIT = 3;
 
 /**
  * Main class. Initializes everything.
@@ -162,14 +164,25 @@ export class KglacerMacro {
 			'Drawing',
 			async () => {
 				await this.widget.run('Initializing draw', () => Promise.all([this.updateColors(), this.readMap()]));
+				this.updateTasks();
+				this.widget.update();
 
-				const canvas = document.querySelector('.maplibregl-canvas');
-				const firstTask = this.images[0].tasks[0];
+				const canvas = document.querySelector<HTMLCanvasElement>('.maplibregl-canvas');
+				if (!canvas) {
+					this.widget.status = '❌ Canvas not found';
+					return;
+				}
+				const firstTask = this.images.find((image) => image.tasks.length > 0)?.tasks[0];
+				if (!firstTask) {
+					this.widget.status = '✅ No pending pixels';
+					return;
+				}
+				const firstDrawTask = firstTask;
 
 				function waitForZoom(minPixelSize: number) {
 					return new Promise<void>((resolve) => {
 						function step() {
-							if (firstTask.position.pixelSize >= minPixelSize) {
+							if (firstDrawTask.position.pixelSize >= minPixelSize) {
 								resolve();
 								return;
 							}
@@ -188,11 +201,26 @@ export class KglacerMacro {
 				}
 
 				await waitForZoom(4);
+				canvas.dispatchEvent(
+					new MouseEvent('mousedown', {
+						clientX: canvas.clientWidth / 2,
+						clientY: canvas.clientHeight / 2,
+						bubbles: true,
+						buttons: 1,
+					})
+				);
+				canvas.dispatchEvent(
+					new MouseEvent('mouseup', {
+						clientX: canvas.clientWidth / 2,
+						clientY: canvas.clientHeight / 2,
+						bubbles: true,
+					})
+				);
+				await wait(5);
 
 				// Stop mouse messing with drawing by capturing event
 				globalThis.addEventListener('mousemove', prevent, true);
 				$canvas.addEventListener('wheel', prevent, true);
-				this.updateTasks();
 
 				const res = await fetch('https://backend.wplace.live/me', {
 					credentials: 'include',
@@ -208,11 +236,14 @@ export class KglacerMacro {
 						while (charges > 0) {
 							let end = true;
 							for (let imageIndex = 0; imageIndex < this.images.length; imageIndex++) {
-								const task = this.images[imageIndex]!.tasks.shift();
+								const image = this.images[imageIndex]!;
+								const task = image.tasks[0];
 								if (!task) continue;
-								this.drawTask(task);
+								const drawn = await this.drawTask(task);
+								if (!drawn) continue;
+								image.tasks.shift();
 								charges -= 1;
-								await wait(1);
+								await wait(DRAW_STEP_WAIT_MS);
 								end = false;
 							}
 							if (end) break;
@@ -233,19 +264,32 @@ export class KglacerMacro {
 									minImage = image;
 								}
 							}
-							this.drawTask(minImage.tasks.shift()!);
+							const task = minImage.tasks[0];
+							if (!task) continue;
+							const drawn = await this.drawTask(task);
+							if (!drawn) continue;
+							minImage.tasks.shift();
 							charges -= 1;
-							await wait(1);
+							await wait(DRAW_STEP_WAIT_MS);
 						}
 						break;
 					}
 					case BotStrategy.SEQUENTIAL: {
 						for (let imageIndex = 0; imageIndex < this.images.length; imageIndex++) {
 							const image = this.images[imageIndex]!;
-							for (let task = image.tasks.shift(); task && charges > 0; task = image.tasks.shift()) {
-								this.drawTask(task);
+							let failCount = 0;
+							for (let task = image.tasks[0]; task && charges > 0; task = image.tasks[0]) {
+								const drawn = await this.drawTask(task);
+								if (!drawn) {
+									failCount += 1;
+									if (failCount >= DRAW_FAIL_RETRY_LIMIT) break;
+									await wait(DRAW_STEP_WAIT_MS * 2);
+									continue;
+								}
+								failCount = 0;
+								image.tasks.shift();
 								charges -= 1;
-								await wait(1);
+								await wait(DRAW_STEP_WAIT_MS);
 							}
 						}
 					}
@@ -489,13 +533,16 @@ export class KglacerMacro {
 	}
 
 	/** Draw one task */
-	protected drawTask(task: DrawTask) {
+	protected async drawTask(task: DrawTask): Promise<boolean> {
+		const colorButton = document.getElementById('color-' + task.color) as HTMLButtonElement | null;
+		if (!colorButton) return false;
 		if (this.lastColor !== task.color) {
-			(document.getElementById('color-' + task.color) as HTMLButtonElement).click();
+			colorButton.click();
 			this.lastColor = task.color;
 		}
 		const halfPixel = task.position.pixelSize / 2;
 		const position = task.position.toScreenPosition();
+		if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) return false;
 		document.documentElement.dispatchEvent(
 			new MouseEvent('mousemove', {
 				bubbles: true,
@@ -514,6 +561,7 @@ export class KglacerMacro {
 				cancelable: true,
 			})
 		);
+		await wait(1);
 		document.documentElement.dispatchEvent(
 			new KeyboardEvent('keyup', {
 				key: ' ',
@@ -524,6 +572,7 @@ export class KglacerMacro {
 				cancelable: true,
 			})
 		);
+		return true;
 	}
 
 	/** Start listening to fetch requests */
