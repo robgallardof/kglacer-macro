@@ -108,11 +108,18 @@ export class WorldPosition {
 
 	/** Pixel size around with world position. Calculated on every read */
 	public get pixelSize() {
-		return (
-			(extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]!).x -
-				extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]!).x) /
-			(FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!.x - FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!.x)
-		);
+		const screen1 = extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]!);
+		const screen2 = extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]!);
+		const world1 = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!;
+		const world2 = FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!;
+		const deltaScreenX = screen2.x - screen1.x;
+		const deltaScreenY = screen2.y - screen1.y;
+		const deltaWorldX = world2.x - world1.x;
+		const deltaWorldY = world2.y - world1.y;
+		const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+		const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+		const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
+		return Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1;
 	}
 
 	public constructor(
@@ -134,26 +141,21 @@ export class WorldPosition {
 
 	/** Find closest anchor point for best accuracy */
 	public updateAnchor() {
-		this.anchor1Index = 0;
-		this.anchor2Index = 1;
-		let min1 = Infinity;
-		let min2 = Infinity;
-		for (let index = 0; index < FAVORITE_LOCATIONS_POSITIONS.length; index++) {
-			const { x, y } = FAVORITE_LOCATIONS_POSITIONS[index]!;
-			if (x < this.globalX && y < this.globalY) {
-				const delta = this.globalX - x + (this.globalY - y);
-				if (delta < min1) {
-					min1 = delta;
-					this.anchor1Index = index;
-				}
-			} else if (x > this.globalX && y > this.globalY) {
-				const delta = x - this.globalX + (y - this.globalY);
-				if (delta < min2) {
-					min2 = delta;
-					this.anchor2Index = index;
-				}
-			}
-		}
+		const ordered = FAVORITE_LOCATIONS_POSITIONS.map((position, index) => ({
+			index,
+			distance:
+				(position.x - this.globalX) * (position.x - this.globalX) +
+				(position.y - this.globalY) * (position.y - this.globalY),
+		})).sort((a, b) => a.distance - b.distance);
+		this.anchor1Index = ordered[0]?.index ?? 0;
+		this.anchor2Index =
+			ordered.find((candidate) => {
+				const primary = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!;
+				const other = FAVORITE_LOCATIONS_POSITIONS[candidate.index]!;
+				return primary.x !== other.x && primary.y !== other.y;
+			})?.index ??
+			ordered[1]?.index ??
+			this.anchor1Index;
 	}
 
 	/** Get screen position */

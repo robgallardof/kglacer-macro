@@ -33,8 +33,8 @@ export class Widget extends Base {
 		return this.element.classList.contains('wopen');
 	}
 	public set open(value) {
-		if (value) this.element.classList.add('wopen');
-		else this.element.classList.remove('wopen');
+		this.element.classList.toggle('wopen', value);
+		if (!value) this.setMinimized(false);
 	}
 
 	protected readonly $settings!: HTMLDivElement;
@@ -254,8 +254,13 @@ export class Widget extends Base {
 
 	/** Hides content */
 	protected minimize() {
-		const minimized = this.$settings.classList.toggle('hidden');
-		this.$minimize.textContent = minimized ? '▢' : '▁';
+		this.setMinimized(!this.element.classList.contains('wminimized'));
+	}
+
+	protected setMinimized(minimized: boolean) {
+		this.element.classList.toggle('wminimized', minimized);
+		this.$settings.classList.toggle('hidden', minimized);
+		this.$minimize.textContent = minimized ? '▢' : '—';
 	}
 
 	// protected async pumpkinHunt() {

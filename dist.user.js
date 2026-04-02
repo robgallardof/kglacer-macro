@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kglacer-macro
 // @namespace    https://github.com/robgallardof
-// @version      1.1.0
+// @version      1.1.1
 // @description  Bot to automate painting on website https://wplace.live
 // @author       Readixyee, SoundOfTheSky
 // @license      MPL-2.0
@@ -819,7 +819,18 @@ class WorldPosition {
   anchor1Index;
   anchor2Index;
   get pixelSize() {
-    return (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]).x - extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]).x) / (FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index].x - FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index].x);
+    const screen1 = extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]);
+    const screen2 = extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]);
+    const world1 = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
+    const world2 = FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index];
+    const deltaScreenX = screen2.x - screen1.x;
+    const deltaScreenY = screen2.y - screen1.y;
+    const deltaWorldX = world2.x - world1.x;
+    const deltaWorldY = world2.y - world1.y;
+    const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+    const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+    const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
+    return Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1;
   }
   constructor(bot, tileorGlobalX, tileorGlobalY, x, y) {
     this.bot = bot;
@@ -833,26 +844,16 @@ class WorldPosition {
     this.updateAnchor();
   }
   updateAnchor() {
-    this.anchor1Index = 0;
-    this.anchor2Index = 1;
-    let min1 = Infinity;
-    let min2 = Infinity;
-    for (let index = 0;index < FAVORITE_LOCATIONS_POSITIONS.length; index++) {
-      const { x, y } = FAVORITE_LOCATIONS_POSITIONS[index];
-      if (x < this.globalX && y < this.globalY) {
-        const delta = this.globalX - x + (this.globalY - y);
-        if (delta < min1) {
-          min1 = delta;
-          this.anchor1Index = index;
-        }
-      } else if (x > this.globalX && y > this.globalY) {
-        const delta = x - this.globalX + (y - this.globalY);
-        if (delta < min2) {
-          min2 = delta;
-          this.anchor2Index = index;
-        }
-      }
-    }
+    const ordered = FAVORITE_LOCATIONS_POSITIONS.map((position, index) => ({
+      index,
+      distance: (position.x - this.globalX) * (position.x - this.globalX) + (position.y - this.globalY) * (position.y - this.globalY)
+    })).sort((a, b) => a.distance - b.distance);
+    this.anchor1Index = ordered[0]?.index ?? 0;
+    this.anchor2Index = ordered.find((candidate) => {
+      const primary = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
+      const other = FAVORITE_LOCATIONS_POSITIONS[candidate.index];
+      return primary.x !== other.x && primary.y !== other.y;
+    })?.index ?? ordered[1]?.index ?? this.anchor1Index;
   }
   toScreenPosition() {
     const worldPosition = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
@@ -1071,7 +1072,9 @@ class BotImage extends Base2 {
   }
   update() {
     const { x, y } = this.position.toScreenPosition();
-    this.element.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+    const stableX = Math.round(x * 2) / 2;
+    const stableY = Math.round(y * 2) / 2;
+    this.element.style.transform = `translate3d(${stableX}px, ${stableY}px, 0)`;
     this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
     this.$canvas.style.opacity = `${this.opacity}%`;
     this.element.classList.remove("hidden");
@@ -1414,12 +1417,17 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .wwidget .title .widget-controls button {
-	width: 24px;
-	height: 24px;
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	width: 26px;
+	height: 26px;
 	border: 1px solid rgb(2 6 23 / 35%);
 	border-radius: 6px;
 	background: rgb(2 6 23 / 25%);
 	color: #020617;
+	font-weight: 700;
+	line-height: 1;
 	cursor: pointer;
 }
 
@@ -1521,6 +1529,28 @@ var style_default = `/* stylelint-disable declaration-no-important */
 
 .wwidget.wopen {
 	transform: translateX(0);
+}
+
+.wwidget.wminimized {
+	width: 78px;
+	height: 52px;
+	border-radius: 14px;
+}
+
+.wwidget.wminimized .title {
+	padding: 8px;
+	border: 0;
+}
+
+.wwidget.wminimized .title .app-name,
+.wwidget.wminimized .title .hide-widget {
+	display: none;
+}
+
+.wwidget.wminimized .title .widget-controls {
+	justify-content: center;
+	width: 100%;
+	padding-right: 0;
 }
 
 .wwidget .wopen-button div {
@@ -1940,7 +1970,7 @@ var widget_default = `<button class="wopen-button"><div>></div></button>
 <div class="title">
 	<span class="app-name">kglacer-macro</span>
 	<div class="widget-controls">
-		<button class="minimize" title="Minimizar">▁</button>
+		<button class="minimize" title="Minimizar">—</button>
 		<button class="hide-widget" title="Ocultar">✕</button>
 	</div>
 </div>
@@ -1983,10 +2013,9 @@ class Widget extends Base2 {
     return this.element.classList.contains("wopen");
   }
   set open(value) {
-    if (value)
-      this.element.classList.add("wopen");
-    else
-      this.element.classList.remove("wopen");
+    this.element.classList.toggle("wopen", value);
+    if (!value)
+      this.setMinimized(false);
   }
   $settings;
   $status;
@@ -2165,8 +2194,12 @@ class Widget extends Base2 {
     }
   }
   minimize() {
-    const minimized = this.$settings.classList.toggle("hidden");
-    this.$minimize.textContent = minimized ? "▢" : "▁";
+    this.setMinimized(!this.element.classList.contains("wminimized"));
+  }
+  setMinimized(minimized) {
+    this.element.classList.toggle("wminimized", minimized);
+    this.$settings.classList.toggle("hidden", minimized);
+    this.$minimize.textContent = minimized ? "▢" : "—";
   }
 }
 
@@ -2185,6 +2218,7 @@ class KglacerMacro {
   widget = new Widget(this);
   markerPixelPositionResolvers = [];
   lastColor;
+  imageUpdateFrame;
   constructor() {
     this.registerFetchInterceptor();
     this.bootstrap();
@@ -2516,32 +2550,31 @@ class KglacerMacro {
     }), undefined, "\uD83D\uDDB1️");
   }
   findAnchorsForScreen(position) {
-    let anchorIndex = 0;
-    let minI2 = 1;
-    let min1 = Infinity;
-    let min2 = Infinity;
-    for (let index = 0;index < this.$stars.length; index++) {
-      const { x, y } = extractScreenPositionFromStar(this.$stars[index]);
-      if (x < position.x && y < position.y) {
-        const delta = position.x - x + (position.y - y);
-        if (delta < min1) {
-          min1 = delta;
-          anchorIndex = index;
-        }
-      } else if (x > position.x && y > position.y) {
-        const delta = x - position.x + (y - position.y);
-        if (delta < min2) {
-          min2 = delta;
-          minI2 = index;
-        }
-      }
-    }
-    const anchorScreenPosition = extractScreenPositionFromStar(this.$stars[anchorIndex]);
-    const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex];
+    const anchors = this.$stars.map(($star, index) => ({
+      index,
+      screen: extractScreenPositionFromStar($star),
+      world: FAVORITE_LOCATIONS_POSITIONS[index]
+    }));
+    const byDistance = [...anchors].sort((a, b) => {
+      const adx = a.screen.x - position.x;
+      const ady = a.screen.y - position.y;
+      const bdx = b.screen.x - position.x;
+      const bdy = b.screen.y - position.y;
+      return adx * adx + ady * ady - (bdx * bdx + bdy * bdy);
+    });
+    const primary = byDistance[0];
+    const secondary = byDistance.find((candidate) => candidate.world.x !== primary.world.x && candidate.world.y !== primary.world.y) ?? byDistance[1] ?? primary;
+    const deltaScreenX = secondary.screen.x - primary.screen.x;
+    const deltaScreenY = secondary.screen.y - primary.screen.y;
+    const deltaWorldX = secondary.world.x - primary.world.x;
+    const deltaWorldY = secondary.world.y - primary.world.y;
+    const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+    const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+    const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
     return {
-      anchorScreenPosition,
-      anchorWorldPosition,
-      pixelSize: (extractScreenPositionFromStar(this.$stars[minI2]).x - anchorScreenPosition.x) / (FAVORITE_LOCATIONS_POSITIONS[minI2].x - anchorWorldPosition.x)
+      anchorScreenPosition: primary.screen,
+      anchorWorldPosition: primary.world,
+      pixelSize: Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1
     };
   }
   async openColors() {
@@ -2657,8 +2690,13 @@ class KglacerMacro {
     ].slice(0, FAVORITE_LOCATIONS.length);
   }
   updateImages() {
-    for (let index = 0;index < this.images.length; index++)
-      this.images[index].update();
+    if (this.imageUpdateFrame)
+      return;
+    this.imageUpdateFrame = requestAnimationFrame(() => {
+      this.imageUpdateFrame = undefined;
+      for (let index = 0;index < this.images.length; index++)
+        this.images[index].update();
+    });
   }
   updateTasks() {
     for (let index = 0;index < this.images.length; index++)

@@ -81,6 +81,7 @@ export class KglacerMacro {
 
 	/** Last color drawn */
 	protected lastColor?: number;
+	protected imageUpdateFrame?: number;
 
 	public constructor() {
 		// NEEDS TO RUN FIRST TO MAKE SURE THE /me IS INTERCEPTED
@@ -481,34 +482,36 @@ export class KglacerMacro {
 
 	/** Find anchor data for screen postition */
 	public findAnchorsForScreen(position: Position) {
-		let anchorIndex = 0;
-		let minI2 = 1;
-		let min1 = Infinity;
-		let min2 = Infinity;
-		for (let index = 0; index < this.$stars.length; index++) {
-			const { x, y } = extractScreenPositionFromStar(this.$stars[index]!);
-			if (x < position.x && y < position.y) {
-				const delta = position.x - x + (position.y - y);
-				if (delta < min1) {
-					min1 = delta;
-					anchorIndex = index;
-				}
-			} else if (x > position.x && y > position.y) {
-				const delta = x - position.x + (y - position.y);
-				if (delta < min2) {
-					min2 = delta;
-					minI2 = index;
-				}
-			}
-		}
-		const anchorScreenPosition = extractScreenPositionFromStar(this.$stars[anchorIndex]!);
-		const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex]!;
+		const anchors = this.$stars.map(($star, index) => ({
+			index,
+			screen: extractScreenPositionFromStar($star),
+			world: FAVORITE_LOCATIONS_POSITIONS[index]!,
+		}));
+		const byDistance = [...anchors].sort((a, b) => {
+			const adx = a.screen.x - position.x;
+			const ady = a.screen.y - position.y;
+			const bdx = b.screen.x - position.x;
+			const bdy = b.screen.y - position.y;
+			return adx * adx + ady * ady - (bdx * bdx + bdy * bdy);
+		});
+		const primary = byDistance[0]!;
+		const secondary =
+			byDistance.find(
+				(candidate) => candidate.world.x !== primary.world.x && candidate.world.y !== primary.world.y
+			) ??
+			byDistance[1] ??
+			primary;
+		const deltaScreenX = secondary.screen.x - primary.screen.x;
+		const deltaScreenY = secondary.screen.y - primary.screen.y;
+		const deltaWorldX = secondary.world.x - primary.world.x;
+		const deltaWorldY = secondary.world.y - primary.world.y;
+		const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+		const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+		const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
 		return {
-			anchorScreenPosition,
-			anchorWorldPosition,
-			pixelSize:
-				(extractScreenPositionFromStar(this.$stars[minI2]!).x - anchorScreenPosition.x) /
-				(FAVORITE_LOCATIONS_POSITIONS[minI2]!.x - anchorWorldPosition.x),
+			anchorScreenPosition: primary.screen,
+			anchorWorldPosition: primary.world,
+			pixelSize: Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1,
 		};
 	}
 
@@ -656,7 +659,11 @@ export class KglacerMacro {
 
 	/** Update images position and contents */
 	protected updateImages() {
-		for (let index = 0; index < this.images.length; index++) this.images[index]!.update();
+		if (this.imageUpdateFrame) return;
+		this.imageUpdateFrame = requestAnimationFrame(() => {
+			this.imageUpdateFrame = undefined;
+			for (let index = 0; index < this.images.length; index++) this.images[index]!.update();
+		});
 	}
 
 	/** Update tasks of all images */
