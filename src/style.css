@@ -4,17 +4,17 @@
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
-	--hover: #dfdfdf;
-	--text-invert: #fff;
-	--error: #f00;
+	--hover: #c8d4ea;
+	--text-invert: #f8fafc;
+	--error: #ef4444;
 	--resize: 8px;
 	--asdadsasdasdasdasdasdasdasd: 1px;
-	--text: #422e2c;
-	--background: #fbe3cb;
-	--background-hover: #f0d1b3;
-	--background-disabled: #a37648;
-	--main: #66bbb4;
-	--main-hover: #48a19a;
+	--text: #172033;
+	--background: #f5f7ff;
+	--background-hover: #dde6ff;
+	--background-disabled: #95a3bf;
+	--main: #4f7cff;
+	--main-hover: #3a62da;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -364,17 +364,17 @@
 	position: fixed;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%);
+	min-width: 220px;
+	padding: 16px;
 	border: var(--text) 2px solid;
 	background: var(--background);
 	color: var(--text);
 	font-family: 'Tiny5', sans-serif;
-	padding: 16px;
-	min-width: 220px;
+	transform: translate(-50%, -50%);
 }
 
 .custom-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.45);
+	background: rgb(0 0 0 / 45%);
 }
 
 .custom-dialog form {
@@ -410,16 +410,17 @@
 .custom-dialog button:hover {
 	background: var(--main-hover);
 }
+
 .wform.popup {
 	position: fixed;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%);
-	border: 2px solid #ccc;
-	padding: 1rem;
-	box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
-	display: none;
 	z-index: 999;
+	display: none;
+	padding: 1rem;
+	border: var(--text) 2px solid;
+	box-shadow: 0 0 15px rgb(0 0 0 / 30%);
+	transform: translate(-50%, -50%);
 }
 
 .wform.popup.show {
@@ -427,18 +428,18 @@
 }
 
 .wform.popup .close-popup {
-	border: none;
-	background: #f00;
-	color: #fff;
+	float: right;
 	width: 24px;
 	height: 24px;
-	cursor: pointer;
+	border: none;
+	background: var(--error);
+	color: #fff;
 	font-size: 16px;
 	line-height: 24px;
 	text-align: center;
-	float: right;
+	cursor: pointer;
 }
 
 .wform.popup .close-popup:hover {
-	background: #c00;
+	background: #b91c1c;
 }

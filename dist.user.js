@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         wplace-bot fixed
-// @namespace    https://github.com/Readixyee
+// @name         kglacer-macro
+// @namespace    https://github.com/robgallardof
 // @version      1.5.1
 // @description  Bot to automate painting on website https://wplace.live
 // @author       Readixyee, SoundOfTheSky
 // @license      MPL-2.0
-// @homepageURL  https://github.com/Readixyee/wplace-bot
-// @updateURL    https://raw.githubusercontent.com/Readixyee/wplace-bot/main/dist.user.js
-// @downloadURL  https://raw.githubusercontent.com/Readixyee/wplace-bot/main/dist.user.js
+// @homepageURL  https://github.com/robgallardof/kglacer-macro
+// @updateURL    https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/dist.user.js
+// @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/dist.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
 // @grant        none
