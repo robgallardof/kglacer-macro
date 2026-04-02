@@ -1,6 +1,6 @@
 <button class="wopen-button"><div>></div></button>
 <div class="title">
-	<span>kglacer-macro</span>
+	<span class="app-name">kglacer-macro</span>
 	<div class="widget-controls">
 		<button class="minimize" title="Minimizar">▁</button>
 		<button class="hide-widget" title="Ocultar">✕</button>
@@ -12,15 +12,20 @@
 		<span></span>
 	</div>
 	<div class="wp wstatus"></div>
-	<button class="draw" disabled>Draw</button>
-	<label
-		>Strategy:&nbsp;<select class="strategy">
-			<option value="SEQUENTIAL" selected>Sequential</option>
-			<option value="ALL">All</option>
-			<option value="PERCENTAGE">Percentage</option>
-		</select></label
-	>
-	<div class="images"></div>
+	<div class="wmain-actions">
+		<button class="draw" disabled>Draw</button>
+		<button class="toggle-panel" type="button" title="Mostrar/Ocultar opciones">•••</button>
+	</div>
+	<div class="wextra-panel">
+		<label
+			>Strategy:&nbsp;<select class="strategy">
+				<option value="SEQUENTIAL" selected>Sequential</option>
+				<option value="ALL">All</option>
+				<option value="PERCENTAGE">Percentage</option>
+			</select></label
+		>
+		<div class="images"></div>
+	</div>
 	<!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
 	<button class="add-image" disabled>Add image</button>
 </div>

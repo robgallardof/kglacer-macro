@@ -78,6 +78,24 @@
 	padding: 10px 8px 12px;
 }
 
+.wwidget .wform .wmain-actions {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+}
+
+.wwidget .wform .toggle-panel {
+	padding: 9px 10px;
+	border-color: rgb(148 163 184 / 45%);
+	background: linear-gradient(180deg, rgb(30 41 59 / 80%), rgb(15 23 42 / 90%));
+	color: #cbd5e1;
+	letter-spacing: 1px;
+}
+
+.wwidget .wform .wextra-panel.hidden {
+	display: none;
+}
+
 .wwidget .wform > * {
 	border-radius: 10px;
 }
@@ -107,6 +125,12 @@
 	padding: 6px 10px;
 	border: 1px solid rgb(56 189 248 / 45%);
 	background: linear-gradient(180deg, rgb(15 23 42 / 85%), rgb(2 6 23 / 85%));
+	color: #e2e8f0;
+	appearance: none;
+}
+
+.wwidget .wform select option {
+	background: #0f172a;
 	color: #e2e8f0;
 }
 
@@ -202,12 +226,15 @@
 	top: 0;
 	left: 0;
 	z-index: 9;
+	user-select: none;
+	will-change: transform, width;
 }
 
 .wimage canvas {
 	width: 100%;
 	box-shadow: inset var(--text) 0 0 0 2px;
 	cursor: all-scroll;
+	transform: translateZ(0);
 	image-rendering: pixelated;
 }
 

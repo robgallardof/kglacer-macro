@@ -6,6 +6,7 @@ import { NoImageError, KglacerMacroError } from './errors';
 import { BotImage } from './image';
 import { Pixels } from './pixels';
 import { save } from './save';
+import { APP_NAME } from './version';
 // @ts-ignore
 import html from './widget.html' with { type: 'text' };
 import { WorldPosition } from './world-position';
@@ -42,12 +43,15 @@ export class Widget extends Base {
 	protected readonly $hideWidget!: HTMLButtonElement;
 	protected readonly $topbar!: HTMLDivElement;
 	protected readonly $draw!: HTMLButtonElement;
+	protected readonly $togglePanel!: HTMLButtonElement;
+	protected readonly $extraPanel!: HTMLDivElement;
 	protected readonly $addImage!: HTMLButtonElement;
 	protected readonly $strategy!: HTMLInputElement;
 	protected readonly $progressLine!: HTMLDivElement;
 	protected readonly $progressText!: HTMLSpanElement;
 	protected readonly $images!: HTMLDivElement;
 	protected readonly $wopenButton!: HTMLButtonElement;
+	protected readonly $appName!: HTMLSpanElement;
 
 	// protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -65,13 +69,17 @@ export class Widget extends Base {
 			$hideWidget: '.hide-widget',
 			$topbar: '.wtopbar',
 			$draw: '.draw',
+			$togglePanel: '.toggle-panel',
+			$extraPanel: '.wextra-panel',
 			$addImage: '.add-image',
 			$strategy: '.strategy',
 			$progressLine: '.wprogress div',
 			$progressText: '.wprogress span',
 			$images: '.images',
+			$appName: '.app-name',
 			// $pumpkinHunt: '.pumpkin-hunt',
 		});
+		this.$appName.textContent = APP_NAME;
 
 		// Button actions
 		this.$wopenButton.addEventListener('click', () => (this.open = !this.open));
@@ -82,6 +90,10 @@ export class Widget extends Base {
 			this.open = false;
 		});
 		this.$draw.addEventListener('click', () => this.bot.draw());
+		this.$togglePanel.addEventListener('click', () => {
+			const hidden = this.$extraPanel.classList.toggle('hidden');
+			this.$togglePanel.textContent = hidden ? '○' : '•••';
+		});
 		// this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
 		this.$addImage.addEventListener('click', () => this.addImage());
 		this.$strategy.addEventListener('change', () => {
