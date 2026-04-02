@@ -53,7 +53,7 @@ const SAVE_VERSION = 2;
  * Main class. Initializes everything.
  * Used to interact with wplace
  * */
-export class WPlaceBot {
+export class KglacerMacro {
 	/** Colors that can be bought */
 	public unavailableColors = new Set<number>();
 
@@ -307,7 +307,7 @@ export class WPlaceBot {
 		await this.loadCacheFromDB();
 
 		const imagesToDownload = new Set<string>();
-		for (let image of this.images) {
+		for (const image of this.images) {
 			const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(
 				this,
 				image.position.globalX + image.pixels.pixels[0]!.length,
@@ -326,9 +326,9 @@ export class WPlaceBot {
 					const url = `https://backend.wplace.live/files/s0/tiles/${x}.png`;
 					const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
 					const lastModified = response.headers.get('last-modified') || '';
-					let cached = this.mapsCache.get(x);
+					const cached = this.mapsCache.get(x);
 
-					if (!cached || cached.lastModified !== lastModified) {
+					if (cached?.lastModified !== lastModified) {
 						const newPixels = await Pixels.fromJSON(this, { url, exactColor: true }, { skipCache: true });
 						const tileData = { pixels: newPixels.pixels, lastModified };
 						this.mapsCache.set(x, tileData);
@@ -350,8 +350,12 @@ export class WPlaceBot {
 					db.createObjectStore('tiles');
 				}
 			};
-			request.onsuccess = () => resolve(request.result);
-			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				resolve(request.result);
+			};
+			request.onerror = () => {
+				reject(request.error);
+			};
 		});
 	}
 
@@ -360,8 +364,12 @@ export class WPlaceBot {
 			const tx = db.transaction('tiles', 'readwrite');
 			const store = tx.objectStore('tiles');
 			const req = store.put(value, key);
-			req.onsuccess = () => resolve();
-			req.onerror = () => reject(req.error);
+			req.onsuccess = () => {
+				resolve();
+			};
+			req.onerror = () => {
+				reject(req.error);
+			};
 		});
 	}
 
@@ -370,8 +378,12 @@ export class WPlaceBot {
 			const tx = db.transaction('tiles', 'readonly');
 			const store = tx.objectStore('tiles');
 			const req = store.get(key);
-			req.onsuccess = () => resolve(req.result);
-			req.onerror = () => reject(req.error);
+			req.onsuccess = () => {
+				resolve(req.result);
+			};
+			req.onerror = () => {
+				reject(req.error);
+			};
 		});
 	}
 
@@ -382,8 +394,12 @@ export class WPlaceBot {
 			const tx = db.transaction('tiles', 'readonly');
 			const store = tx.objectStore('tiles');
 			const req = store.getAllKeys();
-			req.onsuccess = () => resolve(req.result as string[]);
-			req.onerror = () => reject(req.error);
+			req.onsuccess = () => {
+				resolve(req.result as string[]);
+			};
+			req.onerror = () => {
+				reject(req.error);
+			};
 		});
 
 		for (const key of keys) {
@@ -606,4 +622,6 @@ export class WPlaceBot {
 }
 
 // @ts-ignore
-globalThis.wbot = new WPlaceBot();
+globalThis.kglacerMacro = new KglacerMacro();
+// @ts-ignore
+globalThis.wbot = globalThis.kglacerMacro;

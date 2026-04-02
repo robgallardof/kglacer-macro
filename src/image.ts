@@ -1,7 +1,7 @@
 import { removeFromArray } from '@softsky/utils';
 
 import { Base } from './base';
-import { WPlaceBot } from './bot';
+import { KglacerMacro } from './bot';
 import { colorToCSS } from './colors';
 // @ts-ignore
 import html from './image.html' with { type: 'text' };
@@ -30,7 +30,7 @@ export enum ImageStrategy {
 }
 
 export class BotImage extends Base {
-	public static async fromJSON(bot: WPlaceBot, data: ReturnType<BotImage['toJSON']>) {
+	public static async fromJSON(bot: KglacerMacro, data: ReturnType<BotImage['toJSON']>) {
 		return new BotImage(
 			bot,
 			WorldPosition.fromJSON(bot, data.position),
@@ -78,7 +78,7 @@ export class BotImage extends Base {
 	protected readonly $wrapper!: HTMLDivElement;
 
 	public constructor(
-		protected bot: WPlaceBot,
+		protected bot: KglacerMacro,
 		/** Top-left corner of image */
 		public position: WorldPosition,
 		/** Parsed imageto draw */
@@ -276,8 +276,8 @@ export class BotImage extends Base {
 	/** Update image (NOT PIXELS) */
 	public update() {
 		const { x, y } = this.position.toScreenPosition();
-		this.element.style.transform = `translate(${x}px, ${y}px)`;
-		this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`;
+		this.element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+		this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
 		this.$canvas.style.opacity = `${this.opacity}%`;
 		this.element.classList.remove('hidden');
 

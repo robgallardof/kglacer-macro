@@ -1,4 +1,4 @@
-import { Me, WPlaceBot } from './bot';
+import { Me, KglacerMacro } from './bot';
 
 export type Position = {
 	x: number;
@@ -22,7 +22,7 @@ export function addFavoriteLocation(position: Position) {
 				180) /
 			Math.PI,
 		longitude: (((position.x / WORLD_PIXEL_SIZE) * (2 * Math.PI) - Math.PI) * 180) / Math.PI,
-		name: 'WBOT_FAVORITE',
+		name: 'KGLACER_MACRO_FAVORITE',
 	});
 }
 
@@ -55,11 +55,11 @@ export function extractScreenPositionFromStar($star: HTMLDivElement) {
 }
 
 export class WorldPosition {
-	public static fromJSON(bot: WPlaceBot, data: ReturnType<WorldPosition['toJSON']>) {
+	public static fromJSON(bot: KglacerMacro, data: ReturnType<WorldPosition['toJSON']>) {
 		return new WorldPosition(bot, ...data);
 	}
 
-	public static fromScreenPosition(bot: WPlaceBot, position: Position) {
+	public static fromScreenPosition(bot: KglacerMacro, position: Position) {
 		const { anchorScreenPosition, pixelSize, anchorWorldPosition } = bot.findAnchorsForScreen(position);
 		return new WorldPosition(
 			bot,
@@ -116,7 +116,7 @@ export class WorldPosition {
 	}
 
 	public constructor(
-		protected bot: WPlaceBot,
+		protected bot: KglacerMacro,
 		tileorGlobalX: number,
 		tileorGlobalY: number,
 		x?: number,
@@ -175,8 +175,8 @@ export class WorldPosition {
 	public scrollScreenTo() {
 		const { x, y } = this.toScreenPosition();
 		this.bot.moveMap({
-			x: x - window.innerWidth / 3,
-			y: y - window.innerHeight / 3,
+			x: Math.round(x - window.innerWidth / 3),
+			y: Math.round(y - window.innerHeight / 3),
 		});
 	}
 
