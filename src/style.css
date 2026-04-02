@@ -1,6 +1,7 @@
 /* stylelint-disable declaration-no-important */
 /* stylelint-disable plugin/no-low-performance-animation-properties */
 /* stylelint-disable no-descending-specificity */
+@import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap';
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
@@ -37,19 +38,108 @@
 	background: linear-gradient(180deg, rgb(15 23 42 / 97%), rgb(2 6 23 / 97%));
 	color: #e2e8f0;
 	box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
-	font-family: 'Tiny5', sans-serif;
+	font-family: Poppins, sans-serif;
 	transition: transform 0.35s ease;
 	transform: translateX(-100%);
 	backdrop-filter: blur(6px);
 }
 
 .wwidget .title {
-	padding: 6px 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 0;
 	border-bottom: 1px solid rgb(148 163 184 / 25%);
 	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 	color: #020617;
-	font-size: 32px;
+	font-weight: 700;
+	font-size: 20px;
+	letter-spacing: 0.3px;
 	text-align: center;
+}
+
+.wwidget .title .widget-controls {
+	display: flex;
+	gap: 4px;
+	padding-right: 8px;
+}
+
+.wwidget .title .widget-controls button {
+	width: 24px;
+	height: 24px;
+	border: 1px solid rgb(2 6 23 / 35%);
+	border-radius: 6px;
+	background: rgb(2 6 23 / 25%);
+	color: #020617;
+	cursor: pointer;
+}
+
+.wwidget .wform {
+	padding: 10px 8px 12px;
+}
+
+.wwidget .wform > * {
+	border-radius: 10px;
+}
+
+.wwidget .wform button,
+.wwidget .wform input,
+.wwidget .wform select,
+.wwidget .wform label {
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(15 23 42 / 70%);
+	color: #e2e8f0;
+	font-weight: 600;
+	font-size: 13px;
+	font-family: Poppins, sans-serif;
+}
+
+.wwidget .wform label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 10px;
+}
+
+.wwidget .wform select {
+	min-width: 130px;
+	padding: 6px 10px;
+	border: 1px solid rgb(56 189 248 / 45%);
+	background: linear-gradient(180deg, rgb(15 23 42 / 85%), rgb(2 6 23 / 85%));
+	color: #e2e8f0;
+}
+
+.wwidget .wform button {
+	padding: 9px 12px;
+	background: linear-gradient(180deg, rgb(30 41 59 / 90%), rgb(15 23 42 / 90%));
+}
+
+.wwidget .wform button:hover,
+.wwidget .wform select:hover {
+	border-color: rgb(14 165 233 / 70%);
+	background: linear-gradient(180deg, rgb(14 116 144 / 35%), rgb(30 41 59 / 80%));
+}
+
+.wwidget .wform button.draw {
+	border-color: rgb(34 211 238 / 65%);
+	background: linear-gradient(180deg, rgb(14 165 233 / 45%), rgb(30 64 175 / 65%));
+	color: #f8fafc;
+}
+
+.wwidget .wform button.add-image {
+	border-color: rgb(56 189 248 / 45%);
+}
+
+.wwidget .wform .wprogress {
+	height: 32px;
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(2 6 23 / 65%);
+}
+
+.wwidget .wform .wprogress div {
+	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 }
 
 .wwidget.wopen .wopen-button div {
