@@ -277,7 +277,9 @@ export class BotImage extends Base {
 	/** Update image (NOT PIXELS) */
 	public update() {
 		const { x, y } = this.position.toScreenPosition();
-		this.element.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+		const stableX = Math.round(x * 2) / 2;
+		const stableY = Math.round(y * 2) / 2;
+		this.element.style.transform = `translate3d(${stableX}px, ${stableY}px, 0)`;
 		this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
 		this.$canvas.style.opacity = `${this.opacity}%`;
 		this.element.classList.remove('hidden');
