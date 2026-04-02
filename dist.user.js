@@ -1,21 +1,22 @@
 // ==UserScript==
-// @name         kglacer macro
-// @namespace    https://github.com/robgallardof
-// @version      4.5.1
+// @name         wplace-bot fixed
+// @namespace    https://github.com/Readixyee
+// @version      1.5.1
 // @description  Bot to automate painting on website https://wplace.live
-// @author       robgallardof
+// @author       Readixyee, SoundOfTheSky
 // @license      MPL-2.0
-// @homepageURL  https://github.com/robgallardof/kglacer-macro
-// @updateURL    https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
-// @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
+// @homepageURL  https://github.com/Readixyee/wplace-bot
+// @updateURL    https://raw.githubusercontent.com/Readixyee/wplace-bot/main/dist.user.js
+// @downloadURL  https://raw.githubusercontent.com/Readixyee/wplace-bot/main/dist.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
-// @inject-into  content
-// @grant        GM_addStyle
+// @grant        none
 // ==/UserScript==
 
+// Forked from: https://github.com/SoundOfTheSky/wplace-bot
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
+
 // node_modules/@softsky/utils/dist/arrays.js
 function swap(array, index, index2) {
   const temporary = array[index2];
@@ -375,42 +376,43 @@ function colorToCSS(colorId) {
 
 // src/image.html
 var image_default = `<div class="wtopbar">
-  <button class="export">📤</button>
-  <button class="lock">🔓</button>
-  <button class="delete">❌</button>
+	<button class="export">📤</button>
+	<button class="lock">🔓</button>
+	<button class="settings">⚙️</button>
+	<button class="delete">❌</button>
 </div>
+
 <div class="wrapper">
-  <div class="wform">
-    <div class="wprogress">
-      <div></div>
-      <span></span>
-    </div>
-    <div class="colors"></div>
-    <label>Opacity:&nbsp;<input class="opacity" type="range" min="0" max="100"/></label>
-    <label>Brightness:&nbsp;<input class="brightness" type="number" step="0.1"/></label>
-    <label>
-      Strategy:&nbsp;<select class="strategy">
-        <option value="RANDOM" selected>Random</option>
-        <option value="DOWN">Down</option>
-        <option value="UP">Up</option>
-        <option value="LEFT">Left</option>
-        <option value="RIGHT">Right</option>
-        <option value="SPIRAL_FROM_CENTER">Spiral out</option>
-        <option value="SPIRAL_TO_CENTER">Spiral in</option>
-      </select>
-    </label>
-    <button class="reset-size">Reset size [<span></span>px]</button>
-    <label>
-      <input type="checkbox" class="draw-transparent" />&nbsp;Erase transparent pixels
-    </label>
-    <label>
-      <input type="checkbox" class="draw-colors-in-order" />&nbsp;Draw colors in order
-    </label>
-  </div>
-  <div class="resize n"></div>
-  <div class="resize e"></div>
-  <div class="resize s"></div>
-  <div class="resize w"></div>
+	<div class="resize n"></div>
+	<div class="resize e"></div>
+	<div class="resize s"></div>
+	<div class="resize w"></div>
+</div>
+
+<div class="wform popup">
+	<button class="close-popup">✖</button>
+	<div class="wprogress">
+		<div></div>
+		<span></span>
+	</div>
+	<div class="colors"></div>
+	<label>Opacity:&nbsp;<input class="opacity" type="range" min="0" max="100" /></label>
+	<label>Brightness:&nbsp;<input class="brightness" type="number" step="0.1" /></label>
+	<label>
+		Strategy:&nbsp;<select class="strategy">
+			<option value="RANDOM" selected>Random</option>
+			<option value="DOWN">Down</option>
+			<option value="UP">Up</option>
+			<option value="LEFT">from Left to Right</option>
+			<option value="RIGHT">from Right to Left</option>
+			<option value="SPIRAL_FROM_CENTER">Spiral out</option>
+			<option value="SPIRAL_TO_CENTER">Spiral in</option>
+		</select>
+	</label>
+	<label> Resize to:&nbsp;<input type="number" class="resize-number" min="1" /> </label>
+	<button class="reset-size">Reset size [<span></span>px]</button>
+	<label> <input type="checkbox" class="draw-transparent" />&nbsp;Erase transparent pixels </label>
+	<label> <input type="checkbox" class="draw-colors-in-order" />&nbsp;Draw colors in order </label>
 </div>
 `;
 
@@ -421,17 +423,85 @@ class Pixels {
   width;
   brightness;
   exactColor;
-  static async fromJSON(bot, data) {
-    const image = new Image;
-    image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then(async (response) => {
-      if (!response.ok)
-        throw new Error(`Failed to fetch image (${response.status} ${response.statusText}) from ${data.url}`);
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    }) : data.url;
-    await promisifyEventSource(image, ["load"], ["error"]);
-    return new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+  static db = null;
+  static DB_NAME = "PixelBotCache";
+  static STORE_NAME = "pixelData";
+  static DB_VERSION = 1;
+  static async initDB() {
+    if (this.db)
+      return this.db;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(this.db);
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME, { keyPath: "cacheKey" });
+        }
+      };
+    });
   }
+  static async hashImage(image) {
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0);
+    const dataURL = canvas.toDataURL();
+    let hash = 0;
+    for (let i = 0;i < dataURL.length; i++) {
+      const char = dataURL.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return `img_${Math.abs(hash)}`;
+  }
+  static async loadFromCache(key) {
+    try {
+      const db = await this.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readonly");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.get(JSON.stringify(key));
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result || null);
+      });
+    } catch {
+      console.warn("Failed to load from IndexedDB cache, will recompute");
+      return null;
+    }
+  }
+  static async saveToCache(key, data) {
+    try {
+      const db = await this.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readwrite");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.put({
+          cacheKey: JSON.stringify(key),
+          ...data
+        });
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    } catch (error) {
+      console.warn("Failed to save to IndexedDB cache:", error);
+    }
+  }
+  static async fromJSON(bot, data, options) {
+    const skipCache = options?.skipCache ?? false;
+    const image = new Image;
+    image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then((x) => x.blob()).then((X) => URL.createObjectURL(X)) : data.url;
+    await promisifyEventSource(image, ["load"], ["error"]);
+    let pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+    await pixels.update(skipCache);
+    return pixels;
+  }
+  _cachedDataURL;
   canvas = document.createElement("canvas");
   context = this.canvas.getContext("2d");
   pixels;
@@ -451,18 +521,72 @@ class Pixels {
     this.exactColor = exactColor;
     if (exactColor) {
       this.resolution = 1;
-      this.width = image.naturalWidth;
-    } else
+      this.width = 1000;
+    } else {
       this.resolution = this.image.naturalWidth / this.image.naturalHeight;
-    this.update();
+    }
   }
-  update() {
+  static async create(bot, image, width = image.naturalWidth, brightness = 0, exactColor = false) {
+    const instance = new Pixels(bot, image, width, brightness, exactColor);
+    await instance.update();
+    return instance;
+  }
+  async update(skipCache = false) {
+    let cacheKey;
+    if (!skipCache) {
+      const imageHash = await Pixels.hashImage(this.image);
+      cacheKey = {
+        imageHash,
+        width: this.width,
+        brightness: this.brightness,
+        exactColor: this.exactColor
+      };
+      const cached = await Pixels.loadFromCache(cacheKey);
+      if (cached) {
+        this.pixels = cached.pixels;
+        this.colors.clear();
+        for (const [key, value] of Object.entries(cached.colors)) {
+          this.colors.set(Number(key), value);
+        }
+        this.drawCachedPixels();
+        return;
+      }
+    }
+    await this.computePixels();
+    if (!skipCache) {
+      const dataToCache = {
+        pixels: this.pixels,
+        colors: Object.fromEntries(this.colors),
+        width: this.width,
+        brightness: this.brightness,
+        exactColor: this.exactColor,
+        timestamp: Date.now()
+      };
+      await Pixels.saveToCache(cacheKey, dataToCache);
+    }
+  }
+  drawCachedPixels() {
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
+    this.context.imageSmoothingEnabled = false;
+    this.context.imageSmoothingQuality = "low";
+    for (let y = 0;y < this.pixels.length; y++) {
+      for (let x = 0;x < this.pixels[y].length; x++) {
+        const colorIndex = this.pixels[y][x];
+        if (colorIndex !== 0) {
+          this.context.fillStyle = `oklab(${COLORS[colorIndex][0] * 100}% ${COLORS[colorIndex][1]} ${COLORS[colorIndex][2]})`;
+          this.context.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+  }
+  async computePixels(batchSize = 1000) {
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.colors.clear();
     const colorCache = new Map;
     for (let index = 1;index < 64; index++) {
-      if (this.exactColor || !this.bot.unavailableColors.has(index))
+      if (this.exactColor)
         colorCache.set(COLORS_RGB[index], [index, index]);
     }
     this.context.imageSmoothingEnabled = false;
@@ -470,20 +594,24 @@ class Pixels {
     this.context.drawImage(this.image, 0, 0, this.canvas.width, this.canvas.height);
     this.pixels = Array.from({ length: this.canvas.height }, () => new Array(this.canvas.width));
     const data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
-    for (let y = 0;y < this.canvas.height; y++) {
-      for (let x = 0;x < this.canvas.width; x++) {
-        const index = (y * this.canvas.width + x) * 4;
-        const r = data[index];
-        const g = data[index + 1];
-        const b = data[index + 2];
-        const a = data[index + 3];
+    const totalPixels = this.canvas.width * this.canvas.height;
+    for (let start = 0;start < totalPixels; start += batchSize) {
+      const end = Math.min(start + batchSize, totalPixels);
+      for (let i = start;i < end; i++) {
+        const y = Math.floor(i / this.canvas.width);
+        const x = i % this.canvas.width;
+        const index = i * 4;
+        const r = Math.round(data[index]);
+        const g = Math.round(data[index + 1]);
+        const b = Math.round(data[index + 2]);
+        const a = Math.round(data[index + 3]);
         const key = `${r},${g},${b}`;
+        let min;
+        let minReal;
         if (this.exactColor) {
           this.pixels[y][x] = a < 100 ? 0 : COLORS_RGB.indexOf(key);
           continue;
         }
-        let min;
-        let minReal;
         if (a < 100)
           min = minReal = 0;
         else if (colorCache.has(key))
@@ -494,7 +622,7 @@ class Pixels {
           for (let colorIndex = 0;colorIndex < COLORS.length; colorIndex++) {
             const color = COLORS[colorIndex];
             const delta = deltaE2000(rgbToOklab(r, g, b), color, this.brightness);
-            if (!this.bot.unavailableColors.has(colorIndex) && delta < minDelta) {
+            if (delta < minDelta) {
               minDelta = delta;
               min = colorIndex;
             }
@@ -513,60 +641,86 @@ class Pixels {
         const stat = this.colors.get(minReal);
         if (stat)
           stat.amount++;
-        else {
-          this.colors.set(minReal, {
-            color: min,
-            amount: 1,
-            realColor: minReal
-          });
-        }
+        else
+          this.colors.set(minReal, { color: min, amount: 1, realColor: minReal });
       }
+      const percent = Math.floor(end / totalPixels * 100);
+      this.bot.widget.status = `Computing pixels: ${percent}%`;
+      await new Promise((r) => setTimeout(r, 0));
     }
   }
   toJSON() {
-    const canvas = document.createElement("canvas");
-    canvas.width = this.image.naturalWidth;
-    canvas.height = this.image.naturalHeight;
-    const context = canvas.getContext("2d");
-    context.drawImage(this.image, 0, 0);
+    if (!this._cachedDataURL) {
+      const canvas = document.createElement("canvas");
+      canvas.width = this.image.naturalWidth;
+      canvas.height = this.image.naturalHeight;
+      const context = canvas.getContext("2d");
+      context.drawImage(this.image, 0, 0);
+      this._cachedDataURL = canvas.toDataURL("image/webp", 1);
+    }
     return {
-      url: canvas.toDataURL("image/webp", 1),
+      url: this._cachedDataURL,
       width: this.width,
       brightness: this.brightness,
       exactColor: this.exactColor
     };
   }
+  static async clearCache() {
+    try {
+      const db = await Pixels.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readwrite");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.clear();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    } catch (error) {
+      console.warn("Failed to clear cache:", error);
+    }
+  }
 }
 
 // src/save.ts
-function loadSave() {
-  const json = localStorage.getItem("wbot");
-  let save;
-  try {
-    save = JSON.parse(json);
-    if (typeof save !== "object")
-      throw new Error("NOT VALID SAVE");
-    if (save.version === 1) {
-      const _save = save;
-      save.images = _save.widget.images;
-      save.strategy = _save.widget.strategy;
-      delete _save.widget;
-    }
-  } catch {
-    localStorage.removeItem("wbot");
-    save = undefined;
-  }
-  return save;
+var DB_NAME = "wbotDB";
+var STORE_NAME = "botStore";
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
-var saveTimeout;
-function save(bot, immediate = false) {
-  clearTimeout(saveTimeout);
-  if (immediate)
-    localStorage.setItem("wbot", JSON.stringify(bot));
-  else
-    saveTimeout = setTimeout(() => {
-      localStorage.setItem("wbot", JSON.stringify(bot));
-    }, 1000);
+async function save(bot, immediate = false) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  const data = JSON.stringify(bot);
+  store.put(data, "wbot");
+  await tx.complete;
+}
+async function loadSave() {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.get("wbot");
+    request.onsuccess = () => {
+      try {
+        const save2 = JSON.parse(request.result);
+        resolve(save2);
+      } catch {
+        resolve(undefined);
+      }
+    };
+    request.onerror = () => resolve(undefined);
+  });
 }
 
 // src/world-position.ts
@@ -600,41 +754,35 @@ function extractScreenPositionFromStar($star) {
 
 class WorldPosition {
   bot;
-  static floorDiv(value, divider) {
-    return Math.floor(value / divider);
-  }
-  static positiveMod(value, divider) {
-    return (value % divider + divider) % divider;
-  }
   static fromJSON(bot, data) {
     return new WorldPosition(bot, ...data);
   }
   static fromScreenPosition(bot, position) {
     const { anchorScreenPosition, pixelSize, anchorWorldPosition } = bot.findAnchorsForScreen(position);
-    return new WorldPosition(bot, Math.floor(anchorWorldPosition.x + (position.x - anchorScreenPosition.x) / pixelSize), Math.floor(anchorWorldPosition.y + (position.y - anchorScreenPosition.y) / pixelSize));
+    return new WorldPosition(bot, anchorWorldPosition.x + (position.x - anchorScreenPosition.x) / pixelSize | 0, anchorWorldPosition.y + (position.y - anchorScreenPosition.y) / pixelSize | 0);
   }
   globalX = 0;
   globalY = 0;
   get tileX() {
-    return WorldPosition.floorDiv(this.globalX, WORLD_TILE_SIZE);
+    return this.globalX / WORLD_TILE_SIZE | 0;
   }
   set tileX(value) {
     this.globalX = value * WORLD_TILE_SIZE + this.x;
   }
   get tileY() {
-    return WorldPosition.floorDiv(this.globalY, WORLD_TILE_SIZE);
+    return this.globalY / WORLD_TILE_SIZE | 0;
   }
   set tileY(value) {
     this.globalY = value * WORLD_TILE_SIZE + this.y;
   }
   get x() {
-    return WorldPosition.positiveMod(this.globalX, WORLD_TILE_SIZE);
+    return this.globalX % WORLD_TILE_SIZE;
   }
   set x(value) {
     this.globalX = this.tileX * WORLD_TILE_SIZE + value;
   }
   get y() {
-    return WorldPosition.positiveMod(this.globalY, WORLD_TILE_SIZE);
+    return this.globalY % WORLD_TILE_SIZE;
   }
   set y(value) {
     this.globalY = this.tileY * WORLD_TILE_SIZE + value;
@@ -686,13 +834,7 @@ class WorldPosition {
     };
   }
   getMapColor() {
-    const tileId = this.tileX + "/" + this.tileY;
-    const tile = this.bot.mapsCache.get(tileId);
-    if (!tile) {
-      this.bot.logMissingTile(tileId);
-      return 0;
-    }
-    return tile.pixels[this.y][this.x];
+    return this.bot.mapsCache.get(this.tileX + "/" + this.tileY).pixels[this.y][this.x];
   }
   scrollScreenTo() {
     const { x, y } = this.toScreenPosition();
@@ -765,10 +907,14 @@ class BotImage extends Base2 {
       $drawTransparent: ".draw-transparent",
       $export: ".export",
       $lock: ".lock",
+      $settingsButton: ".settings",
+      $popup: ".wform.popup",
+      $closePopup: ".close-popup",
       $opacity: ".opacity",
       $progressLine: ".wprogress div",
       $progressText: ".wprogress span",
       $resetSize: ".reset-size",
+      $resizeNumber: ".resize-number",
       $settings: ".wform",
       $strategy: ".strategy",
       $topbar: ".wtopbar",
@@ -806,6 +952,19 @@ class BotImage extends Base2 {
       this.update();
       save(this.bot);
     });
+    this.registerEvent(this.$resizeNumber, "change", () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        const newSize = Number(this.$resizeNumber.value);
+        if (newSize > 0) {
+          this.pixels.width = newSize;
+          this.pixels.update();
+          this.updateColors();
+          this.update();
+          save(this.bot);
+        }
+      }, 1000);
+    });
     this.registerEvent(this.$drawTransparent, "click", () => {
       this.drawTransparentPixels = this.$drawTransparent.checked;
       save(this.bot);
@@ -819,11 +978,19 @@ class BotImage extends Base2 {
       this.update();
       save(this.bot);
     });
+    this.registerEvent(this.$settingsButton, "click", () => {
+      this.$popup.classList.add("show");
+    });
+    this.registerEvent(this.$closePopup, "click", () => {
+      this.$popup.classList.remove("show");
+    });
     this.registerEvent(this.$delete, "click", this.destroy.bind(this));
     this.registerEvent(this.$export, "click", this.export.bind(this));
     this.registerEvent(this.$topbar, "mousedown", this.moveStart.bind(this));
     this.registerEvent(this.$canvas, "mousedown", this.moveStart.bind(this));
-    this.registerEvent(document, "mouseup", this.moveStop.bind(this));
+    this.registerEvent(document, "mouseup", function(e) {
+      this.moveStop(e);
+    }.bind(this));
     this.registerEvent(document, "mousemove", this.move.bind(this));
     for (const $resize of this.element.querySelectorAll(".resize"))
       this.registerEvent($resize, "mousedown", this.resizeStart.bind(this));
@@ -856,6 +1023,8 @@ class BotImage extends Base2 {
     for (const { x, y } of this.strategyPositionIterator()) {
       const color = this.pixels.pixels[y][x];
       if (skipColors.has(color))
+        continue;
+      if (this.bot.unavailableColors.has(color))
         continue;
       position.globalX = this.position.globalX + x;
       position.globalY = this.position.globalY + y;
@@ -1085,11 +1254,10 @@ class BotImage extends Base2 {
         clientY: event.clientY
       };
   }
-  moveStop() {
+  async moveStop() {
     if (this.moveInfo) {
       this.moveInfo = undefined;
       this.position.updateAnchor();
-      this.pixels.update();
       this.updateColors();
     }
   }
@@ -1154,146 +1322,146 @@ var style_default = `/* stylelint-disable declaration-no-important */
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
-  --hover: #dfdfdf;
-  --text-invert: #fff;
-  --error: #f00;
-  --resize: 8px;
-  --asdadsasdasdasdasdasdasdasd: 1px;
-  --text: #422e2c;
-  --background: #fbe3cb;
-  --background-hover: #f0d1b3;
-  --background-disabled: #a37648;
-  --main: #66bbb4;
-  --main-hover: #48a19a;
+	--hover: #dfdfdf;
+	--text-invert: #fff;
+	--error: #f00;
+	--resize: 8px;
+	--asdadsasdasdasdasdasdasdasd: 1px;
+	--text: #422e2c;
+	--background: #fbe3cb;
+	--background-hover: #f0d1b3;
+	--background-disabled: #a37648;
+	--main: #66bbb4;
+	--main-hover: #48a19a;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
-    -n + FAKE_FAVORITE_LOCATIONS
-  ) {
-  display: none;
+		-n + FAKE_FAVORITE_LOCATIONS
+	) {
+	display: none;
 }
 
 /** Widget */
 .wwidget {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  width: 256px;
-  height: 100dvh;
-  border-right: var(--text) 2px solid;
-  background-color: var(--background);
-  color: var(--text);
-  font-family: 'Tiny5', sans-serif;
-  transition: transform 0.5s;
-  transform: translateX(-100%);
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 1000;
+	width: 256px;
+	height: 100dvh;
+	border-right: var(--text) 2px solid;
+	background-color: var(--background);
+	color: var(--text);
+	font-family: 'Tiny5', sans-serif;
+	transition: transform 0.5s;
+	transform: translateX(-100%);
 }
 
 .wwidget .title {
-  border-bottom: var(--text) 2px solid;
-  background-color: var(--main);
-  font-size: 32px;
-  text-align: center;
+	border-bottom: var(--text) 2px solid;
+	background-color: var(--main);
+	font-size: 32px;
+	text-align: center;
 }
 
 .wwidget.wopen .wopen-button div {
-  transform: rotate(180deg);
+	transform: rotate(180deg);
 }
 
 .wwidget.wopen {
-  box-shadow: 8px 0 16px -8px var(--main);
-  transform: translateX(0);
+	box-shadow: 8px 0 16px -8px var(--main);
+	transform: translateX(0);
 }
 
 .wwidget .wopen-button div {
-  transition: transform 0.5s;
+	transition: transform 0.5s;
 }
 
 .wwidget .wopen-button {
-  position: absolute;
-  top: calc(50% - 24px);
-  right: -24px;
-  width: 24px;
-  height: 48px;
-  border: var(--text) 2px solid;
-  border-left: none;
-  background-color: var(--background);
-  color: var(--text);
-  cursor: pointer;
+	position: absolute;
+	top: calc(50% - 24px);
+	right: -24px;
+	width: 24px;
+	height: 48px;
+	border: var(--text) 2px solid;
+	border-left: none;
+	background-color: var(--background);
+	color: var(--text);
+	cursor: pointer;
 }
 
 .wwidget .images {
-  display: block;
-  overflow-y: auto;
-  height: auto;
-  max-height: 240px;
+	display: block;
+	overflow-y: auto;
+	height: auto;
+	max-height: 240px;
 }
 
 .wwidget .images .image {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 64px;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 64px;
 }
 
 .wwidget .images .image img {
-  max-width: 100%;
-  max-height: 100%;
-  margin: 0 auto;
-  cursor: pointer;
+	max-width: 100%;
+	max-height: 100%;
+	margin: 0 auto;
+	cursor: pointer;
 }
 
 .wwidget .images .image button {
-  width: 32px;
-  height: 64px;
-  font-weight: bolder;
-  font-size: 24px;
+	width: 32px;
+	height: 64px;
+	font-weight: bolder;
+	font-size: 24px;
 }
 
 /** Image */
 .wimage {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 9;
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 9;
 }
 
 .wimage canvas {
-  width: 100%;
-  box-shadow: inset var(--text) 0 0 0 2px;
-  cursor: all-scroll;
-  image-rendering: pixelated;
+	width: 100%;
+	box-shadow: inset var(--text) 0 0 0 2px;
+	cursor: all-scroll;
+	image-rendering: pixelated;
 }
 
 .wimage .wform {
-  position: absolute;
-  display: none;
-  width: 100%;
-  min-width: 256px;
-  border: var(--text) 2px solid;
-  background-color: var(--background);
-  color: var(--text);
+	position: absolute;
+	display: none;
+	width: 100%;
+	min-width: 256px;
+	border: var(--text) 2px solid;
+	background-color: var(--background);
+	color: var(--text);
 }
 
 .wimage:hover .wrapper .wform {
-  display: block;
+	display: block;
 }
 
 /* Settings */
 .wform {
-  font-family: 'Tiny5', sans-serif;
+	font-family: 'Tiny5', sans-serif;
 }
 
 .wform > * {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  width: calc(100% - 8px);
-  margin: 4px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+	width: calc(100% - 8px);
+	margin: 4px;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .wform button,
@@ -1301,217 +1469,296 @@ var style_default = `/* stylelint-disable declaration-no-important */
 .wform select,
 .wform textarea,
 .wform label:has(input[type='checkbox']) {
-  padding: 0 8px;
-  border: var(--text) 2px solid;
-  cursor: pointer;
-  transition: background-color 0.2s;
+	padding: 0 8px;
+	border: var(--text) 2px solid;
+	cursor: pointer;
+	transition: background-color 0.2s;
 }
 
 .wform input[type='range'] {
-  width: 100%;
-  height: 32px;
-  background: linear-gradient(
-    to right,
-    var(--main) var(--val),
-    var(--background-disabled) var(--val)
-  );
-  cursor: ew-resize;
-  appearance: none;
+	width: 100%;
+	height: 32px;
+	background: linear-gradient(to right, var(--main) var(--val), var(--background-disabled) var(--val));
+	cursor: ew-resize;
+	appearance: none;
 }
 
 .wform input[type='range']::-moz-range-thumb {
-  width: 0;
-  height: 0;
-  opacity: 0;
+	width: 0;
+	height: 0;
+	opacity: 0;
 }
 
 .wform button:hover,
 .wform input:hover {
-  background-color: var(--background-hover);
+	background-color: var(--background-hover);
 }
 
 .wform button:disabled,
 .wform input:disabled {
-  background-color: var(--background-disabled);
-  cursor: no-drop;
+	background-color: var(--background-disabled);
+	cursor: no-drop;
 }
 
 .wform label input:not([type='checkbox']) {
-  width: inherit;
+	width: inherit;
 }
 
 .wform .wprogress {
-  position: relative;
-  width: 100%;
-  margin: 0;
+	position: relative;
+	width: 100%;
+	margin: 0;
 }
 
 .wform .wprogress div {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background-color: var(--main);
-  transform-origin: left;
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: var(--main);
+	transform-origin: left;
 }
 
 .wform .wprogress span {
-  z-index: 0;
+	z-index: 0;
 }
 
 .wform .colors {
-  position: relative;
-  width: 100%;
-  height: 32px;
-  margin: 0;
-  background: repeating-linear-gradient(
-    25deg,
-    var(--background),
-    var(--background),
-    var(--hover) 8px,
-    var(--hover) 12px
-  );
-  cursor: ew-resize;
+	position: relative;
+	width: 100%;
+	height: 32px;
+	margin: 0;
+	background: repeating-linear-gradient(
+		25deg,
+		var(--background),
+		var(--background),
+		var(--hover) 8px,
+		var(--hover) 12px
+	);
+	cursor: ew-resize;
 }
 
 .wform .colors > button {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  cursor: grab;
-  transition:
-    0.2s left,
-    0.2s width,
-    0.2s filter;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border: none;
+	cursor: grab;
+	transition:
+		0.2s left,
+		0.2s width,
+		0.2s filter;
 }
 
 .wform .colors > button:hover {
-  filter: brightness(0.6);
+	filter: brightness(0.6);
 }
 
 .wform .colors > button.color-disabled::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  box-shadow: inset 0 0 0 2px var(--error);
-  pointer-events: none;
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	box-shadow: inset 0 0 0 2px var(--error);
+	pointer-events: none;
 }
 
 .wform .colors > button.substitution button {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0 4px;
-  color: var(--background);
-  transition: 0.2s filter;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	padding: 0 4px;
+	color: var(--background);
+	transition: 0.2s filter;
 }
 
 .wform .colors > button.substitution button:hover {
-  filter: brightness(0.6);
+	filter: brightness(0.6);
 }
 
 .wform .colors > button.substitution button:first-child {
-  background: var(--wreal-color);
-  text-align: left;
-  clip-path: polygon(0 0, 80% 0, 20% 100%, 0 100%);
+	background: var(--wreal-color);
+	text-align: left;
+	clip-path: polygon(0 0, 80% 0, 20% 100%, 0 100%);
 }
 
 .wform .colors > button.substitution button:last-child {
-  background: var(--wsubstitution-color);
-  text-align: right;
-  clip-path: polygon(100% 100%, 100% 0, 80% 0, 20% 100%);
+	background: var(--wsubstitution-color);
+	text-align: right;
+	clip-path: polygon(100% 100%, 100% 0, 80% 0, 20% 100%);
 }
 
 .wform .colors > button.substitution:hover {
-  filter: none;
+	filter: none;
 }
 
 .wform .colors:hover > button {
-  left: var(--wleft) !important;
-  width: var(--wwidth) !important;
+	left: var(--wleft) !important;
+	width: var(--wwidth) !important;
 }
 
 /* Move */
 .wtopbar {
-  position: absolute;
-  top: -24px;
-  left: 0;
-  display: flex;
-  justify-content: end;
-  align-items: center;
-  width: 100%;
-  min-width: min-content;
-  min-width: 256px;
-  border: var(--text) 2px solid;
-  background-color: var(--main);
-  color: var(--text-invert);
-  cursor: all-scroll;
+	position: absolute;
+	top: -24px;
+	left: 0;
+	display: flex;
+	justify-content: end;
+	align-items: center;
+	width: 100%;
+	min-width: min-content;
+	min-width: 256px;
+	border: var(--text) 2px solid;
+	background-color: var(--main);
+	color: var(--text-invert);
+	cursor: all-scroll;
 }
 
 .wtopbar button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 24px;
-  height: 24px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 24px;
+	height: 24px;
 }
 
 .wtopbar button:hover {
-  background-color: var(--main-hover);
+	background-color: var(--main-hover);
 }
 
 /* Resize */
 .resize {
-  position: absolute;
-  width: calc(100% - var(--resize) - var(--resize));
-  height: calc(100% - var(--resize) - var(--resize));
+	position: absolute;
+	width: calc(100% - var(--resize) - var(--resize));
+	height: calc(100% - var(--resize) - var(--resize));
 }
 
 .resize.n {
-  top: 0;
-  left: var(--resize);
-  height: var(--resize);
-  cursor: n-resize;
+	top: 0;
+	left: var(--resize);
+	height: var(--resize);
+	cursor: n-resize;
 }
 
 .resize.e {
-  top: var(--resize);
-  right: 0;
-  width: var(--resize);
-  cursor: e-resize;
+	top: var(--resize);
+	right: 0;
+	width: var(--resize);
+	cursor: e-resize;
 }
 
 .resize.s {
-  bottom: 0;
-  left: var(--resize);
-  height: var(--resize);
-  cursor: s-resize;
+	bottom: 0;
+	left: var(--resize);
+	height: var(--resize);
+	cursor: s-resize;
 }
 
 .resize.w {
-  top: var(--resize);
-  left: 0;
-  width: var(--resize);
-  cursor: w-resize;
+	top: var(--resize);
+	left: 0;
+	width: var(--resize);
+	cursor: w-resize;
 }
 
 /* Utility */
 .wp {
-  padding: 0 8px;
+	padding: 0 8px;
 }
 
 .hidden {
-  display: none;
+	display: none;
 }
 
 .no-pointer-events {
-  height: 1px;
-  pointer-events: none;
+	height: 1px;
+	pointer-events: none;
+}
+
+.custom-dialog {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	border: var(--text) 2px solid;
+	background: var(--background);
+	color: var(--text);
+	font-family: 'Tiny5', sans-serif;
+	padding: 16px;
+	min-width: 220px;
+}
+
+.custom-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.custom-dialog form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.custom-dialog label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.custom-dialog input[type='number'] {
+	width: 100px;
+	padding: 4px 6px;
+	border: var(--text) 2px solid;
+	background: var(--background);
+	color: var(--text);
+	font-family: 'Tiny5', sans-serif;
+}
+
+.custom-dialog button {
+	padding: 4px 8px;
+	border: var(--text) 2px solid;
+	background: var(--main);
+	color: var(--text-invert);
+	font-family: 'Tiny5', sans-serif;
+	cursor: pointer;
+}
+
+.custom-dialog button:hover {
+	background: var(--main-hover);
+}
+.wform.popup {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	border: 2px solid #ccc;
+	padding: 1rem;
+	box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+	display: none;
+	z-index: 999;
+}
+
+.wform.popup.show {
+	display: block;
+}
+
+.wform.popup .close-popup {
+	border: none;
+	background: #f00;
+	color: #fff;
+	width: 24px;
+	height: 24px;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 24px;
+	text-align: center;
+	float: right;
+}
+
+.wform.popup .close-popup:hover {
+	background: #c00;
 }
 `;
 
@@ -1534,17 +1781,22 @@ class NoImageError extends WPlaceBotError {
 var widget_default = `<button class="wopen-button"><div>></div></button>
 <div class="title">WPlace-bot</div>
 <div class="wform">
-  <div class="wprogress"><div></div><span></span></div>
-  <div class="wp wstatus"></div>
-  <button class="draw" disabled>Draw</button>
-  <label>Strategy:&nbsp;<select class="strategy">
-    <option value="SEQUENTIAL" selected>Sequential</option>
-    <option value="ALL">All</option>
-    <option value="PERCENTAGE">Percentage</option>
-  </select></label>
-  <div class="images"></div>
-  <!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
-  <button class="add-image" disabled>Add image</button>
+	<div class="wprogress">
+		<div></div>
+		<span></span>
+	</div>
+	<div class="wp wstatus"></div>
+	<button class="draw" disabled>Draw</button>
+	<label
+		>Strategy:&nbsp;<select class="strategy">
+			<option value="SEQUENTIAL" selected>Sequential</option>
+			<option value="ALL">All</option>
+			<option value="PERCENTAGE">Percentage</option>
+		</select></label
+	>
+	<div class="images"></div>
+	<!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
+	<button class="add-image" disabled>Add image</button>
 </div>
 `;
 
@@ -1628,16 +1880,41 @@ class Widget extends Base2 {
         const image = new Image;
         image.src = reader.result;
         await promisifyEventSource(image, ["load"], ["error"]);
+        const width = await new Promise((resolve, reject) => {
+          const dialog = document.createElement("dialog");
+          const form = document.createElement("form");
+          const label = document.createElement("label");
+          const number = document.createElement("input");
+          const ok = document.createElement("button");
+          dialog.classList.add("custom-dialog");
+          form.method = "dialog";
+          label.textContent = "Width: ";
+          number.type = "number";
+          number.value = String(image.width);
+          number.min = "1";
+          ok.textContent = "OK";
+          ok.value = "ok";
+          label.appendChild(number);
+          form.appendChild(label);
+          form.appendChild(ok);
+          dialog.appendChild(form);
+          document.body.appendChild(dialog);
+          dialog.addEventListener("close", () => {
+            const value = dialog.returnValue === "ok" ? Number(number.value) : image.width;
+            dialog.remove();
+            resolve(value);
+          });
+          dialog.showModal();
+        });
         botImage = new BotImage(this.bot, WorldPosition.fromScreenPosition(this.bot, {
           x: 256,
           y: 32
-        }), new Pixels(this.bot, image));
+        }), await Pixels.create(this.bot, image, width));
       }
       this.bot.images.push(botImage);
       await this.bot.readMap();
       botImage.updateTasks();
-      save(this.bot, true);
-      document.location.reload();
+      await save(this.bot, true);
     }, () => {
       this.setDisabled("add-image", false);
     });
@@ -1706,14 +1983,10 @@ class Widget extends Base2 {
 
 // src/bot.ts
 var SAVE_VERSION = 2;
-var DEBUG_STORAGE_KEY = "wbot:debug";
-var LOG_PREFIX = "[ReadingMap]";
 
 class WPlaceBot {
   unavailableColors = new Set;
   mapsCache = new Map;
-  missingTiles = new Set;
-  notifiedMissingTiles = new Set;
   me;
   $stars = [];
   strategy = "SEQUENTIAL" /* SEQUENTIAL */;
@@ -1721,54 +1994,33 @@ class WPlaceBot {
   widget = new Widget(this);
   markerPixelPositionResolvers = [];
   lastColor;
-  get debugEnabled() {
-    return localStorage.getItem(DEBUG_STORAGE_KEY) === "1";
-  }
-  log(message, ...args) {
-    if (!this.debugEnabled)
-      return;
-    console.log(LOG_PREFIX, message, ...args);
-  }
-  logError(message, ...args) {
-    console.error(`${LOG_PREFIX}[ERROR]`, message, ...args);
-  }
-  logMissingTile(tileId) {
-    if (!this.missingTiles.has(tileId))
-      return;
-    if (this.notifiedMissingTiles.has(tileId))
-      return;
-    this.notifiedMissingTiles.add(tileId);
-    this.logError(`Tile ${tileId} is not available in cache. Treating map pixel as transparent.`);
-  }
   constructor() {
-    const save2 = loadSave();
+    this.registerFetchInterceptor();
+    this.bootstrap();
+  }
+  async bootstrap() {
+    const save2 = await loadSave();
     if (save2) {
       for (let index = 0;index < save2.images.length; index++) {
         const image = save2.images[index];
         addFavoriteLocation({
-          x: image.position[0] - WORLD_TILE_SIZE,
-          y: image.position[1] - WORLD_TILE_SIZE
+          x: image.position[0] - 1000,
+          y: image.position[1] - 1000
         });
         addFavoriteLocation({
-          x: image.position[0] + WORLD_TILE_SIZE,
-          y: image.position[1] + WORLD_TILE_SIZE
+          x: image.position[0] + 1000,
+          y: image.position[1] + 1000
         });
       }
       this.strategy = save2.strategy;
     }
-    this.registerFetchInterceptor();
-    this.log('Debug logs are enabled. Set localStorage "wbot:debug" to "0" to disable.');
-    const widgetCss = style_default.replace("FAKE_FAVORITE_LOCATIONS", FAVORITE_LOCATIONS.length.toString());
-    if (typeof GM_addStyle === "function")
-      GM_addStyle(widgetCss);
-    else {
-      const style = document.createElement("style");
-      style.textContent = widgetCss;
-      document.head.append(style);
-    }
+    const style = document.createElement("style");
+    style.textContent = style_default.replace("FAKE_FAVORITE_LOCATIONS", FAVORITE_LOCATIONS.length.toString());
+    document.head.append(style);
     this.widget.run("Initializing", async () => {
       await this.waitForElement("login", ".avatar.center-absolute.absolute");
       await this.waitForElement("pixel count", ".btn.btn-primary.btn-lg.relative.z-30 canvas");
+      await this.waitForElement("favorite stars", ".text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center");
       const $canvasContainer = await this.waitForElement("canvas", ".maplibregl-canvas-container");
       new MutationObserver((mutations) => {
         for (let index = 0;index < mutations.length; index++)
@@ -1800,33 +2052,55 @@ class WPlaceBot {
   draw() {
     this.widget.setDisabled("draw", true);
     this.widget.status = "";
-    this.mapsCache.clear();
     const $canvas = document.querySelector(".maplibregl-canvas");
     const prevent = (event) => {
       if (!event.shiftKey)
         event.stopPropagation();
     };
-    const wheelListenerOptions = {
-      capture: true,
-      passive: true
-    };
     return this.widget.run("Drawing", async () => {
       await this.widget.run("Initializing draw", () => Promise.all([this.updateColors(), this.readMap()]));
+      const canvas = document.querySelector(".maplibregl-canvas");
+      const firstTask = this.images[0].tasks[0];
+      function waitForZoom(minPixelSize) {
+        return new Promise((resolve) => {
+          function step() {
+            if (firstTask.position.pixelSize >= minPixelSize) {
+              resolve();
+              return;
+            }
+            canvas.dispatchEvent(new WheelEvent("wheel", {
+              deltaY: -500,
+              clientX: canvas.clientWidth / 2,
+              clientY: canvas.clientHeight / 2,
+              bubbles: true
+            }));
+            requestAnimationFrame(step);
+          }
+          step();
+        });
+      }
+      await waitForZoom(4);
       globalThis.addEventListener("mousemove", prevent, true);
-      $canvas.addEventListener("wheel", prevent, wheelListenerOptions);
+      $canvas.addEventListener("wheel", prevent, true);
       this.updateTasks();
+      const res = await fetch("https://backend.wplace.live/me", {
+        credentials: "include"
+      });
+      const data = await res.json();
+      let charges = Math.floor(data.charges.count);
       let n = 0;
       for (let index = 0;index < this.images.length; index++)
         n += this.images[index].tasks.length;
       switch (this.strategy) {
         case "ALL" /* ALL */: {
-          while (!document.querySelector("ol")) {
+          while (charges > 0) {
             let end = true;
             for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
               const task = this.images[imageIndex].tasks.shift();
               if (!task)
                 continue;
               this.drawTask(task);
+              charges -= 1;
               await wait(1);
               end = false;
             }
@@ -1836,7 +2110,7 @@ class WPlaceBot {
           break;
         }
         case "PERCENTAGE" /* PERCENTAGE */: {
-          for (let taskIndex = 0;taskIndex < n && !document.querySelector("ol"); taskIndex++) {
+          for (let taskIndex = 0;taskIndex < n && charges > 0; taskIndex++) {
             let minPercent = 1;
             let minImage;
             for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
@@ -1848,6 +2122,7 @@ class WPlaceBot {
               }
             }
             this.drawTask(minImage.tasks.shift());
+            charges -= 1;
             await wait(1);
           }
           break;
@@ -1855,8 +2130,9 @@ class WPlaceBot {
         case "SEQUENTIAL" /* SEQUENTIAL */: {
           for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
             const image = this.images[imageIndex];
-            for (let task = image.tasks.shift();task && !document.querySelector("ol"); task = image.tasks.shift()) {
+            for (let task = image.tasks.shift();task && charges > 0; task = image.tasks.shift()) {
               this.drawTask(task);
+              charges -= 1;
               await wait(1);
             }
           }
@@ -1865,7 +2141,7 @@ class WPlaceBot {
       this.widget.update();
     }, () => {
       globalThis.removeEventListener("mousemove", prevent, true);
-      $canvas.removeEventListener("wheel", prevent, wheelListenerOptions);
+      $canvas.removeEventListener("wheel", prevent, true);
       this.widget.setDisabled("draw", false);
     });
   }
@@ -1903,40 +2179,81 @@ class WPlaceBot {
     fire("mousemove", endX, endY);
     fire("mouseup", endX, endY);
   }
-  readMap() {
-    this.log("Starting map read operation.");
-    this.mapsCache.clear();
-    this.missingTiles.clear();
-    this.notifiedMissingTiles.clear();
+  async readMap() {
+    await this.loadCacheFromDB();
     const imagesToDownload = new Set;
-    for (let index = 0;index < this.images.length; index++) {
-      const image = this.images[index];
-      const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length - 1, image.position.globalY + image.pixels.pixels.length - 1);
+    for (let image of this.images) {
+      const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length, image.position.globalY + image.pixels.pixels.length);
       for (let tileX = image.position.tileX;tileX <= tileXEnd; tileX++)
         for (let tileY = image.position.tileY;tileY <= tileYEnd; tileY++)
           imagesToDownload.add(`${tileX}/${tileY}`);
     }
-    this.log(`Map read queued ${imagesToDownload.size} tiles for ${this.images.length} image(s).`, [...imagesToDownload].slice(0, 10));
     let done = 0;
     return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, async () => {
       await Promise.all([...imagesToDownload].map(async (x) => {
-        try {
-          this.log(`Downloading tile ${x}.`);
-          this.mapsCache.set(x, await Pixels.fromJSON(this, {
-            url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-            exactColor: true
-          }));
-        } catch (error) {
-          this.missingTiles.add(x);
-          this.logError(`Failed to download tile ${x}.`, error);
-        } finally {
-          this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
+        const url = `https://backend.wplace.live/files/s0/tiles/${x}.png`;
+        const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+        const lastModified = response.headers.get("last-modified") || "";
+        let cached = this.mapsCache.get(x);
+        if (!cached || cached.lastModified !== lastModified) {
+          const newPixels = await Pixels.fromJSON(this, { url, exactColor: true }, { skipCache: true });
+          const tileData = { pixels: newPixels.pixels, lastModified };
+          this.mapsCache.set(x, tileData);
+          await this.saveTileToDB(x, tileData);
         }
-        this.log(`Processed tile ${x}. Progress ${done}/${imagesToDownload.size}.`);
+        this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
       }));
-      if (this.missingTiles.size !== 0)
-        this.logError(`Skipped ${this.missingTiles.size} tile(s) that failed to download.`, [...this.missingTiles].slice(0, 10));
     });
+  }
+  async initDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("mapsDB", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("tiles")) {
+          db.createObjectStore("tiles");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async setTile(db, key, value) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readwrite");
+      const store = tx.objectStore("tiles");
+      const req = store.put(value, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async getTile(db, key) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readonly");
+      const store = tx.objectStore("tiles");
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async loadCacheFromDB() {
+    const db = await this.initDB();
+    this.mapsCache = new Map;
+    const keys = await new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readonly");
+      const store = tx.objectStore("tiles");
+      const req = store.getAllKeys();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    for (const key of keys) {
+      const tile = await this.getTile(db, key);
+      this.mapsCache.set(key, tile);
+    }
+  }
+  async saveTileToDB(key, value) {
+    const db = await this.initDB();
+    await this.setTile(db, key, value);
   }
   waitForUnfocus() {
     return this.widget.run("UNFOCUS WINDOW", () => new Promise((resolve) => {
@@ -1991,52 +2308,33 @@ class WPlaceBot {
     }
   }
   drawTask(task) {
-    this.selectColor(task.color);
-    const { x, y } = this.getPixelCenterOnScreen(task.position);
-    this.paintScreenPoint(x, y);
-  }
-  selectColor(color) {
-    if (this.lastColor === color)
-      return;
-    document.getElementById("color-" + color).click();
-    this.lastColor = color;
-  }
-  getPixelCenterOnScreen(position) {
-    const screenPosition = position.toScreenPosition();
-    const halfPixel = position.pixelSize / 2;
-    return {
-      x: screenPosition.x + halfPixel,
-      y: screenPosition.y + halfPixel
-    };
-  }
-  paintScreenPoint(x, y) {
-    const paintSurface = document.querySelector("#map canvas") ?? document.querySelector(".maplibregl-canvas") ?? document.documentElement;
-    paintSurface.dispatchEvent(new MouseEvent("mousemove", {
+    if (this.lastColor !== task.color) {
+      document.getElementById("color-" + task.color).click();
+      this.lastColor = task.color;
+    }
+    const halfPixel = task.position.pixelSize / 2;
+    const position = task.position.toScreenPosition();
+    document.documentElement.dispatchEvent(new MouseEvent("mousemove", {
       bubbles: true,
-      clientX: x,
-      clientY: y
+      clientX: position.x + halfPixel,
+      clientY: position.y + halfPixel,
+      shiftKey: true
     }));
-    paintSurface.dispatchEvent(new MouseEvent("mousedown", {
+    document.documentElement.dispatchEvent(new KeyboardEvent("keydown", {
+      key: " ",
+      code: "Space",
+      keyCode: 32,
+      which: 32,
       bubbles: true,
-      cancelable: true,
-      clientX: x,
-      clientY: y,
-      button: 0,
-      buttons: 1
+      cancelable: true
     }));
-    paintSurface.dispatchEvent(new MouseEvent("mouseup", {
+    document.documentElement.dispatchEvent(new KeyboardEvent("keyup", {
+      key: " ",
+      code: "Space",
+      keyCode: 32,
+      which: 32,
       bubbles: true,
-      cancelable: true,
-      clientX: x,
-      clientY: y,
-      button: 0
-    }));
-    paintSurface.dispatchEvent(new MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
-      clientX: x,
-      clientY: y,
-      button: 0
+      cancelable: true
     }));
   }
   registerFetchInterceptor() {
@@ -2053,7 +2351,6 @@ class WPlaceBot {
       else if (request instanceof URL)
         url = request.href;
       if (response.url === "https://backend.wplace.live/me") {
-        this.log("Intercepted /me response.");
         this.me = await cloned.json();
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS);
         this.me.maxFavoriteLocations = Infinity;
@@ -2061,7 +2358,6 @@ class WPlaceBot {
       }
       const pixelMatch = pixelRegExp.exec(url);
       if (pixelMatch) {
-        this.log(`Captured marker pixel response for world (${pixelMatch[1]}, ${pixelMatch[2]}) and tile pixel (${pixelMatch[3]}, ${pixelMatch[4]}).`);
         for (let index = 0;index < this.markerPixelPositionResolvers.length; index++)
           this.markerPixelPositionResolvers[index](new WorldPosition(this, +pixelMatch[1], +pixelMatch[2], +pixelMatch[3], +pixelMatch[4]));
         this.markerPixelPositionResolvers.length = 0;
@@ -2078,19 +2374,16 @@ class WPlaceBot {
     }
   }
   waitForElement(name, selector) {
-    this.log(`Waiting for element "${name}" using selector "${selector}".`);
     return this.widget.run(`Waiting for ${name}`, () => {
       return new Promise((resolve) => {
         const existing = document.querySelector(selector);
         if (existing) {
-          this.log(`Element "${name}" already exists.`);
           resolve(existing);
           return;
         }
         const observer = new MutationObserver(() => {
           const element = document.querySelector(selector);
           if (element) {
-            this.log(`Element "${name}" detected via mutation observer.`);
             observer.disconnect();
             resolve(element);
           }
