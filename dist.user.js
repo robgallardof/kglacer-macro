@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kglacer-macro
 // @namespace    https://github.com/robgallardof
-// @version      1.5.1
+// @version      1.0
 // @description  Bot to automate painting on website https://wplace.live
 // @author       Readixyee, SoundOfTheSky
 // @license      MPL-2.0
@@ -432,7 +432,9 @@ class Pixels {
       return this.db;
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        reject(request.error);
+      };
       request.onsuccess = () => {
         this.db = request.result;
         resolve(this.db);
@@ -467,8 +469,12 @@ class Pixels {
         const transaction = db.transaction([this.STORE_NAME], "readonly");
         const store = transaction.objectStore(this.STORE_NAME);
         const request = store.get(JSON.stringify(key));
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve(request.result || null);
+        };
       });
     } catch {
       console.warn("Failed to load from IndexedDB cache, will recompute");
@@ -485,8 +491,12 @@ class Pixels {
           cacheKey: JSON.stringify(key),
           ...data
         });
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve();
+        };
       });
     } catch (error) {
       console.warn("Failed to save to IndexedDB cache:", error);
@@ -497,7 +507,7 @@ class Pixels {
     const image = new Image;
     image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then((x) => x.blob()).then((X) => URL.createObjectURL(X)) : data.url;
     await promisifyEventSource(image, ["load"], ["error"]);
-    let pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+    const pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
     await pixels.update(skipCache);
     return pixels;
   }
@@ -505,6 +515,7 @@ class Pixels {
   canvas = document.createElement("canvas");
   context = this.canvas.getContext("2d");
   pixels;
+  lastComputedState;
   colors = new Map;
   resolution;
   get height() {
@@ -532,6 +543,9 @@ class Pixels {
     return instance;
   }
   async update(skipCache = false) {
+    const currentState = `${this.image.src}|${this.image.naturalWidth}x${this.image.naturalHeight}|${this.width}|${this.brightness}|${this.exactColor}`;
+    if (this.lastComputedState === currentState)
+      return;
     let cacheKey;
     if (!skipCache) {
       const imageHash = await Pixels.hashImage(this.image);
@@ -549,10 +563,12 @@ class Pixels {
           this.colors.set(Number(key), value);
         }
         this.drawCachedPixels();
+        this.lastComputedState = currentState;
         return;
       }
     }
     await this.computePixels();
+    this.lastComputedState = currentState;
     if (!skipCache) {
       const dataToCache = {
         pixels: this.pixels,
@@ -595,6 +611,7 @@ class Pixels {
     this.pixels = Array.from({ length: this.canvas.height }, () => new Array(this.canvas.width));
     const data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
     const totalPixels = this.canvas.width * this.canvas.height;
+    let lastPercent = -1;
     for (let start = 0;start < totalPixels; start += batchSize) {
       const end = Math.min(start + batchSize, totalPixels);
       for (let i = start;i < end; i++) {
@@ -645,7 +662,10 @@ class Pixels {
           this.colors.set(minReal, { color: min, amount: 1, realColor: minReal });
       }
       const percent = Math.floor(end / totalPixels * 100);
-      this.bot.widget.status = `Computing pixels: ${percent}%`;
+      if (percent !== lastPercent) {
+        this.bot.widget.status = `Computing pixels: ${percent}%`;
+        lastPercent = percent;
+      }
       await new Promise((r) => setTimeout(r, 0));
     }
   }
@@ -672,8 +692,12 @@ class Pixels {
         const transaction = db.transaction([this.STORE_NAME], "readwrite");
         const store = transaction.objectStore(this.STORE_NAME);
         const request = store.clear();
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve();
+        };
       });
     } catch (error) {
       console.warn("Failed to clear cache:", error);
@@ -682,7 +706,7 @@ class Pixels {
 }
 
 // src/save.ts
-var DB_NAME = "wbotDB";
+var DB_NAME = "kglacerMacroDB";
 var STORE_NAME = "botStore";
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -693,8 +717,12 @@ function openDB() {
         db.createObjectStore(STORE_NAME);
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+    request.onerror = () => {
+      reject(request.error);
+    };
   });
 }
 async function save(bot, immediate = false) {
@@ -702,7 +730,7 @@ async function save(bot, immediate = false) {
   const tx = db.transaction(STORE_NAME, "readwrite");
   const store = tx.objectStore(STORE_NAME);
   const data = JSON.stringify(bot);
-  store.put(data, "wbot");
+  store.put(data, "kglacer-macro");
   await tx.complete;
 }
 async function loadSave() {
@@ -710,7 +738,7 @@ async function loadSave() {
   return new Promise((resolve) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const request = store.get("wbot");
+    const request = store.get("kglacer-macro");
     request.onsuccess = () => {
       try {
         const save2 = JSON.parse(request.result);
@@ -719,7 +747,9 @@ async function loadSave() {
         resolve(undefined);
       }
     };
-    request.onerror = () => resolve(undefined);
+    request.onerror = () => {
+      resolve(undefined);
+    };
   });
 }
 
@@ -736,7 +766,7 @@ function addFavoriteLocation(position) {
     id: lastId++,
     latitude: (2 * Math.atan(Math.exp(-(position.y / WORLD_PIXEL_SIZE * (2 * Math.PI) - Math.PI))) - Math.PI / 2) * 180 / Math.PI,
     longitude: (position.x / WORLD_PIXEL_SIZE * (2 * Math.PI) - Math.PI) * 180 / Math.PI,
-    name: "WBOT_FAVORITE"
+    name: "KGLACER_MACRO_FAVORITE"
   });
 }
 addFavoriteLocation({
@@ -839,8 +869,8 @@ class WorldPosition {
   scrollScreenTo() {
     const { x, y } = this.toScreenPosition();
     this.bot.moveMap({
-      x: x - window.innerWidth / 3,
-      y: y - window.innerHeight / 3
+      x: Math.round(x - window.innerWidth / 3),
+      y: Math.round(y - window.innerHeight / 3)
     });
   }
   clone() {
@@ -1042,8 +1072,8 @@ class BotImage extends Base2 {
   }
   update() {
     const { x, y } = this.position.toScreenPosition();
-    this.element.style.transform = `translate(${x}px, ${y}px)`;
-    this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`;
+    this.element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
     this.$canvas.style.opacity = `${this.opacity}%`;
     this.element.classList.remove("hidden");
     this.$resetSizeSpan.textContent = this.pixels.width.toString();
@@ -1322,17 +1352,17 @@ var style_default = `/* stylelint-disable declaration-no-important */
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
-	--hover: #dfdfdf;
-	--text-invert: #fff;
-	--error: #f00;
+	--hover: #dbeafe;
+	--text-invert: #f8fafc;
+	--error: #ef4444;
 	--resize: 8px;
 	--asdadsasdasdasdasdasdasdasd: 1px;
-	--text: #422e2c;
-	--background: #fbe3cb;
-	--background-hover: #f0d1b3;
-	--background-disabled: #a37648;
-	--main: #66bbb4;
-	--main-hover: #48a19a;
+	--text: #0f172a;
+	--background: #0b1220;
+	--background-hover: #1e293b;
+	--background-disabled: #64748b;
+	--main: #38bdf8;
+	--main-hover: #0ea5e9;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -1344,22 +1374,28 @@ var style_default = `/* stylelint-disable declaration-no-important */
 /** Widget */
 .wwidget {
 	position: fixed;
-	top: 0;
-	left: 0;
+	top: 12px;
+	left: 12px;
 	z-index: 1000;
-	width: 256px;
-	height: 100dvh;
-	border-right: var(--text) 2px solid;
-	background-color: var(--background);
-	color: var(--text);
+	overflow: hidden;
+	width: 300px;
+	height: calc(100dvh - 24px);
+	border: 1px solid rgb(148 163 184 / 30%);
+	border-radius: 16px;
+	background: linear-gradient(180deg, rgb(15 23 42 / 97%), rgb(2 6 23 / 97%));
+	color: #e2e8f0;
+	box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
 	font-family: 'Tiny5', sans-serif;
-	transition: transform 0.5s;
+	transition: transform 0.35s ease;
 	transform: translateX(-100%);
+	backdrop-filter: blur(6px);
 }
 
 .wwidget .title {
-	border-bottom: var(--text) 2px solid;
-	background-color: var(--main);
+	padding: 6px 0;
+	border-bottom: 1px solid rgb(148 163 184 / 25%);
+	background: linear-gradient(90deg, #22d3ee, #3b82f6);
+	color: #020617;
 	font-size: 32px;
 	text-align: center;
 }
@@ -1369,7 +1405,6 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .wwidget.wopen {
-	box-shadow: 8px 0 16px -8px var(--main);
 	transform: translateX(0);
 }
 
@@ -1383,10 +1418,11 @@ var style_default = `/* stylelint-disable declaration-no-important */
 	right: -24px;
 	width: 24px;
 	height: 48px;
-	border: var(--text) 2px solid;
+	border: 1px solid rgb(148 163 184 / 35%);
 	border-left: none;
-	background-color: var(--background);
-	color: var(--text);
+	border-radius: 0 10px 10px 0;
+	background: #0f172a;
+	color: #cbd5e1;
 	cursor: pointer;
 }
 
@@ -1682,17 +1718,17 @@ var style_default = `/* stylelint-disable declaration-no-important */
 	position: fixed;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%);
+	min-width: 220px;
+	padding: 16px;
 	border: var(--text) 2px solid;
 	background: var(--background);
 	color: var(--text);
 	font-family: 'Tiny5', sans-serif;
-	padding: 16px;
-	min-width: 220px;
+	transform: translate(-50%, -50%);
 }
 
 .custom-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.45);
+	background: rgb(0 0 0 / 45%);
 }
 
 .custom-dialog form {
@@ -1728,16 +1764,17 @@ var style_default = `/* stylelint-disable declaration-no-important */
 .custom-dialog button:hover {
 	background: var(--main-hover);
 }
+
 .wform.popup {
 	position: fixed;
 	top: 50%;
 	left: 50%;
-	transform: translate(-50%, -50%);
-	border: 2px solid #ccc;
-	padding: 1rem;
-	box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
-	display: none;
 	z-index: 999;
+	display: none;
+	padding: 1rem;
+	border: var(--text) 2px solid;
+	box-shadow: 0 0 15px rgb(0 0 0 / 30%);
+	transform: translate(-50%, -50%);
 }
 
 .wform.popup.show {
@@ -1745,32 +1782,32 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .wform.popup .close-popup {
-	border: none;
-	background: #f00;
-	color: #fff;
+	float: right;
 	width: 24px;
 	height: 24px;
-	cursor: pointer;
+	border: none;
+	background: var(--error);
+	color: #fff;
 	font-size: 16px;
 	line-height: 24px;
 	text-align: center;
-	float: right;
+	cursor: pointer;
 }
 
 .wform.popup .close-popup:hover {
-	background: #c00;
+	background: #b91c1c;
 }
 `;
 
 // src/errors.ts
-class WPlaceBotError extends Error {
-  name = "WPlaceBotError";
+class KglacerMacroError extends Error {
+  name = "KglacerMacroError";
   constructor(message, bot) {
     super(message);
     bot.widget.status = message;
   }
 }
-class NoImageError extends WPlaceBotError {
+class NoImageError extends KglacerMacroError {
   name = "NoImageError";
   constructor(bot) {
     super("❌ No image is selected", bot);
@@ -1779,7 +1816,7 @@ class NoImageError extends WPlaceBotError {
 
 // src/widget.html
 var widget_default = `<button class="wopen-button"><div>></div></button>
-<div class="title">WPlace-bot</div>
+<div class="title">kglacer-macro</div>
 <div class="wform">
 	<div class="wprogress">
 		<div></div>
@@ -1890,7 +1927,7 @@ class Widget extends Base2 {
           form.method = "dialog";
           label.textContent = "Width: ";
           number.type = "number";
-          number.value = String(image.width);
+          number.value = String(image.naturalWidth);
           number.min = "1";
           ok.textContent = "OK";
           ok.value = "ok";
@@ -1900,7 +1937,7 @@ class Widget extends Base2 {
           dialog.appendChild(form);
           document.body.appendChild(dialog);
           dialog.addEventListener("close", () => {
-            const value = dialog.returnValue === "ok" ? Number(number.value) : image.width;
+            const value = dialog.returnValue === "ok" ? Number(number.value) : image.naturalWidth;
             dialog.remove();
             resolve(value);
           });
@@ -1967,7 +2004,7 @@ class Widget extends Base2 {
       this.status = originalStatus;
       return result;
     } catch (error) {
-      if (!(error instanceof WPlaceBotError)) {
+      if (!(error instanceof KglacerMacroError)) {
         console.error(error);
         this.status = `❌ ${status}`;
       }
@@ -1984,7 +2021,7 @@ class Widget extends Base2 {
 // src/bot.ts
 var SAVE_VERSION = 2;
 
-class WPlaceBot {
+class KglacerMacro {
   unavailableColors = new Set;
   mapsCache = new Map;
   me;
@@ -2182,7 +2219,7 @@ class WPlaceBot {
   async readMap() {
     await this.loadCacheFromDB();
     const imagesToDownload = new Set;
-    for (let image of this.images) {
+    for (const image of this.images) {
       const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length, image.position.globalY + image.pixels.pixels.length);
       for (let tileX = image.position.tileX;tileX <= tileXEnd; tileX++)
         for (let tileY = image.position.tileY;tileY <= tileYEnd; tileY++)
@@ -2194,8 +2231,8 @@ class WPlaceBot {
         const url = `https://backend.wplace.live/files/s0/tiles/${x}.png`;
         const response = await fetch(url, { method: "HEAD", cache: "no-store" });
         const lastModified = response.headers.get("last-modified") || "";
-        let cached = this.mapsCache.get(x);
-        if (!cached || cached.lastModified !== lastModified) {
+        const cached = this.mapsCache.get(x);
+        if (cached?.lastModified !== lastModified) {
           const newPixels = await Pixels.fromJSON(this, { url, exactColor: true }, { skipCache: true });
           const tileData = { pixels: newPixels.pixels, lastModified };
           this.mapsCache.set(x, tileData);
@@ -2214,8 +2251,12 @@ class WPlaceBot {
           db.createObjectStore("tiles");
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
     });
   }
   async setTile(db, key, value) {
@@ -2223,8 +2264,12 @@ class WPlaceBot {
       const tx = db.transaction("tiles", "readwrite");
       const store = tx.objectStore("tiles");
       const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        resolve();
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
     });
   }
   async getTile(db, key) {
@@ -2232,8 +2277,12 @@ class WPlaceBot {
       const tx = db.transaction("tiles", "readonly");
       const store = tx.objectStore("tiles");
       const req = store.get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        resolve(req.result);
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
     });
   }
   async loadCacheFromDB() {
@@ -2243,8 +2292,12 @@ class WPlaceBot {
       const tx = db.transaction("tiles", "readonly");
       const store = tx.objectStore("tiles");
       const req = store.getAllKeys();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        resolve(req.result);
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
     });
     for (const key of keys) {
       const tile = await this.getTile(db, key);
@@ -2413,7 +2466,8 @@ class WPlaceBot {
       this.images[index].updateColors();
   }
 }
-globalThis.wbot = new WPlaceBot;
+globalThis.kglacerMacro = new KglacerMacro;
+globalThis.wbot = globalThis.kglacerMacro;
 {
-  WPlaceBot
+  KglacerMacro
 };

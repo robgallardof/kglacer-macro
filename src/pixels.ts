@@ -1,6 +1,6 @@
 import { promisifyEventSource } from '@softsky/utils';
 
-import { WPlaceBot } from './bot';
+import { KglacerMacro } from './bot';
 import { COLORS, COLORS_RGB, deltaE2000, rgbToOklab } from './colors';
 
 export type PixelColorStat = {
@@ -38,7 +38,9 @@ export class Pixels {
 		return new Promise((resolve, reject) => {
 			const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
 
-			request.onerror = () => reject(request.error);
+			request.onerror = () => {
+				reject(request.error);
+			};
 			request.onsuccess = () => {
 				this.db = request.result;
 				resolve(this.db);
@@ -81,8 +83,12 @@ export class Pixels {
 				const store = transaction.objectStore(this.STORE_NAME);
 				const request = store.get(JSON.stringify(key));
 
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve(request.result || null);
+				request.onerror = () => {
+					reject(request.error);
+				};
+				request.onsuccess = () => {
+					resolve(request.result || null);
+				};
 			});
 		} catch {
 			console.warn('Failed to load from IndexedDB cache, will recompute');
@@ -102,8 +108,12 @@ export class Pixels {
 					...data,
 				});
 
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve();
+				request.onerror = () => {
+					reject(request.error);
+				};
+				request.onsuccess = () => {
+					resolve();
+				};
 			});
 		} catch (error) {
 			console.warn('Failed to save to IndexedDB cache:', error);
@@ -112,7 +122,7 @@ export class Pixels {
 	}
 
 	public static async fromJSON(
-		bot: WPlaceBot,
+		bot: KglacerMacro,
 		data: ReturnType<Pixels['toJSON']>,
 		options?: { skipCache?: boolean }
 	) {
@@ -124,7 +134,7 @@ export class Pixels {
 					.then((X) => URL.createObjectURL(X))
 			: data.url;
 		await promisifyEventSource(image, ['load'], ['error']);
-		let pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+		const pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
 		await pixels.update(skipCache);
 
 		return pixels;
@@ -139,6 +149,9 @@ export class Pixels {
 	/** Pixels of image. Use update() after changing variables */
 	public pixels!: number[][];
 
+	/** Prevent recomputing the exact same state repeatedly */
+	private lastComputedState?: string;
+
 	/** Used colors */
 	public readonly colors = new Map<number, PixelColorStat>();
 
@@ -152,7 +165,7 @@ export class Pixels {
 	}
 
 	public constructor(
-		public bot: WPlaceBot,
+		public bot: KglacerMacro,
 		/** Image element */
 		public image: HTMLImageElement,
 		/** Change scale of image pixels */
@@ -171,7 +184,7 @@ export class Pixels {
 	}
 
 	static async create(
-		bot: WPlaceBot,
+		bot: KglacerMacro,
 		image: HTMLImageElement,
 		width = image.naturalWidth,
 		brightness = 0,
@@ -184,6 +197,9 @@ export class Pixels {
 
 	/** Update pixels of image. Checks cache first, then computes if needed. */
 	public async update(skipCache = false) {
+		const currentState = `${this.image.src}|${this.image.naturalWidth}x${this.image.naturalHeight}|${this.width}|${this.brightness}|${this.exactColor}`;
+		if (this.lastComputedState === currentState) return;
+
 		let cacheKey;
 
 		if (!skipCache) {
@@ -204,12 +220,14 @@ export class Pixels {
 					this.colors.set(Number(key), value);
 				}
 				this.drawCachedPixels();
+				this.lastComputedState = currentState;
 				return;
 			}
 		}
 
 		// If not cached, compute as before
 		await this.computePixels();
+		this.lastComputedState = currentState;
 
 		if (!skipCache) {
 			// Save to cache for next time
@@ -261,6 +279,7 @@ export class Pixels {
 		const data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
 
 		const totalPixels = this.canvas.width * this.canvas.height;
+		let lastPercent = -1;
 		for (let start = 0; start < totalPixels; start += batchSize) {
 			const end = Math.min(start + batchSize, totalPixels);
 			for (let i = start; i < end; i++) {
@@ -313,7 +332,10 @@ export class Pixels {
 				else this.colors.set(minReal, { color: min, amount: 1, realColor: minReal });
 			}
 			const percent = Math.floor((end / totalPixels) * 100);
-			this.bot.widget.status = `Computing pixels: ${percent}%`;
+			if (percent !== lastPercent) {
+				this.bot.widget.status = `Computing pixels: ${percent}%`;
+				lastPercent = percent;
+			}
 
 			await new Promise((r) => setTimeout(r, 0)); // yield to browser
 		}
@@ -353,8 +375,12 @@ export class Pixels {
 				const store = transaction.objectStore(this.STORE_NAME);
 				const request = store.clear();
 
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve();
+				request.onerror = () => {
+					reject(request.error);
+				};
+				request.onsuccess = () => {
+					resolve();
+				};
 			});
 		} catch (error) {
 			console.warn('Failed to clear cache:', error);

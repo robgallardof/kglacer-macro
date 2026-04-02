@@ -1,8 +1,8 @@
 import { promisifyEventSource, swap } from '@softsky/utils';
 
 import { Base } from './base';
-import { WPlaceBot } from './bot';
-import { NoImageError, WPlaceBotError } from './errors';
+import { KglacerMacro } from './bot';
+import { NoImageError, KglacerMacroError } from './errors';
 import { BotImage } from './image';
 import { Pixels } from './pixels';
 import { save } from './save';
@@ -50,7 +50,7 @@ export class Widget extends Base {
 
 	// protected readonly $pumpkinHunt!: HTMLButtonElement
 
-	public constructor(protected bot: WPlaceBot) {
+	public constructor(protected bot: KglacerMacro) {
 		super();
 		this.element.classList.add('wwidget');
 		this.element.innerHTML = html as unknown as string;
@@ -125,7 +125,7 @@ export class Widget extends Base {
 
 						label.textContent = 'Width: ';
 						number.type = 'number';
-						number.value = String(image.width);
+						number.value = String(image.naturalWidth);
 						number.min = '1';
 
 						ok.textContent = 'OK';
@@ -138,7 +138,7 @@ export class Widget extends Base {
 						document.body.appendChild(dialog);
 
 						dialog.addEventListener('close', () => {
-							const value = dialog.returnValue === 'ok' ? Number(number.value) : image.width;
+							const value = dialog.returnValue === 'ok' ? Number(number.value) : image.naturalWidth;
 							dialog.remove();
 							resolve(value);
 						});
@@ -222,7 +222,7 @@ export class Widget extends Base {
 			this.status = originalStatus;
 			return result;
 		} catch (error) {
-			if (!(error instanceof WPlaceBotError)) {
+			if (!(error instanceof KglacerMacroError)) {
 				console.error(error);
 				this.status = `❌ ${status}`;
 			}

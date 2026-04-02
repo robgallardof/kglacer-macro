@@ -1,4 +1,6 @@
-const DB_NAME = 'wbotDB';
+import type { KglacerMacro } from './bot';
+
+const DB_NAME = 'kglacerMacroDB';
 const STORE_NAME = 'botStore';
 
 function openDB(): Promise<IDBDatabase> {
@@ -10,26 +12,30 @@ function openDB(): Promise<IDBDatabase> {
 				db.createObjectStore(STORE_NAME);
 			}
 		};
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			resolve(request.result);
+		};
+		request.onerror = () => {
+			reject(request.error);
+		};
 	});
 }
 
-export async function save(bot: WPlaceBot, immediate = false) {
+export async function save(bot: KglacerMacro, immediate = false) {
 	const db = await openDB();
 	const tx = db.transaction(STORE_NAME, 'readwrite');
 	const store = tx.objectStore(STORE_NAME);
 	const data = JSON.stringify(bot);
-	store.put(data, 'wbot');
+	store.put(data, 'kglacer-macro');
 	await tx.complete;
 }
 
 export async function loadSave() {
 	const db = await openDB();
-	return new Promise<ReturnType<WPlaceBot['toJSON']> | undefined>((resolve) => {
+	return new Promise<ReturnType<KglacerMacro['toJSON']> | undefined>((resolve) => {
 		const tx = db.transaction(STORE_NAME, 'readonly');
 		const store = tx.objectStore(STORE_NAME);
-		const request = store.get('wbot');
+		const request = store.get('kglacer-macro');
 		request.onsuccess = () => {
 			try {
 				const save = JSON.parse(request.result);
@@ -38,6 +44,8 @@ export async function loadSave() {
 				resolve(undefined);
 			}
 		};
-		request.onerror = () => resolve(undefined);
+		request.onerror = () => {
+			resolve(undefined);
+		};
 	});
 }
