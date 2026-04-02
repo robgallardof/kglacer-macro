@@ -55,6 +55,7 @@ export class BotImage extends Base {
 		globalY?: number;
 		width?: number;
 		height?: number;
+		pixelSize: number;
 		clientX: number;
 		clientY: number;
 	};
@@ -276,7 +277,7 @@ export class BotImage extends Base {
 	/** Update image (NOT PIXELS) */
 	public update() {
 		const { x, y } = this.position.toScreenPosition();
-		this.element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+		this.element.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
 		this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
 		this.$canvas.style.opacity = `${this.opacity}%`;
 		this.element.classList.remove('hidden');
@@ -493,12 +494,13 @@ export class BotImage extends Base {
 			this.moveInfo = {
 				globalX: this.position.globalX,
 				globalY: this.position.globalY,
+				pixelSize: this.position.pixelSize,
 				clientX: event.clientX,
 				clientY: event.clientY,
 			};
 	}
 
-	protected async moveStop() {
+	protected moveStop() {
 		if (this.moveInfo) {
 			this.moveInfo = undefined;
 			this.position.updateAnchor();
@@ -509,8 +511,8 @@ export class BotImage extends Base {
 	/** Resize/move image */
 	protected move(event: MouseEvent) {
 		if (!this.moveInfo) return;
-		const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.position.pixelSize);
-		const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.position.pixelSize);
+		const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.moveInfo.pixelSize);
+		const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.moveInfo.pixelSize);
 		if (this.moveInfo.globalX !== undefined) {
 			this.position.globalX = deltaX + this.moveInfo.globalX;
 			if (this.moveInfo.width !== undefined) this.pixels.width = Math.max(1, this.moveInfo.width - deltaX);
@@ -526,6 +528,7 @@ export class BotImage extends Base {
 	/** Resize start */
 	protected resizeStart(event: MouseEvent) {
 		this.moveInfo = {
+			pixelSize: this.position.pixelSize,
 			clientX: event.clientX,
 			clientY: event.clientY,
 		};

@@ -53,6 +53,6 @@ Also I'm using [Firefox Multi-Account Containers](https://addons.mozilla.org/en-
 
 1. Install [Bun](https://bun.sh/)
 2. Install dependencies `bun i`
-3. Up version in `script.txt`
+3. Up version in `src/version.ts` (metadata se sincroniza automáticamente al build)
 4. Lint `bun run lint`
 5. Build `bun start`

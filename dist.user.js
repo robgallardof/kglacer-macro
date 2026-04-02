@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kglacer-macro
 // @namespace    https://github.com/robgallardof
-// @version      1.0
+// @version      1.1.0
 // @description  Bot to automate painting on website https://wplace.live
 // @author       Readixyee, SoundOfTheSky
 // @license      MPL-2.0
@@ -16,7 +16,6 @@
 // Forked from: https://github.com/SoundOfTheSky/wplace-bot
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
-
 // node_modules/@softsky/utils/dist/arrays.js
 function swap(array, index, index2) {
   const temporary = array[index2];
@@ -1072,7 +1071,7 @@ class BotImage extends Base2 {
   }
   update() {
     const { x, y } = this.position.toScreenPosition();
-    this.element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    this.element.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
     this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
     this.$canvas.style.opacity = `${this.opacity}%`;
     this.element.classList.remove("hidden");
@@ -1280,11 +1279,12 @@ class BotImage extends Base2 {
       this.moveInfo = {
         globalX: this.position.globalX,
         globalY: this.position.globalY,
+        pixelSize: this.position.pixelSize,
         clientX: event.clientX,
         clientY: event.clientY
       };
   }
-  async moveStop() {
+  moveStop() {
     if (this.moveInfo) {
       this.moveInfo = undefined;
       this.position.updateAnchor();
@@ -1294,8 +1294,8 @@ class BotImage extends Base2 {
   move(event) {
     if (!this.moveInfo)
       return;
-    const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.position.pixelSize);
-    const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.position.pixelSize);
+    const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.moveInfo.pixelSize);
+    const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.moveInfo.pixelSize);
     if (this.moveInfo.globalX !== undefined) {
       this.position.globalX = deltaX + this.moveInfo.globalX;
       if (this.moveInfo.width !== undefined)
@@ -1313,6 +1313,7 @@ class BotImage extends Base2 {
   }
   resizeStart(event) {
     this.moveInfo = {
+      pixelSize: this.position.pixelSize,
       clientX: event.clientX,
       clientY: event.clientY
     };
@@ -1349,6 +1350,7 @@ class BotImage extends Base2 {
 var style_default = `/* stylelint-disable declaration-no-important */
 /* stylelint-disable plugin/no-low-performance-animation-properties */
 /* stylelint-disable no-descending-specificity */
+@import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap';
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
@@ -1385,19 +1387,132 @@ var style_default = `/* stylelint-disable declaration-no-important */
 	background: linear-gradient(180deg, rgb(15 23 42 / 97%), rgb(2 6 23 / 97%));
 	color: #e2e8f0;
 	box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
-	font-family: 'Tiny5', sans-serif;
+	font-family: Poppins, sans-serif;
 	transition: transform 0.35s ease;
 	transform: translateX(-100%);
 	backdrop-filter: blur(6px);
 }
 
 .wwidget .title {
-	padding: 6px 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 0;
 	border-bottom: 1px solid rgb(148 163 184 / 25%);
 	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 	color: #020617;
-	font-size: 32px;
+	font-weight: 700;
+	font-size: 20px;
+	letter-spacing: 0.3px;
 	text-align: center;
+}
+
+.wwidget .title .widget-controls {
+	display: flex;
+	gap: 4px;
+	padding-right: 8px;
+}
+
+.wwidget .title .widget-controls button {
+	width: 24px;
+	height: 24px;
+	border: 1px solid rgb(2 6 23 / 35%);
+	border-radius: 6px;
+	background: rgb(2 6 23 / 25%);
+	color: #020617;
+	cursor: pointer;
+}
+
+.wwidget .wform {
+	padding: 10px 8px 12px;
+}
+
+.wwidget .wform .wmain-actions {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+}
+
+.wwidget .wform .toggle-panel {
+	padding: 9px 10px;
+	border-color: rgb(148 163 184 / 45%);
+	background: linear-gradient(180deg, rgb(30 41 59 / 80%), rgb(15 23 42 / 90%));
+	color: #cbd5e1;
+	letter-spacing: 1px;
+}
+
+.wwidget .wform .wextra-panel.hidden {
+	display: none;
+}
+
+.wwidget .wform > * {
+	border-radius: 10px;
+}
+
+.wwidget .wform button,
+.wwidget .wform input,
+.wwidget .wform select,
+.wwidget .wform label {
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(15 23 42 / 70%);
+	color: #e2e8f0;
+	font-weight: 600;
+	font-size: 13px;
+	font-family: Poppins, sans-serif;
+}
+
+.wwidget .wform label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 10px;
+}
+
+.wwidget .wform select {
+	min-width: 130px;
+	padding: 6px 10px;
+	border: 1px solid rgb(56 189 248 / 45%);
+	background: linear-gradient(180deg, rgb(15 23 42 / 85%), rgb(2 6 23 / 85%));
+	color: #e2e8f0;
+	appearance: none;
+}
+
+.wwidget .wform select option {
+	background: #0f172a;
+	color: #e2e8f0;
+}
+
+.wwidget .wform button {
+	padding: 9px 12px;
+	background: linear-gradient(180deg, rgb(30 41 59 / 90%), rgb(15 23 42 / 90%));
+}
+
+.wwidget .wform button:hover,
+.wwidget .wform select:hover {
+	border-color: rgb(14 165 233 / 70%);
+	background: linear-gradient(180deg, rgb(14 116 144 / 35%), rgb(30 41 59 / 80%));
+}
+
+.wwidget .wform button.draw {
+	border-color: rgb(34 211 238 / 65%);
+	background: linear-gradient(180deg, rgb(14 165 233 / 45%), rgb(30 64 175 / 65%));
+	color: #f8fafc;
+}
+
+.wwidget .wform button.add-image {
+	border-color: rgb(56 189 248 / 45%);
+}
+
+.wwidget .wform .wprogress {
+	height: 32px;
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(2 6 23 / 65%);
+}
+
+.wwidget .wform .wprogress div {
+	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 }
 
 .wwidget.wopen .wopen-button div {
@@ -1460,12 +1575,15 @@ var style_default = `/* stylelint-disable declaration-no-important */
 	top: 0;
 	left: 0;
 	z-index: 9;
+	user-select: none;
+	will-change: transform, width;
 }
 
 .wimage canvas {
 	width: 100%;
 	box-shadow: inset var(--text) 0 0 0 2px;
 	cursor: all-scroll;
+	transform: translateZ(0);
 	image-rendering: pixelated;
 }
 
@@ -1814,24 +1932,38 @@ class NoImageError extends KglacerMacroError {
   }
 }
 
+// src/version.ts
+var APP_NAME = "kglacer-macro";
+
 // src/widget.html
 var widget_default = `<button class="wopen-button"><div>></div></button>
-<div class="title">kglacer-macro</div>
+<div class="title">
+	<span class="app-name">kglacer-macro</span>
+	<div class="widget-controls">
+		<button class="minimize" title="Minimizar">▁</button>
+		<button class="hide-widget" title="Ocultar">✕</button>
+	</div>
+</div>
 <div class="wform">
 	<div class="wprogress">
 		<div></div>
 		<span></span>
 	</div>
 	<div class="wp wstatus"></div>
-	<button class="draw" disabled>Draw</button>
-	<label
-		>Strategy:&nbsp;<select class="strategy">
-			<option value="SEQUENTIAL" selected>Sequential</option>
-			<option value="ALL">All</option>
-			<option value="PERCENTAGE">Percentage</option>
-		</select></label
-	>
-	<div class="images"></div>
+	<div class="wmain-actions">
+		<button class="draw" disabled>Draw</button>
+		<button class="toggle-panel" type="button" title="Mostrar/Ocultar opciones">•••</button>
+	</div>
+	<div class="wextra-panel">
+		<label
+			>Strategy:&nbsp;<select class="strategy">
+				<option value="SEQUENTIAL" selected>Sequential</option>
+				<option value="ALL">All</option>
+				<option value="PERCENTAGE">Percentage</option>
+			</select></label
+		>
+		<div class="images"></div>
+	</div>
 	<!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
 	<button class="add-image" disabled>Add image</button>
 </div>
@@ -1859,14 +1991,18 @@ class Widget extends Base2 {
   $settings;
   $status;
   $minimize;
+  $hideWidget;
   $topbar;
   $draw;
+  $togglePanel;
+  $extraPanel;
   $addImage;
   $strategy;
   $progressLine;
   $progressText;
   $images;
   $wopenButton;
+  $appName;
   constructor(bot) {
     super();
     this.bot = bot;
@@ -1878,16 +2014,31 @@ class Widget extends Base2 {
       $settings: ".wform",
       $status: ".wstatus",
       $minimize: ".minimize",
+      $hideWidget: ".hide-widget",
       $topbar: ".wtopbar",
       $draw: ".draw",
+      $togglePanel: ".toggle-panel",
+      $extraPanel: ".wextra-panel",
       $addImage: ".add-image",
       $strategy: ".strategy",
       $progressLine: ".wprogress div",
       $progressText: ".wprogress span",
-      $images: ".images"
+      $images: ".images",
+      $appName: ".app-name"
     });
+    this.$appName.textContent = APP_NAME;
     this.$wopenButton.addEventListener("click", () => this.open = !this.open);
+    this.$minimize.addEventListener("click", () => {
+      this.minimize();
+    });
+    this.$hideWidget.addEventListener("click", () => {
+      this.open = false;
+    });
     this.$draw.addEventListener("click", () => this.bot.draw());
+    this.$togglePanel.addEventListener("click", () => {
+      const hidden = this.$extraPanel.classList.toggle("hidden");
+      this.$togglePanel.textContent = hidden ? "○" : "•••";
+    });
     this.$addImage.addEventListener("click", () => this.addImage());
     this.$strategy.addEventListener("change", () => {
       this.bot.strategy = this.$strategy.value;
@@ -2014,12 +2165,15 @@ class Widget extends Base2 {
     }
   }
   minimize() {
-    this.$settings.classList.toggle("hidden");
+    const minimized = this.$settings.classList.toggle("hidden");
+    this.$minimize.textContent = minimized ? "▢" : "▁";
   }
 }
 
 // src/bot.ts
 var SAVE_VERSION = 2;
+var DRAW_STEP_WAIT_MS = 8;
+var DRAW_FAIL_RETRY_LIMIT = 3;
 
 class KglacerMacro {
   unavailableColors = new Set;
@@ -2096,12 +2250,23 @@ class KglacerMacro {
     };
     return this.widget.run("Drawing", async () => {
       await this.widget.run("Initializing draw", () => Promise.all([this.updateColors(), this.readMap()]));
+      this.updateTasks();
+      this.widget.update();
       const canvas = document.querySelector(".maplibregl-canvas");
-      const firstTask = this.images[0].tasks[0];
+      if (!canvas) {
+        this.widget.status = "❌ Canvas not found";
+        return;
+      }
+      const firstTask = this.images.find((image) => image.tasks.length > 0)?.tasks[0];
+      if (!firstTask) {
+        this.widget.status = "✅ No pending pixels";
+        return;
+      }
+      const firstDrawTask = firstTask;
       function waitForZoom(minPixelSize) {
         return new Promise((resolve) => {
           function step() {
-            if (firstTask.position.pixelSize >= minPixelSize) {
+            if (firstDrawTask.position.pixelSize >= minPixelSize) {
               resolve();
               return;
             }
@@ -2117,9 +2282,20 @@ class KglacerMacro {
         });
       }
       await waitForZoom(4);
+      canvas.dispatchEvent(new MouseEvent("mousedown", {
+        clientX: canvas.clientWidth / 2,
+        clientY: canvas.clientHeight / 2,
+        bubbles: true,
+        buttons: 1
+      }));
+      canvas.dispatchEvent(new MouseEvent("mouseup", {
+        clientX: canvas.clientWidth / 2,
+        clientY: canvas.clientHeight / 2,
+        bubbles: true
+      }));
+      await wait(5);
       globalThis.addEventListener("mousemove", prevent, true);
       $canvas.addEventListener("wheel", prevent, true);
-      this.updateTasks();
       const res = await fetch("https://backend.wplace.live/me", {
         credentials: "include"
       });
@@ -2133,12 +2309,16 @@ class KglacerMacro {
           while (charges > 0) {
             let end = true;
             for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
-              const task = this.images[imageIndex].tasks.shift();
+              const image = this.images[imageIndex];
+              const task = image.tasks[0];
               if (!task)
                 continue;
-              this.drawTask(task);
+              const drawn = await this.drawTask(task);
+              if (!drawn)
+                continue;
+              image.tasks.shift();
               charges -= 1;
-              await wait(1);
+              await wait(DRAW_STEP_WAIT_MS);
               end = false;
             }
             if (end)
@@ -2158,19 +2338,35 @@ class KglacerMacro {
                 minImage = image;
               }
             }
-            this.drawTask(minImage.tasks.shift());
+            const task = minImage.tasks[0];
+            if (!task)
+              continue;
+            const drawn = await this.drawTask(task);
+            if (!drawn)
+              continue;
+            minImage.tasks.shift();
             charges -= 1;
-            await wait(1);
+            await wait(DRAW_STEP_WAIT_MS);
           }
           break;
         }
         case "SEQUENTIAL" /* SEQUENTIAL */: {
           for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
             const image = this.images[imageIndex];
-            for (let task = image.tasks.shift();task && charges > 0; task = image.tasks.shift()) {
-              this.drawTask(task);
+            let failCount = 0;
+            for (let task = image.tasks[0];task && charges > 0; task = image.tasks[0]) {
+              const drawn = await this.drawTask(task);
+              if (!drawn) {
+                failCount += 1;
+                if (failCount >= DRAW_FAIL_RETRY_LIMIT)
+                  break;
+                await wait(DRAW_STEP_WAIT_MS * 2);
+                continue;
+              }
+              failCount = 0;
+              image.tasks.shift();
               charges -= 1;
-              await wait(1);
+              await wait(DRAW_STEP_WAIT_MS);
             }
           }
         }
@@ -2360,13 +2556,18 @@ class KglacerMacro {
       await wait(1);
     }
   }
-  drawTask(task) {
+  async drawTask(task) {
+    const colorButton = document.getElementById("color-" + task.color);
+    if (!colorButton)
+      return false;
     if (this.lastColor !== task.color) {
-      document.getElementById("color-" + task.color).click();
+      colorButton.click();
       this.lastColor = task.color;
     }
     const halfPixel = task.position.pixelSize / 2;
     const position = task.position.toScreenPosition();
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+      return false;
     document.documentElement.dispatchEvent(new MouseEvent("mousemove", {
       bubbles: true,
       clientX: position.x + halfPixel,
@@ -2381,6 +2582,7 @@ class KglacerMacro {
       bubbles: true,
       cancelable: true
     }));
+    await wait(1);
     document.documentElement.dispatchEvent(new KeyboardEvent("keyup", {
       key: " ",
       code: "Space",
@@ -2389,6 +2591,7 @@ class KglacerMacro {
       bubbles: true,
       cancelable: true
     }));
+    return true;
   }
   registerFetchInterceptor() {
     const originalFetch = globalThis.fetch;
