@@ -1,11 +1,21 @@
 import { promisifyEventSource, swap } from '@softsky/utils'
 
+<<<<<<< HEAD
 import { Base } from './base'
 import { WPlaceBot } from './bot'
 import { NoImageError, WPlaceBotError } from './errors'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
 import { save } from './save'
+=======
+import { Base } from './base';
+import { KglacerMacro } from './bot';
+import { NoImageError, KglacerMacroError } from './errors';
+import { BotImage } from './image';
+import { Pixels } from './pixels';
+import { save } from './save';
+import { APP_NAME } from './version';
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @ts-ignore
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition } from './world-position'
@@ -28,6 +38,7 @@ export class Widget extends Base {
     this.$status.innerHTML = value
   }
 
+<<<<<<< HEAD
   public get open() {
     return this.element.classList.contains('wopen')
   }
@@ -47,9 +58,35 @@ export class Widget extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
   protected readonly $wopenButton!: HTMLButtonElement
+=======
+	public get open() {
+		return this.element.classList.contains('wopen');
+	}
+	public set open(value) {
+		this.element.classList.toggle('wopen', value);
+		if (!value) this.setMinimized(false);
+	}
+
+	protected readonly $settings!: HTMLDivElement;
+	protected readonly $status!: HTMLDivElement;
+	protected readonly $minimize!: HTMLButtonElement;
+	protected readonly $hideWidget!: HTMLButtonElement;
+	protected readonly $topbar!: HTMLDivElement;
+	protected readonly $draw!: HTMLButtonElement;
+	protected readonly $togglePanel!: HTMLButtonElement;
+	protected readonly $extraPanel!: HTMLDivElement;
+	protected readonly $addImage!: HTMLButtonElement;
+	protected readonly $strategy!: HTMLInputElement;
+	protected readonly $progressLine!: HTMLDivElement;
+	protected readonly $progressText!: HTMLSpanElement;
+	protected readonly $images!: HTMLDivElement;
+	protected readonly $wopenButton!: HTMLButtonElement;
+	protected readonly $appName!: HTMLSpanElement;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
+<<<<<<< HEAD
   public constructor(protected bot: WPlaceBot) {
     super()
     this.element.classList.add('wwidget')
@@ -79,6 +116,52 @@ export class Widget extends Base {
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
+=======
+	public constructor(protected bot: KglacerMacro) {
+		super();
+		this.element.classList.add('wwidget');
+		this.element.innerHTML = html as unknown as string;
+		document.body.append(this.element);
+
+		this.populateElementsWithSelector(this.element, {
+			$wopenButton: '.wopen-button',
+			$settings: '.wform',
+			$status: '.wstatus',
+			$minimize: '.minimize',
+			$hideWidget: '.hide-widget',
+			$topbar: '.wtopbar',
+			$draw: '.draw',
+			$togglePanel: '.toggle-panel',
+			$extraPanel: '.wextra-panel',
+			$addImage: '.add-image',
+			$strategy: '.strategy',
+			$progressLine: '.wprogress div',
+			$progressText: '.wprogress span',
+			$images: '.images',
+			$appName: '.app-name',
+			// $pumpkinHunt: '.pumpkin-hunt',
+		});
+		this.$appName.textContent = APP_NAME;
+
+		// Button actions
+		this.$wopenButton.addEventListener('click', () => (this.open = !this.open));
+		this.$minimize.addEventListener('click', () => {
+			this.minimize();
+		});
+		this.$hideWidget.addEventListener('click', () => {
+			this.open = false;
+		});
+		this.$draw.addEventListener('click', () => this.bot.draw());
+		this.$togglePanel.addEventListener('click', () => {
+			const hidden = this.$extraPanel.classList.toggle('hidden');
+			this.$togglePanel.textContent = hidden ? '○' : '•••';
+		});
+		// this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
+		this.$addImage.addEventListener('click', () => this.addImage());
+		this.$strategy.addEventListener('change', () => {
+			this.bot.strategy = this.$strategy.value as BotStrategy;
+		});
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
     this.update()
     this.open = true
@@ -148,6 +231,7 @@ export class Widget extends Base {
     this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`
     this.$progressLine.style.transform = `scaleX(${percent}%)`
 
+<<<<<<< HEAD
     // Images
     this.$images.innerHTML = ''
     for (let index = 0; index < this.bot.images.length; index++) {
@@ -156,6 +240,79 @@ export class Widget extends Base {
       this.$images.append($image)
       $image.className = 'image'
       $image.innerHTML = `<img src="${image.pixels.image.src}">
+=======
+						dialog.classList.add('custom-dialog');
+
+						form.method = 'dialog';
+
+						label.textContent = 'Width: ';
+						number.type = 'number';
+						number.value = String(image.naturalWidth);
+						number.min = '1';
+
+						ok.textContent = 'OK';
+						ok.value = 'ok';
+
+						label.appendChild(number);
+						form.appendChild(label);
+						form.appendChild(ok);
+						dialog.appendChild(form);
+						document.body.appendChild(dialog);
+
+						dialog.addEventListener('close', () => {
+							const value = dialog.returnValue === 'ok' ? Number(number.value) : image.naturalWidth;
+							dialog.remove();
+							resolve(value);
+						});
+
+						dialog.showModal();
+					});
+
+					botImage = new BotImage(
+						this.bot,
+						WorldPosition.fromScreenPosition(this.bot, {
+							x: 256,
+							y: 32,
+						}),
+						await Pixels.create(this.bot, image, width)
+					);
+				}
+				this.bot.images.push(botImage);
+				await this.bot.readMap();
+				botImage.updateTasks();
+				await save(this.bot, true);
+			},
+			() => {
+				this.setDisabled('add-image', false);
+			}
+		);
+	}
+
+	/** Update widget position and contents */
+	public update() {
+		this.$strategy.value = this.bot.strategy;
+		// Progress
+		let maxTasks = 0;
+		let totalTasks = 0;
+		for (let index = 0; index < this.bot.images.length; index++) {
+			const image = this.bot.images[index]!;
+			maxTasks += image.pixels.pixels.length * image.pixels.pixels[0]!.length;
+			totalTasks += image.tasks.length;
+		}
+		const doneTasks = maxTasks - totalTasks;
+		const percent = ((doneTasks / maxTasks) * 100) | 0;
+		this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`;
+		this.$progressLine.style.transform = `scaleX(${percent}%)`;
+
+		// Images
+		this.$images.innerHTML = '';
+		for (let index = 0; index < this.bot.images.length; index++) {
+			const image = this.bot.images[index]!;
+			const $image = document.createElement('div');
+			this.$images.append($image);
+			$image.className = 'image';
+			$image.innerHTML = `<img src="${image.pixels.image.src}">
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
   <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
   <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>`
       $image
@@ -186,6 +343,7 @@ export class Widget extends Base {
       disabled
   }
 
+<<<<<<< HEAD
   /** Show status of running task */
   public async run<T>(
     status: string,
@@ -214,6 +372,37 @@ export class Widget extends Base {
   protected minimize() {
     this.$settings.classList.toggle('hidden')
   }
+=======
+	/** Show status of running task */
+	public async run<T>(status: string, run: () => Promise<T>, fin?: () => unknown, emoji = '⌛'): Promise<T> {
+		const originalStatus = this.status;
+		this.status = `${emoji} ${status}`;
+		try {
+			const result = await run();
+			this.status = originalStatus;
+			return result;
+		} catch (error) {
+			if (!(error instanceof KglacerMacroError)) {
+				console.error(error);
+				this.status = `❌ ${status}`;
+			}
+			throw error;
+		} finally {
+			await fin?.();
+		}
+	}
+
+	/** Hides content */
+	protected minimize() {
+		this.setMinimized(!this.element.classList.contains('wminimized'));
+	}
+
+	protected setMinimized(minimized: boolean) {
+		this.element.classList.toggle('wminimized', minimized);
+		this.$settings.classList.toggle('hidden', minimized);
+		this.$minimize.textContent = minimized ? '▢' : '—';
+	}
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   // protected async pumpkinHunt() {
   //   this.$pumpkinHunt.disabled = false

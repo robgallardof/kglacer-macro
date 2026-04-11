@@ -1,4 +1,4 @@
-# Wplace-bot
+# kglacer-macro
 
 ## Features
 
@@ -12,7 +12,11 @@
 ## Installation
 
 1. Install TamperMonkey browser extension: [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en)|[Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
+<<<<<<< HEAD
 2. [Open this link](https://github.com/SoundOfTheSky/wplace-bot/raw/refs/heads/main/dist.user.js)
+=======
+2. [Open this link](https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js)
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 3. Press install
 4. Allow user scripts
    1. Chrome: Settings>Extensions>Manage Extensions>Tampermonkey>Details>Allow User Scripts
@@ -30,7 +34,11 @@
 8. Delete image.
 9. Finally click "Draw" to start drawing :)
 
+<<<<<<< HEAD
 ![Instruction1](https://github.com/SoundOfTheSky/wplace-bot/raw/refs/heads/main/Instruction.png)
+=======
+![Instruction1](https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/Instruction.png)
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
 ## Captcha bypass
 
@@ -53,6 +61,6 @@ Also I'm using [Firefox Multi-Account Containers](https://addons.mozilla.org/en-
 
 1. Install [Bun](https://bun.sh/)
 2. Install dependencies `bun i`
-3. Up version in `script.txt`
+3. Up version in `src/version.ts` (metadata se sincroniza automáticamente al build)
 4. Lint `bun run lint`
 5. Build `bun start`

@@ -1,13 +1,25 @@
 // ==UserScript==
+<<<<<<< HEAD
 // @name         wplace-bot
 // @namespace    https://github.com/SoundOfTheSky
 // @version      4.5.2
+=======
+// @name         kglacer-macro
+// @namespace    https://github.com/robgallardof
+// @version      1.1.1
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @description  Bot to automate painting on website https://wplace.live
 // @author       SoundOfTheSky
 // @license      MPL-2.0
+<<<<<<< HEAD
 // @homepageURL  https://github.com/SoundOfTheSky/wplace-bot
 // @updateURL    https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
 // @downloadURL  https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
+=======
+// @homepageURL  https://github.com/robgallardof/kglacer-macro
+// @updateURL    https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/dist.user.js
+// @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/dist.user.js
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @run-at       document-start
 // @match        *://*.wplace.live/*
 // @grant        none
@@ -15,7 +27,6 @@
 
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
-
 // node_modules/@softsky/utils/dist/arrays.js
 function swap(array, index, index2) {
   const temporary = array[index2];
@@ -421,15 +432,106 @@ class Pixels {
   width;
   brightness;
   exactColor;
+<<<<<<< HEAD
   static async fromJSON(bot, data) {
     const image = new Image;
     image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then((x) => x.blob()).then((X) => URL.createObjectURL(X)) : data.url;
     await promisifyEventSource(image, ["load"], ["error"]);
     return new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+=======
+  static db = null;
+  static DB_NAME = "PixelBotCache";
+  static STORE_NAME = "pixelData";
+  static DB_VERSION = 1;
+  static async initDB() {
+    if (this.db)
+      return this.db;
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      request.onerror = () => {
+        reject(request.error);
+      };
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(this.db);
+      };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME, { keyPath: "cacheKey" });
+        }
+      };
+    });
+  }
+  static async hashImage(image) {
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0);
+    const dataURL = canvas.toDataURL();
+    let hash = 0;
+    for (let i = 0;i < dataURL.length; i++) {
+      const char = dataURL.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return `img_${Math.abs(hash)}`;
+  }
+  static async loadFromCache(key) {
+    try {
+      const db = await this.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readonly");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.get(JSON.stringify(key));
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve(request.result || null);
+        };
+      });
+    } catch {
+      console.warn("Failed to load from IndexedDB cache, will recompute");
+      return null;
+    }
+  }
+  static async saveToCache(key, data) {
+    try {
+      const db = await this.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readwrite");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.put({
+          cacheKey: JSON.stringify(key),
+          ...data
+        });
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve();
+        };
+      });
+    } catch (error) {
+      console.warn("Failed to save to IndexedDB cache:", error);
+    }
+  }
+  static async fromJSON(bot, data, options) {
+    const skipCache = options?.skipCache ?? false;
+    const image = new Image;
+    image.src = data.url.startsWith("http") ? await fetch(data.url, { cache: "no-store" }).then((x) => x.blob()).then((X) => URL.createObjectURL(X)) : data.url;
+    await promisifyEventSource(image, ["load"], ["error"]);
+    const pixels = new Pixels(bot, image, data.width, data.brightness, data.exactColor);
+    await pixels.update(skipCache);
+    return pixels;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
   }
   canvas = document.createElement("canvas");
   context = this.canvas.getContext("2d");
   pixels;
+  lastComputedState;
   colors = new Map;
   resolution;
   get height() {
@@ -451,7 +553,70 @@ class Pixels {
       this.resolution = this.image.naturalWidth / this.image.naturalHeight;
     this.update();
   }
+<<<<<<< HEAD
   update() {
+=======
+  static async create(bot, image, width = image.naturalWidth, brightness = 0, exactColor = false) {
+    const instance = new Pixels(bot, image, width, brightness, exactColor);
+    await instance.update();
+    return instance;
+  }
+  async update(skipCache = false) {
+    const currentState = `${this.image.src}|${this.image.naturalWidth}x${this.image.naturalHeight}|${this.width}|${this.brightness}|${this.exactColor}`;
+    if (this.lastComputedState === currentState)
+      return;
+    let cacheKey;
+    if (!skipCache) {
+      const imageHash = await Pixels.hashImage(this.image);
+      cacheKey = {
+        imageHash,
+        width: this.width,
+        brightness: this.brightness,
+        exactColor: this.exactColor
+      };
+      const cached = await Pixels.loadFromCache(cacheKey);
+      if (cached) {
+        this.pixels = cached.pixels;
+        this.colors.clear();
+        for (const [key, value] of Object.entries(cached.colors)) {
+          this.colors.set(Number(key), value);
+        }
+        this.drawCachedPixels();
+        this.lastComputedState = currentState;
+        return;
+      }
+    }
+    await this.computePixels();
+    this.lastComputedState = currentState;
+    if (!skipCache) {
+      const dataToCache = {
+        pixels: this.pixels,
+        colors: Object.fromEntries(this.colors),
+        width: this.width,
+        brightness: this.brightness,
+        exactColor: this.exactColor,
+        timestamp: Date.now()
+      };
+      await Pixels.saveToCache(cacheKey, dataToCache);
+    }
+  }
+  drawCachedPixels() {
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
+    this.context.imageSmoothingEnabled = false;
+    this.context.imageSmoothingQuality = "low";
+    for (let y = 0;y < this.pixels.length; y++) {
+      for (let x = 0;x < this.pixels[y].length; x++) {
+        const colorIndex = this.pixels[y][x];
+        if (colorIndex !== 0) {
+          this.context.fillStyle = `oklab(${COLORS[colorIndex][0] * 100}% ${COLORS[colorIndex][1]} ${COLORS[colorIndex][2]})`;
+          this.context.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+  }
+  async computePixels(batchSize = 1000) {
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.colors.clear();
@@ -465,6 +630,7 @@ class Pixels {
     this.context.drawImage(this.image, 0, 0, this.canvas.width, this.canvas.height);
     this.pixels = Array.from({ length: this.canvas.height }, () => new Array(this.canvas.width));
     const data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
+<<<<<<< HEAD
     for (let y = 0;y < this.canvas.height; y++) {
       for (let x = 0;x < this.canvas.width; x++) {
         const index = (y * this.canvas.width + x) * 4;
@@ -472,6 +638,20 @@ class Pixels {
         const g = data[index + 1];
         const b = data[index + 2];
         const a = data[index + 3];
+=======
+    const totalPixels = this.canvas.width * this.canvas.height;
+    let lastPercent = -1;
+    for (let start = 0;start < totalPixels; start += batchSize) {
+      const end = Math.min(start + batchSize, totalPixels);
+      for (let i = start;i < end; i++) {
+        const y = Math.floor(i / this.canvas.width);
+        const x = i % this.canvas.width;
+        const index = i * 4;
+        const r = Math.round(data[index]);
+        const g = Math.round(data[index + 1]);
+        const b = Math.round(data[index + 2]);
+        const a = Math.round(data[index + 3]);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
         const key = `${r},${g},${b}`;
         if (this.exactColor) {
           this.pixels[y][x] = a < 100 ? 0 : COLORS_RGB.indexOf(key);
@@ -516,6 +696,15 @@ class Pixels {
           });
         }
       }
+<<<<<<< HEAD
+=======
+      const percent = Math.floor(end / totalPixels * 100);
+      if (percent !== lastPercent) {
+        this.bot.widget.status = `Computing pixels: ${percent}%`;
+        lastPercent = percent;
+      }
+      await new Promise((r) => setTimeout(r, 0));
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
     }
   }
   toJSON() {
@@ -531,6 +720,7 @@ class Pixels {
       exactColor: this.exactColor
     };
   }
+<<<<<<< HEAD
 }
 
 // src/save.ts
@@ -562,6 +752,74 @@ function save(bot, immediate = false) {
     saveTimeout = setTimeout(() => {
       localStorage.setItem("wbot", JSON.stringify(bot));
     }, 1000);
+=======
+  static async clearCache() {
+    try {
+      const db = await Pixels.initDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], "readwrite");
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.clear();
+        request.onerror = () => {
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          resolve();
+        };
+      });
+    } catch (error) {
+      console.warn("Failed to clear cache:", error);
+    }
+  }
+}
+
+// src/save.ts
+var DB_NAME = "kglacerMacroDB";
+var STORE_NAME = "botStore";
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
+}
+async function save(bot, immediate = false) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  const store = tx.objectStore(STORE_NAME);
+  const data = JSON.stringify(bot);
+  store.put(data, "kglacer-macro");
+  await tx.complete;
+}
+async function loadSave() {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.get("kglacer-macro");
+    request.onsuccess = () => {
+      try {
+        const save2 = JSON.parse(request.result);
+        resolve(save2);
+      } catch {
+        resolve(undefined);
+      }
+    };
+    request.onerror = () => {
+      resolve(undefined);
+    };
+  });
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 // src/world-position.ts
@@ -577,7 +835,7 @@ function addFavoriteLocation(position) {
     id: lastId++,
     latitude: (2 * Math.atan(Math.exp(-(position.y / WORLD_PIXEL_SIZE * (2 * Math.PI) - Math.PI))) - Math.PI / 2) * 180 / Math.PI,
     longitude: (position.x / WORLD_PIXEL_SIZE * (2 * Math.PI) - Math.PI) * 180 / Math.PI,
-    name: "WBOT_FAVORITE"
+    name: "KGLACER_MACRO_FAVORITE"
   });
 }
 addFavoriteLocation({
@@ -631,7 +889,18 @@ class WorldPosition {
   anchor1Index;
   anchor2Index;
   get pixelSize() {
-    return (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]).x - extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]).x) / (FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index].x - FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index].x);
+    const screen1 = extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]);
+    const screen2 = extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]);
+    const world1 = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
+    const world2 = FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index];
+    const deltaScreenX = screen2.x - screen1.x;
+    const deltaScreenY = screen2.y - screen1.y;
+    const deltaWorldX = world2.x - world1.x;
+    const deltaWorldY = world2.y - world1.y;
+    const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+    const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+    const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
+    return Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1;
   }
   constructor(bot, tileorGlobalX, tileorGlobalY, x, y) {
     this.bot = bot;
@@ -645,26 +914,16 @@ class WorldPosition {
     this.updateAnchor();
   }
   updateAnchor() {
-    this.anchor1Index = 0;
-    this.anchor2Index = 1;
-    let min1 = Infinity;
-    let min2 = Infinity;
-    for (let index = 0;index < FAVORITE_LOCATIONS_POSITIONS.length; index++) {
-      const { x, y } = FAVORITE_LOCATIONS_POSITIONS[index];
-      if (x < this.globalX && y < this.globalY) {
-        const delta = this.globalX - x + (this.globalY - y);
-        if (delta < min1) {
-          min1 = delta;
-          this.anchor1Index = index;
-        }
-      } else if (x > this.globalX && y > this.globalY) {
-        const delta = x - this.globalX + (y - this.globalY);
-        if (delta < min2) {
-          min2 = delta;
-          this.anchor2Index = index;
-        }
-      }
-    }
+    const ordered = FAVORITE_LOCATIONS_POSITIONS.map((position, index) => ({
+      index,
+      distance: (position.x - this.globalX) * (position.x - this.globalX) + (position.y - this.globalY) * (position.y - this.globalY)
+    })).sort((a, b) => a.distance - b.distance);
+    this.anchor1Index = ordered[0]?.index ?? 0;
+    this.anchor2Index = ordered.find((candidate) => {
+      const primary = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
+      const other = FAVORITE_LOCATIONS_POSITIONS[candidate.index];
+      return primary.x !== other.x && primary.y !== other.y;
+    })?.index ?? ordered[1]?.index ?? this.anchor1Index;
   }
   toScreenPosition() {
     const worldPosition = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index];
@@ -680,8 +939,8 @@ class WorldPosition {
   scrollScreenTo() {
     const { x, y } = this.toScreenPosition();
     this.bot.moveMap({
-      x: x - window.innerWidth / 3,
-      y: y - window.innerHeight / 3
+      x: Math.round(x - window.innerWidth / 3),
+      y: Math.round(y - window.innerHeight / 3)
     });
   }
   clone() {
@@ -856,8 +1115,10 @@ class BotImage extends Base2 {
   }
   update() {
     const { x, y } = this.position.toScreenPosition();
-    this.element.style.transform = `translate(${x}px, ${y}px)`;
-    this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`;
+    const stableX = Math.round(x * 2) / 2;
+    const stableY = Math.round(y * 2) / 2;
+    this.element.style.transform = `translate3d(${stableX}px, ${stableY}px, 0)`;
+    this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
     this.$canvas.style.opacity = `${this.opacity}%`;
     this.element.classList.remove("hidden");
     this.$resetSizeSpan.textContent = this.pixels.width.toString();
@@ -1064,6 +1325,7 @@ class BotImage extends Base2 {
       this.moveInfo = {
         globalX: this.position.globalX,
         globalY: this.position.globalY,
+        pixelSize: this.position.pixelSize,
         clientX: event.clientX,
         clientY: event.clientY
       };
@@ -1079,8 +1341,8 @@ class BotImage extends Base2 {
   move(event) {
     if (!this.moveInfo)
       return;
-    const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.position.pixelSize);
-    const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.position.pixelSize);
+    const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.moveInfo.pixelSize);
+    const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.moveInfo.pixelSize);
     if (this.moveInfo.globalX !== undefined) {
       this.position.globalX = deltaX + this.moveInfo.globalX;
       if (this.moveInfo.width !== undefined)
@@ -1098,6 +1360,7 @@ class BotImage extends Base2 {
   }
   resizeStart(event) {
     this.moveInfo = {
+      pixelSize: this.position.pixelSize,
       clientX: event.clientX,
       clientY: event.clientY
     };
@@ -1134,9 +1397,11 @@ class BotImage extends Base2 {
 var style_default = `/* stylelint-disable declaration-no-important */
 /* stylelint-disable plugin/no-low-performance-animation-properties */
 /* stylelint-disable no-descending-specificity */
+@import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap';
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
+<<<<<<< HEAD
   --hover: #dfdfdf;
   --text-invert: #fff;
   --error: #f00;
@@ -1148,6 +1413,19 @@ var style_default = `/* stylelint-disable declaration-no-important */
   --background-disabled: #a37648;
   --main: #66bbb4;
   --main-hover: #48a19a;
+=======
+	--hover: #dbeafe;
+	--text-invert: #f8fafc;
+	--error: #ef4444;
+	--resize: 8px;
+	--asdadsasdasdasdasdasdasdasd: 1px;
+	--text: #0f172a;
+	--background: #0b1220;
+	--background-hover: #1e293b;
+	--background-disabled: #64748b;
+	--main: #38bdf8;
+	--main-hover: #0ea5e9;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -1158,6 +1436,7 @@ var style_default = `/* stylelint-disable declaration-no-important */
 
 /** Widget */
 .wwidget {
+<<<<<<< HEAD
   position: fixed;
   top: 0;
   left: 0;
@@ -1177,6 +1456,151 @@ var style_default = `/* stylelint-disable declaration-no-important */
   background-color: var(--main);
   font-size: 32px;
   text-align: center;
+=======
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	z-index: 1000;
+	overflow: hidden;
+	width: 300px;
+	height: calc(100dvh - 24px);
+	border: 1px solid rgb(148 163 184 / 30%);
+	border-radius: 16px;
+	background: linear-gradient(180deg, rgb(15 23 42 / 97%), rgb(2 6 23 / 97%));
+	color: #e2e8f0;
+	box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
+	font-family: Poppins, sans-serif;
+	transition: transform 0.35s ease;
+	transform: translateX(-100%);
+	backdrop-filter: blur(6px);
+}
+
+.wwidget .title {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 0;
+	border-bottom: 1px solid rgb(148 163 184 / 25%);
+	background: linear-gradient(90deg, #22d3ee, #3b82f6);
+	color: #020617;
+	font-weight: 700;
+	font-size: 20px;
+	letter-spacing: 0.3px;
+	text-align: center;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
+}
+
+.wwidget .title .widget-controls {
+	display: flex;
+	gap: 4px;
+	padding-right: 8px;
+}
+
+.wwidget .title .widget-controls button {
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	width: 26px;
+	height: 26px;
+	border: 1px solid rgb(2 6 23 / 35%);
+	border-radius: 6px;
+	background: rgb(2 6 23 / 25%);
+	color: #020617;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.wwidget .wform {
+	padding: 10px 8px 12px;
+}
+
+.wwidget .wform .wmain-actions {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px;
+}
+
+.wwidget .wform .toggle-panel {
+	padding: 9px 10px;
+	border-color: rgb(148 163 184 / 45%);
+	background: linear-gradient(180deg, rgb(30 41 59 / 80%), rgb(15 23 42 / 90%));
+	color: #cbd5e1;
+	letter-spacing: 1px;
+}
+
+.wwidget .wform .wextra-panel.hidden {
+	display: none;
+}
+
+.wwidget .wform > * {
+	border-radius: 10px;
+}
+
+.wwidget .wform button,
+.wwidget .wform input,
+.wwidget .wform select,
+.wwidget .wform label {
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(15 23 42 / 70%);
+	color: #e2e8f0;
+	font-weight: 600;
+	font-size: 13px;
+	font-family: Poppins, sans-serif;
+}
+
+.wwidget .wform label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 10px;
+}
+
+.wwidget .wform select {
+	min-width: 130px;
+	padding: 6px 10px;
+	border: 1px solid rgb(56 189 248 / 45%);
+	background: linear-gradient(180deg, rgb(15 23 42 / 85%), rgb(2 6 23 / 85%));
+	color: #e2e8f0;
+	appearance: none;
+}
+
+.wwidget .wform select option {
+	background: #0f172a;
+	color: #e2e8f0;
+}
+
+.wwidget .wform button {
+	padding: 9px 12px;
+	background: linear-gradient(180deg, rgb(30 41 59 / 90%), rgb(15 23 42 / 90%));
+}
+
+.wwidget .wform button:hover,
+.wwidget .wform select:hover {
+	border-color: rgb(14 165 233 / 70%);
+	background: linear-gradient(180deg, rgb(14 116 144 / 35%), rgb(30 41 59 / 80%));
+}
+
+.wwidget .wform button.draw {
+	border-color: rgb(34 211 238 / 65%);
+	background: linear-gradient(180deg, rgb(14 165 233 / 45%), rgb(30 64 175 / 65%));
+	color: #f8fafc;
+}
+
+.wwidget .wform button.add-image {
+	border-color: rgb(56 189 248 / 45%);
+}
+
+.wwidget .wform .wprogress {
+	height: 32px;
+	border: 1px solid rgb(56 189 248 / 35%);
+	border-radius: 10px;
+	background: rgb(2 6 23 / 65%);
+}
+
+.wwidget .wform .wprogress div {
+	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 }
 
 .wwidget.wopen .wopen-button div {
@@ -1184,8 +1608,34 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .wwidget.wopen {
+<<<<<<< HEAD
   box-shadow: 8px 0 16px -8px var(--main);
   transform: translateX(0);
+=======
+	transform: translateX(0);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
+}
+
+.wwidget.wminimized {
+	width: 78px;
+	height: 52px;
+	border-radius: 14px;
+}
+
+.wwidget.wminimized .title {
+	padding: 8px;
+	border: 0;
+}
+
+.wwidget.wminimized .title .app-name,
+.wwidget.wminimized .title .hide-widget {
+	display: none;
+}
+
+.wwidget.wminimized .title .widget-controls {
+	justify-content: center;
+	width: 100%;
+	padding-right: 0;
 }
 
 .wwidget .wopen-button div {
@@ -1193,6 +1643,7 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .wwidget .wopen-button {
+<<<<<<< HEAD
   position: absolute;
   top: calc(50% - 24px);
   right: -24px;
@@ -1203,6 +1654,19 @@ var style_default = `/* stylelint-disable declaration-no-important */
   background-color: var(--background);
   color: var(--text);
   cursor: pointer;
+=======
+	position: absolute;
+	top: calc(50% - 24px);
+	right: -24px;
+	width: 24px;
+	height: 48px;
+	border: 1px solid rgb(148 163 184 / 35%);
+	border-left: none;
+	border-radius: 0 10px 10px 0;
+	background: #0f172a;
+	color: #cbd5e1;
+	cursor: pointer;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .wwidget .images {
@@ -1235,6 +1699,7 @@ var style_default = `/* stylelint-disable declaration-no-important */
 
 /** Image */
 .wimage {
+<<<<<<< HEAD
   position: fixed;
   top: 0;
   left: 0;
@@ -1246,6 +1711,22 @@ var style_default = `/* stylelint-disable declaration-no-important */
   box-shadow: inset var(--text) 0 0 0 2px;
   cursor: all-scroll;
   image-rendering: pixelated;
+=======
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 9;
+	user-select: none;
+	will-change: transform, width;
+}
+
+.wimage canvas {
+	width: 100%;
+	box-shadow: inset var(--text) 0 0 0 2px;
+	cursor: all-scroll;
+	transform: translateZ(0);
+	image-rendering: pixelated;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .wimage .wform {
@@ -1493,30 +1974,129 @@ var style_default = `/* stylelint-disable declaration-no-important */
 }
 
 .no-pointer-events {
+<<<<<<< HEAD
   height: 1px;
   pointer-events: none;
+=======
+	height: 1px;
+	pointer-events: none;
+}
+
+.custom-dialog {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	min-width: 220px;
+	padding: 16px;
+	border: var(--text) 2px solid;
+	background: var(--background);
+	color: var(--text);
+	font-family: 'Tiny5', sans-serif;
+	transform: translate(-50%, -50%);
+}
+
+.custom-dialog::backdrop {
+	background: rgb(0 0 0 / 45%);
+}
+
+.custom-dialog form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.custom-dialog label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.custom-dialog input[type='number'] {
+	width: 100px;
+	padding: 4px 6px;
+	border: var(--text) 2px solid;
+	background: var(--background);
+	color: var(--text);
+	font-family: 'Tiny5', sans-serif;
+}
+
+.custom-dialog button {
+	padding: 4px 8px;
+	border: var(--text) 2px solid;
+	background: var(--main);
+	color: var(--text-invert);
+	font-family: 'Tiny5', sans-serif;
+	cursor: pointer;
+}
+
+.custom-dialog button:hover {
+	background: var(--main-hover);
+}
+
+.wform.popup {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	z-index: 999;
+	display: none;
+	padding: 1rem;
+	border: var(--text) 2px solid;
+	box-shadow: 0 0 15px rgb(0 0 0 / 30%);
+	transform: translate(-50%, -50%);
+}
+
+.wform.popup.show {
+	display: block;
+}
+
+.wform.popup .close-popup {
+	float: right;
+	width: 24px;
+	height: 24px;
+	border: none;
+	background: var(--error);
+	color: #fff;
+	font-size: 16px;
+	line-height: 24px;
+	text-align: center;
+	cursor: pointer;
+}
+
+.wform.popup .close-popup:hover {
+	background: #b91c1c;
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 `;
 
 // src/errors.ts
-class WPlaceBotError extends Error {
-  name = "WPlaceBotError";
+class KglacerMacroError extends Error {
+  name = "KglacerMacroError";
   constructor(message, bot) {
     super(message);
     bot.widget.status = message;
   }
 }
-class NoImageError extends WPlaceBotError {
+class NoImageError extends KglacerMacroError {
   name = "NoImageError";
   constructor(bot) {
     super("❌ No image is selected", bot);
   }
 }
 
+// src/version.ts
+var APP_NAME = "kglacer-macro";
+
 // src/widget.html
 var widget_default = `<button class="wopen-button"><div>></div></button>
-<div class="title">WPlace-bot</div>
+<div class="title">
+	<span class="app-name">kglacer-macro</span>
+	<div class="widget-controls">
+		<button class="minimize" title="Minimizar">—</button>
+		<button class="hide-widget" title="Ocultar">✕</button>
+	</div>
+</div>
 <div class="wform">
+<<<<<<< HEAD
   <div class="wprogress"><div></div><span></span></div>
   <div class="wp wstatus"></div>
   <button class="draw" disabled>Draw</button>
@@ -1528,6 +2108,29 @@ var widget_default = `<button class="wopen-button"><div>></div></button>
   <div class="images"></div>
   <!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
   <button class="add-image" disabled>Add image</button>
+=======
+	<div class="wprogress">
+		<div></div>
+		<span></span>
+	</div>
+	<div class="wp wstatus"></div>
+	<div class="wmain-actions">
+		<button class="draw" disabled>Draw</button>
+		<button class="toggle-panel" type="button" title="Mostrar/Ocultar opciones">•••</button>
+	</div>
+	<div class="wextra-panel">
+		<label
+			>Strategy:&nbsp;<select class="strategy">
+				<option value="SEQUENTIAL" selected>Sequential</option>
+				<option value="ALL">All</option>
+				<option value="PERCENTAGE">Percentage</option>
+			</select></label
+		>
+		<div class="images"></div>
+	</div>
+	<!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
+	<button class="add-image" disabled>Add image</button>
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 </div>
 `;
 
@@ -1545,22 +2148,25 @@ class Widget extends Base2 {
     return this.element.classList.contains("wopen");
   }
   set open(value) {
-    if (value)
-      this.element.classList.add("wopen");
-    else
-      this.element.classList.remove("wopen");
+    this.element.classList.toggle("wopen", value);
+    if (!value)
+      this.setMinimized(false);
   }
   $settings;
   $status;
   $minimize;
+  $hideWidget;
   $topbar;
   $draw;
+  $togglePanel;
+  $extraPanel;
   $addImage;
   $strategy;
   $progressLine;
   $progressText;
   $images;
   $wopenButton;
+  $appName;
   constructor(bot) {
     super();
     this.bot = bot;
@@ -1572,16 +2178,31 @@ class Widget extends Base2 {
       $settings: ".wform",
       $status: ".wstatus",
       $minimize: ".minimize",
+      $hideWidget: ".hide-widget",
       $topbar: ".wtopbar",
       $draw: ".draw",
+      $togglePanel: ".toggle-panel",
+      $extraPanel: ".wextra-panel",
       $addImage: ".add-image",
       $strategy: ".strategy",
       $progressLine: ".wprogress div",
       $progressText: ".wprogress span",
-      $images: ".images"
+      $images: ".images",
+      $appName: ".app-name"
     });
+    this.$appName.textContent = APP_NAME;
     this.$wopenButton.addEventListener("click", () => this.open = !this.open);
+    this.$minimize.addEventListener("click", () => {
+      this.minimize();
+    });
+    this.$hideWidget.addEventListener("click", () => {
+      this.open = false;
+    });
     this.$draw.addEventListener("click", () => this.bot.draw());
+    this.$togglePanel.addEventListener("click", () => {
+      const hidden = this.$extraPanel.classList.toggle("hidden");
+      this.$togglePanel.textContent = hidden ? "○" : "•••";
+    });
     this.$addImage.addEventListener("click", () => this.addImage());
     this.$strategy.addEventListener("change", () => {
       this.bot.strategy = this.$strategy.value;
@@ -1611,6 +2232,35 @@ class Widget extends Base2 {
         const image = new Image;
         image.src = reader.result;
         await promisifyEventSource(image, ["load"], ["error"]);
+<<<<<<< HEAD
+=======
+        const width = await new Promise((resolve, reject) => {
+          const dialog = document.createElement("dialog");
+          const form = document.createElement("form");
+          const label = document.createElement("label");
+          const number = document.createElement("input");
+          const ok = document.createElement("button");
+          dialog.classList.add("custom-dialog");
+          form.method = "dialog";
+          label.textContent = "Width: ";
+          number.type = "number";
+          number.value = String(image.naturalWidth);
+          number.min = "1";
+          ok.textContent = "OK";
+          ok.value = "ok";
+          label.appendChild(number);
+          form.appendChild(label);
+          form.appendChild(ok);
+          dialog.appendChild(form);
+          document.body.appendChild(dialog);
+          dialog.addEventListener("close", () => {
+            const value = dialog.returnValue === "ok" ? Number(number.value) : image.naturalWidth;
+            dialog.remove();
+            resolve(value);
+          });
+          dialog.showModal();
+        });
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
         botImage = new BotImage(this.bot, WorldPosition.fromScreenPosition(this.bot, {
           x: 256,
           y: 32
@@ -1673,7 +2323,7 @@ class Widget extends Base2 {
       this.status = originalStatus;
       return result;
     } catch (error) {
-      if (!(error instanceof WPlaceBotError)) {
+      if (!(error instanceof KglacerMacroError)) {
         console.error(error);
         this.status = `❌ ${status}`;
       }
@@ -1683,14 +2333,21 @@ class Widget extends Base2 {
     }
   }
   minimize() {
-    this.$settings.classList.toggle("hidden");
+    this.setMinimized(!this.element.classList.contains("wminimized"));
+  }
+  setMinimized(minimized) {
+    this.element.classList.toggle("wminimized", minimized);
+    this.$settings.classList.toggle("hidden", minimized);
+    this.$minimize.textContent = minimized ? "▢" : "—";
   }
 }
 
 // src/bot.ts
 var SAVE_VERSION = 2;
+var DRAW_STEP_WAIT_MS = 8;
+var DRAW_FAIL_RETRY_LIMIT = 3;
 
-class WPlaceBot {
+class KglacerMacro {
   unavailableColors = new Set;
   mapsCache = new Map;
   me;
@@ -1700,6 +2357,7 @@ class WPlaceBot {
   widget = new Widget(this);
   markerPixelPositionResolvers = [];
   lastColor;
+  imageUpdateFrame;
   constructor() {
     const save2 = loadSave();
     if (save2) {
@@ -1762,10 +2420,60 @@ class WPlaceBot {
     };
     return this.widget.run("Drawing", async () => {
       await this.widget.run("Initializing draw", () => Promise.all([this.updateColors(), this.readMap()]));
+<<<<<<< HEAD
       globalThis.addEventListener("mousemove", prevent, true);
       $canvas.addEventListener("wheel", prevent, true);
       this.updateTasks();
       const me = await fetch("https://backend.wplace.live/me", {
+=======
+      this.updateTasks();
+      this.widget.update();
+      const canvas = document.querySelector(".maplibregl-canvas");
+      if (!canvas) {
+        this.widget.status = "❌ Canvas not found";
+        return;
+      }
+      const firstTask = this.images.find((image) => image.tasks.length > 0)?.tasks[0];
+      if (!firstTask) {
+        this.widget.status = "✅ No pending pixels";
+        return;
+      }
+      const firstDrawTask = firstTask;
+      function waitForZoom(minPixelSize) {
+        return new Promise((resolve) => {
+          function step() {
+            if (firstDrawTask.position.pixelSize >= minPixelSize) {
+              resolve();
+              return;
+            }
+            canvas.dispatchEvent(new WheelEvent("wheel", {
+              deltaY: -500,
+              clientX: canvas.clientWidth / 2,
+              clientY: canvas.clientHeight / 2,
+              bubbles: true
+            }));
+            requestAnimationFrame(step);
+          }
+          step();
+        });
+      }
+      await waitForZoom(4);
+      canvas.dispatchEvent(new MouseEvent("mousedown", {
+        clientX: canvas.clientWidth / 2,
+        clientY: canvas.clientHeight / 2,
+        bubbles: true,
+        buttons: 1
+      }));
+      canvas.dispatchEvent(new MouseEvent("mouseup", {
+        clientX: canvas.clientWidth / 2,
+        clientY: canvas.clientHeight / 2,
+        bubbles: true
+      }));
+      await wait(5);
+      globalThis.addEventListener("mousemove", prevent, true);
+      $canvas.addEventListener("wheel", prevent, true);
+      const res = await fetch("https://backend.wplace.live/me", {
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
         credentials: "include"
       }).then((x) => x.json());
       let charges = Math.floor(me.charges.count);
@@ -1777,12 +2485,22 @@ class WPlaceBot {
           while (charges > 0) {
             let end = true;
             for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
-              const task = this.images[imageIndex].tasks.shift();
+              const image = this.images[imageIndex];
+              const task = image.tasks[0];
               if (!task)
                 continue;
+<<<<<<< HEAD
               this.drawTask(task);
               charges--;
               await wait(1);
+=======
+              const drawn = await this.drawTask(task);
+              if (!drawn)
+                continue;
+              image.tasks.shift();
+              charges -= 1;
+              await wait(DRAW_STEP_WAIT_MS);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
               end = false;
             }
             if (end)
@@ -1802,19 +2520,48 @@ class WPlaceBot {
                 minImage = image;
               }
             }
+<<<<<<< HEAD
             this.drawTask(minImage.tasks.shift());
             charges--;
             await wait(1);
+=======
+            const task = minImage.tasks[0];
+            if (!task)
+              continue;
+            const drawn = await this.drawTask(task);
+            if (!drawn)
+              continue;
+            minImage.tasks.shift();
+            charges -= 1;
+            await wait(DRAW_STEP_WAIT_MS);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
           }
           break;
         }
         case "SEQUENTIAL" /* SEQUENTIAL */: {
           for (let imageIndex = 0;imageIndex < this.images.length; imageIndex++) {
             const image = this.images[imageIndex];
+<<<<<<< HEAD
             for (let task = image.tasks.shift();task && charges > 0; task = image.tasks.shift()) {
               this.drawTask(task);
               charges--;
               await wait(1);
+=======
+            let failCount = 0;
+            for (let task = image.tasks[0];task && charges > 0; task = image.tasks[0]) {
+              const drawn = await this.drawTask(task);
+              if (!drawn) {
+                failCount += 1;
+                if (failCount >= DRAW_FAIL_RETRY_LIMIT)
+                  break;
+                await wait(DRAW_STEP_WAIT_MS * 2);
+                continue;
+              }
+              failCount = 0;
+              image.tasks.shift();
+              charges -= 1;
+              await wait(DRAW_STEP_WAIT_MS);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
             }
           }
         }
@@ -1863,14 +2610,19 @@ class WPlaceBot {
   readMap() {
     this.mapsCache.clear();
     const imagesToDownload = new Set;
+<<<<<<< HEAD
     for (let index = 0;index < this.images.length; index++) {
       const image = this.images[index];
+=======
+    for (const image of this.images) {
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
       const { tileX: tileXEnd, tileY: tileYEnd } = new WorldPosition(this, image.position.globalX + image.pixels.pixels[0].length, image.position.globalY + image.pixels.pixels.length);
       for (let tileX = image.position.tileX;tileX <= tileXEnd; tileX++)
         for (let tileY = image.position.tileY;tileY <= tileYEnd; tileY++)
           imagesToDownload.add(`${tileX}/${tileY}`);
     }
     let done = 0;
+<<<<<<< HEAD
     return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () => Promise.all([...imagesToDownload].map(async (x) => {
       this.mapsCache.set(x, await Pixels.fromJSON(this, {
         url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
@@ -1878,6 +2630,89 @@ class WPlaceBot {
       }));
       this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
     })));
+=======
+    return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, async () => {
+      await Promise.all([...imagesToDownload].map(async (x) => {
+        const url = `https://backend.wplace.live/files/s0/tiles/${x}.png`;
+        const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+        const lastModified = response.headers.get("last-modified") || "";
+        const cached = this.mapsCache.get(x);
+        if (cached?.lastModified !== lastModified) {
+          const newPixels = await Pixels.fromJSON(this, { url, exactColor: true }, { skipCache: true });
+          const tileData = { pixels: newPixels.pixels, lastModified };
+          this.mapsCache.set(x, tileData);
+          await this.saveTileToDB(x, tileData);
+        }
+        this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`;
+      }));
+    });
+  }
+  async initDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open("mapsDB", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("tiles")) {
+          db.createObjectStore("tiles");
+        }
+      };
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+  async setTile(db, key, value) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readwrite");
+      const store = tx.objectStore("tiles");
+      const req = store.put(value, key);
+      req.onsuccess = () => {
+        resolve();
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
+    });
+  }
+  async getTile(db, key) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readonly");
+      const store = tx.objectStore("tiles");
+      const req = store.get(key);
+      req.onsuccess = () => {
+        resolve(req.result);
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
+    });
+  }
+  async loadCacheFromDB() {
+    const db = await this.initDB();
+    this.mapsCache = new Map;
+    const keys = await new Promise((resolve, reject) => {
+      const tx = db.transaction("tiles", "readonly");
+      const store = tx.objectStore("tiles");
+      const req = store.getAllKeys();
+      req.onsuccess = () => {
+        resolve(req.result);
+      };
+      req.onerror = () => {
+        reject(req.error);
+      };
+    });
+    for (const key of keys) {
+      const tile = await this.getTile(db, key);
+      this.mapsCache.set(key, tile);
+    }
+  }
+  async saveTileToDB(key, value) {
+    const db = await this.initDB();
+    await this.setTile(db, key, value);
+>>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
   }
   waitForUnfocus() {
     return this.widget.run("UNFOCUS WINDOW", () => new Promise((resolve) => {
@@ -1891,32 +2726,31 @@ class WPlaceBot {
     }), undefined, "\uD83D\uDDB1️");
   }
   findAnchorsForScreen(position) {
-    let anchorIndex = 0;
-    let minI2 = 1;
-    let min1 = Infinity;
-    let min2 = Infinity;
-    for (let index = 0;index < this.$stars.length; index++) {
-      const { x, y } = extractScreenPositionFromStar(this.$stars[index]);
-      if (x < position.x && y < position.y) {
-        const delta = position.x - x + (position.y - y);
-        if (delta < min1) {
-          min1 = delta;
-          anchorIndex = index;
-        }
-      } else if (x > position.x && y > position.y) {
-        const delta = x - position.x + (y - position.y);
-        if (delta < min2) {
-          min2 = delta;
-          minI2 = index;
-        }
-      }
-    }
-    const anchorScreenPosition = extractScreenPositionFromStar(this.$stars[anchorIndex]);
-    const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex];
+    const anchors = this.$stars.map(($star, index) => ({
+      index,
+      screen: extractScreenPositionFromStar($star),
+      world: FAVORITE_LOCATIONS_POSITIONS[index]
+    }));
+    const byDistance = [...anchors].sort((a, b) => {
+      const adx = a.screen.x - position.x;
+      const ady = a.screen.y - position.y;
+      const bdx = b.screen.x - position.x;
+      const bdy = b.screen.y - position.y;
+      return adx * adx + ady * ady - (bdx * bdx + bdy * bdy);
+    });
+    const primary = byDistance[0];
+    const secondary = byDistance.find((candidate) => candidate.world.x !== primary.world.x && candidate.world.y !== primary.world.y) ?? byDistance[1] ?? primary;
+    const deltaScreenX = secondary.screen.x - primary.screen.x;
+    const deltaScreenY = secondary.screen.y - primary.screen.y;
+    const deltaWorldX = secondary.world.x - primary.world.x;
+    const deltaWorldY = secondary.world.y - primary.world.y;
+    const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
+    const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
+    const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
     return {
-      anchorScreenPosition,
-      anchorWorldPosition,
-      pixelSize: (extractScreenPositionFromStar(this.$stars[minI2]).x - anchorScreenPosition.x) / (FAVORITE_LOCATIONS_POSITIONS[minI2].x - anchorWorldPosition.x)
+      anchorScreenPosition: primary.screen,
+      anchorWorldPosition: primary.world,
+      pixelSize: Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1
     };
   }
   async openColors() {
@@ -1931,13 +2765,18 @@ class WPlaceBot {
       await wait(1);
     }
   }
-  drawTask(task) {
+  async drawTask(task) {
+    const colorButton = document.getElementById("color-" + task.color);
+    if (!colorButton)
+      return false;
     if (this.lastColor !== task.color) {
-      document.getElementById("color-" + task.color).click();
+      colorButton.click();
       this.lastColor = task.color;
     }
     const halfPixel = task.position.pixelSize / 2;
     const position = task.position.toScreenPosition();
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+      return false;
     document.documentElement.dispatchEvent(new MouseEvent("mousemove", {
       bubbles: true,
       clientX: position.x + halfPixel,
@@ -1952,6 +2791,7 @@ class WPlaceBot {
       bubbles: true,
       cancelable: true
     }));
+    await wait(1);
     document.documentElement.dispatchEvent(new KeyboardEvent("keyup", {
       key: " ",
       code: "Space",
@@ -1960,6 +2800,7 @@ class WPlaceBot {
       bubbles: true,
       cancelable: true
     }));
+    return true;
   }
   registerFetchInterceptor() {
     const originalFetch = globalThis.fetch;
@@ -2025,8 +2866,13 @@ class WPlaceBot {
     ].slice(0, FAVORITE_LOCATIONS.length);
   }
   updateImages() {
-    for (let index = 0;index < this.images.length; index++)
-      this.images[index].update();
+    if (this.imageUpdateFrame)
+      return;
+    this.imageUpdateFrame = requestAnimationFrame(() => {
+      this.imageUpdateFrame = undefined;
+      for (let index = 0;index < this.images.length; index++)
+        this.images[index].update();
+    });
   }
   updateTasks() {
     for (let index = 0;index < this.images.length; index++)
@@ -2037,7 +2883,8 @@ class WPlaceBot {
       this.images[index].updateColors();
   }
 }
-globalThis.wbot = new WPlaceBot;
+globalThis.kglacerMacro = new KglacerMacro;
+globalThis.wbot = globalThis.kglacerMacro;
 {
-  WPlaceBot
+  KglacerMacro
 };
