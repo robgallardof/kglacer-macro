@@ -1,14 +1,8 @@
 import { removeFromArray } from '@softsky/utils'
 
-<<<<<<< HEAD
 import { Base } from './base'
 import { WPlaceBot } from './bot'
 import { colorToCSS } from './colors'
-=======
-import { Base } from './base';
-import { KglacerMacro } from './bot';
-import { colorToCSS } from './colors';
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @ts-ignore
 import html from './image.html' with { type: 'text' }
 import { Pixels } from './pixels'
@@ -36,7 +30,6 @@ export enum ImageStrategy {
 }
 
 export class BotImage extends Base {
-<<<<<<< HEAD
   public static async fromJSON(
     bot: WPlaceBot,
     data: ReturnType<BotImage['toJSON']>,
@@ -53,28 +46,12 @@ export class BotImage extends Base {
       data.lock,
     )
   }
-=======
-	public static async fromJSON(bot: KglacerMacro, data: ReturnType<BotImage['toJSON']>) {
-		return new BotImage(
-			bot,
-			WorldPosition.fromJSON(bot, data.position),
-			await Pixels.fromJSON(bot, data.pixels),
-			data.strategy,
-			data.opacity,
-			data.drawTransparentPixels,
-			data.drawColorsInOrder,
-			data.colors,
-			data.lock
-		);
-	}
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   public readonly element = document.createElement('div')
 
   /** Pixels left to draw */
   public tasks: DrawTask[] = []
 
-<<<<<<< HEAD
   /** Moving/resizing image */
   protected moveInfo?: {
     globalX?: number
@@ -84,18 +61,6 @@ export class BotImage extends Base {
     clientX: number
     clientY: number
   }
-=======
-	/** Moving/resizing image */
-	protected moveInfo?: {
-		globalX?: number;
-		globalY?: number;
-		width?: number;
-		height?: number;
-		pixelSize: number;
-		clientX: number;
-		clientY: number;
-	};
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   protected readonly $brightness!: HTMLInputElement
   protected readonly $canvas!: HTMLCanvasElement
@@ -115,7 +80,6 @@ export class BotImage extends Base {
   protected readonly $topbar!: HTMLDivElement
   protected readonly $wrapper!: HTMLDivElement
 
-<<<<<<< HEAD
   public constructor(
     protected bot: WPlaceBot,
     /** Top-left corner of image */
@@ -139,31 +103,6 @@ export class BotImage extends Base {
     this.element.innerHTML = html as unknown as string
     this.element.classList.add('wimage')
     document.body.append(this.element)
-=======
-	public constructor(
-		protected bot: KglacerMacro,
-		/** Top-left corner of image */
-		public position: WorldPosition,
-		/** Parsed imageto draw */
-		public pixels: Pixels,
-		/** Order of pixels to draw */
-		public strategy = ImageStrategy.SPIRAL_FROM_CENTER,
-		/** Opacity of overlay */
-		public opacity = 50,
-		/** Should we erase pixels there transparency should be */
-		public drawTransparentPixels = false,
-		/** Should bot draw colors in order */
-		public drawColorsInOrder = false,
-		/** Colors settings */
-		public colors: { realColor: number; disabled?: boolean }[] = [],
-		/** Stop accidental image edit */
-		public lock = false
-	) {
-		super();
-		this.element.innerHTML = html as unknown as string;
-		this.element.classList.add('wimage');
-		document.body.append(this.element);
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
     this.populateElementsWithSelector(this.element, {
       $brightness: '.brightness',
@@ -342,23 +281,11 @@ export class BotImage extends Base {
     save(this.bot)
   }
 
-<<<<<<< HEAD
   /** Update colors array */
   public updateColors() {
     this.$colors.innerHTML = ''
     const pixelsSum = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const itemWidth = 100 / this.pixels.colors.size
-=======
-	/** Update image (NOT PIXELS) */
-	public update() {
-		const { x, y } = this.position.toScreenPosition();
-		const stableX = Math.round(x * 2) / 2;
-		const stableY = Math.round(y * 2) / 2;
-		this.element.style.transform = `translate3d(${stableX}px, ${stableY}px, 0)`;
-		this.element.style.width = `${Math.round(this.position.pixelSize * this.pixels.width)}px`;
-		this.$canvas.style.opacity = `${this.opacity}%`;
-		this.element.classList.remove('hidden');
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
     // If not the synced with colors then rebuild order
     if (
@@ -599,7 +526,6 @@ export class BotImage extends Base {
     save(this.bot)
   }
 
-<<<<<<< HEAD
   /** Resize start */
   protected resizeStart(event: MouseEvent) {
     this.moveInfo = {
@@ -636,76 +562,4 @@ export class BotImage extends Base {
     URL.revokeObjectURL(a.href)
     a.remove()
   }
-=======
-	protected moveStart(event: MouseEvent) {
-		if (!this.lock)
-			this.moveInfo = {
-				globalX: this.position.globalX,
-				globalY: this.position.globalY,
-				pixelSize: this.position.pixelSize,
-				clientX: event.clientX,
-				clientY: event.clientY,
-			};
-	}
-
-	protected moveStop() {
-		if (this.moveInfo) {
-			this.moveInfo = undefined;
-			this.position.updateAnchor();
-			this.updateColors();
-		}
-	}
-
-	/** Resize/move image */
-	protected move(event: MouseEvent) {
-		if (!this.moveInfo) return;
-		const deltaX = Math.round((event.clientX - this.moveInfo.clientX) / this.moveInfo.pixelSize);
-		const deltaY = Math.round((event.clientY - this.moveInfo.clientY) / this.moveInfo.pixelSize);
-		if (this.moveInfo.globalX !== undefined) {
-			this.position.globalX = deltaX + this.moveInfo.globalX;
-			if (this.moveInfo.width !== undefined) this.pixels.width = Math.max(1, this.moveInfo.width - deltaX);
-		} else if (this.moveInfo.width !== undefined) this.pixels.width = Math.max(1, deltaX + this.moveInfo.width);
-		if (this.moveInfo.globalY !== undefined) {
-			this.position.globalY = deltaY + this.moveInfo.globalY;
-			if (this.moveInfo.height !== undefined) this.pixels.height = Math.max(1, this.moveInfo.height - deltaY);
-		} else if (this.moveInfo.height !== undefined) this.pixels.height = Math.max(1, deltaY + this.moveInfo.height);
-		this.update();
-		save(this.bot);
-	}
-
-	/** Resize start */
-	protected resizeStart(event: MouseEvent) {
-		this.moveInfo = {
-			pixelSize: this.position.pixelSize,
-			clientX: event.clientX,
-			clientY: event.clientY,
-		};
-		const $resize = event.target! as HTMLDivElement;
-		if ($resize.classList.contains('n')) {
-			this.moveInfo.height = this.pixels.height;
-			this.moveInfo.globalY = this.position.globalY;
-		}
-		if ($resize.classList.contains('e')) this.moveInfo.width = this.pixels.width;
-		if ($resize.classList.contains('s')) this.moveInfo.height = this.pixels.height;
-		if ($resize.classList.contains('w')) {
-			this.moveInfo.width = this.pixels.width;
-			this.moveInfo.globalX = this.position.globalX;
-		}
-	}
-
-	/** export image */
-	protected export() {
-		const a = document.createElement('a');
-		document.body.append(a);
-		a.href = URL.createObjectURL(new Blob([JSON.stringify(this.toJSON())], { type: 'application/json' }));
-		a.download = `${this.pixels.width}x${this.pixels.height}.wbot`;
-		a.click();
-		URL.revokeObjectURL(a.href);
-		a.href = this.pixels.canvas.toDataURL('image/webp', 1);
-		a.download = `${this.pixels.width}x${this.pixels.height}.webp`;
-		a.click();
-		URL.revokeObjectURL(a.href);
-		a.remove();
-	}
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }

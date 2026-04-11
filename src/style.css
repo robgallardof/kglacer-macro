@@ -1,11 +1,9 @@
 /* stylelint-disable declaration-no-important */
 /* stylelint-disable plugin/no-low-performance-animation-properties */
 /* stylelint-disable no-descending-specificity */
-@import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap';
 @import 'https://fonts.googleapis.com/css2?family=Tiny5&display=swap';
 
 :root {
-<<<<<<< HEAD
   --hover: #dfdfdf;
   --text-invert: #fff;
   --error: #f00;
@@ -17,19 +15,6 @@
   --background-disabled: #a37648;
   --main: #66bbb4;
   --main-hover: #48a19a;
-=======
-	--hover: #dbeafe;
-	--text-invert: #f8fafc;
-	--error: #ef4444;
-	--resize: 8px;
-	--asdadsasdasdasdasdasdasdasd: 1px;
-	--text: #0f172a;
-	--background: #0b1220;
-	--background-hover: #1e293b;
-	--background-disabled: #64748b;
-	--main: #38bdf8;
-	--main-hover: #0ea5e9;
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -40,7 +25,6 @@
 
 /** Widget */
 .wwidget {
-<<<<<<< HEAD
   position: fixed;
   top: 0;
   left: 0;
@@ -60,151 +44,6 @@
   background-color: var(--main);
   font-size: 32px;
   text-align: center;
-=======
-	position: fixed;
-	top: 12px;
-	left: 12px;
-	z-index: 1000;
-	overflow: hidden;
-	width: 300px;
-	height: calc(100dvh - 24px);
-	border: 1px solid rgb(148 163 184 / 30%);
-	border-radius: 16px;
-	background: linear-gradient(180deg, rgb(15 23 42 / 97%), rgb(2 6 23 / 97%));
-	color: #e2e8f0;
-	box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
-	font-family: Poppins, sans-serif;
-	transition: transform 0.35s ease;
-	transform: translateX(-100%);
-	backdrop-filter: blur(6px);
-}
-
-.wwidget .title {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 10px 0;
-	border-bottom: 1px solid rgb(148 163 184 / 25%);
-	background: linear-gradient(90deg, #22d3ee, #3b82f6);
-	color: #020617;
-	font-weight: 700;
-	font-size: 20px;
-	letter-spacing: 0.3px;
-	text-align: center;
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
-}
-
-.wwidget .title .widget-controls {
-	display: flex;
-	gap: 4px;
-	padding-right: 8px;
-}
-
-.wwidget .title .widget-controls button {
-	display: inline-flex;
-	justify-content: center;
-	align-items: center;
-	width: 26px;
-	height: 26px;
-	border: 1px solid rgb(2 6 23 / 35%);
-	border-radius: 6px;
-	background: rgb(2 6 23 / 25%);
-	color: #020617;
-	font-weight: 700;
-	line-height: 1;
-	cursor: pointer;
-}
-
-.wwidget .wform {
-	padding: 10px 8px 12px;
-}
-
-.wwidget .wform .wmain-actions {
-	display: grid;
-	grid-template-columns: 1fr auto;
-	gap: 6px;
-}
-
-.wwidget .wform .toggle-panel {
-	padding: 9px 10px;
-	border-color: rgb(148 163 184 / 45%);
-	background: linear-gradient(180deg, rgb(30 41 59 / 80%), rgb(15 23 42 / 90%));
-	color: #cbd5e1;
-	letter-spacing: 1px;
-}
-
-.wwidget .wform .wextra-panel.hidden {
-	display: none;
-}
-
-.wwidget .wform > * {
-	border-radius: 10px;
-}
-
-.wwidget .wform button,
-.wwidget .wform input,
-.wwidget .wform select,
-.wwidget .wform label {
-	border: 1px solid rgb(56 189 248 / 35%);
-	border-radius: 10px;
-	background: rgb(15 23 42 / 70%);
-	color: #e2e8f0;
-	font-weight: 600;
-	font-size: 13px;
-	font-family: Poppins, sans-serif;
-}
-
-.wwidget .wform label {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 8px 10px;
-}
-
-.wwidget .wform select {
-	min-width: 130px;
-	padding: 6px 10px;
-	border: 1px solid rgb(56 189 248 / 45%);
-	background: linear-gradient(180deg, rgb(15 23 42 / 85%), rgb(2 6 23 / 85%));
-	color: #e2e8f0;
-	appearance: none;
-}
-
-.wwidget .wform select option {
-	background: #0f172a;
-	color: #e2e8f0;
-}
-
-.wwidget .wform button {
-	padding: 9px 12px;
-	background: linear-gradient(180deg, rgb(30 41 59 / 90%), rgb(15 23 42 / 90%));
-}
-
-.wwidget .wform button:hover,
-.wwidget .wform select:hover {
-	border-color: rgb(14 165 233 / 70%);
-	background: linear-gradient(180deg, rgb(14 116 144 / 35%), rgb(30 41 59 / 80%));
-}
-
-.wwidget .wform button.draw {
-	border-color: rgb(34 211 238 / 65%);
-	background: linear-gradient(180deg, rgb(14 165 233 / 45%), rgb(30 64 175 / 65%));
-	color: #f8fafc;
-}
-
-.wwidget .wform button.add-image {
-	border-color: rgb(56 189 248 / 45%);
-}
-
-.wwidget .wform .wprogress {
-	height: 32px;
-	border: 1px solid rgb(56 189 248 / 35%);
-	border-radius: 10px;
-	background: rgb(2 6 23 / 65%);
-}
-
-.wwidget .wform .wprogress div {
-	background: linear-gradient(90deg, #22d3ee, #3b82f6);
 }
 
 .wwidget.wopen .wopen-button div {
@@ -212,34 +51,8 @@
 }
 
 .wwidget.wopen {
-<<<<<<< HEAD
   box-shadow: 8px 0 16px -8px var(--main);
   transform: translateX(0);
-=======
-	transform: translateX(0);
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
-}
-
-.wwidget.wminimized {
-	width: 78px;
-	height: 52px;
-	border-radius: 14px;
-}
-
-.wwidget.wminimized .title {
-	padding: 8px;
-	border: 0;
-}
-
-.wwidget.wminimized .title .app-name,
-.wwidget.wminimized .title .hide-widget {
-	display: none;
-}
-
-.wwidget.wminimized .title .widget-controls {
-	justify-content: center;
-	width: 100%;
-	padding-right: 0;
 }
 
 .wwidget .wopen-button div {
@@ -247,7 +60,6 @@
 }
 
 .wwidget .wopen-button {
-<<<<<<< HEAD
   position: absolute;
   top: calc(50% - 24px);
   right: -24px;
@@ -258,19 +70,6 @@
   background-color: var(--background);
   color: var(--text);
   cursor: pointer;
-=======
-	position: absolute;
-	top: calc(50% - 24px);
-	right: -24px;
-	width: 24px;
-	height: 48px;
-	border: 1px solid rgb(148 163 184 / 35%);
-	border-left: none;
-	border-radius: 0 10px 10px 0;
-	background: #0f172a;
-	color: #cbd5e1;
-	cursor: pointer;
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .wwidget .images {
@@ -303,7 +102,6 @@
 
 /** Image */
 .wimage {
-<<<<<<< HEAD
   position: fixed;
   top: 0;
   left: 0;
@@ -315,22 +113,6 @@
   box-shadow: inset var(--text) 0 0 0 2px;
   cursor: all-scroll;
   image-rendering: pixelated;
-=======
-	position: fixed;
-	top: 0;
-	left: 0;
-	z-index: 9;
-	user-select: none;
-	will-change: transform, width;
-}
-
-.wimage canvas {
-	width: 100%;
-	box-shadow: inset var(--text) 0 0 0 2px;
-	cursor: all-scroll;
-	transform: translateZ(0);
-	image-rendering: pixelated;
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 .wimage .wform {
@@ -578,95 +360,6 @@
 }
 
 .no-pointer-events {
-<<<<<<< HEAD
   height: 1px;
   pointer-events: none;
-=======
-	height: 1px;
-	pointer-events: none;
-}
-
-.custom-dialog {
-	position: fixed;
-	top: 50%;
-	left: 50%;
-	min-width: 220px;
-	padding: 16px;
-	border: var(--text) 2px solid;
-	background: var(--background);
-	color: var(--text);
-	font-family: 'Tiny5', sans-serif;
-	transform: translate(-50%, -50%);
-}
-
-.custom-dialog::backdrop {
-	background: rgb(0 0 0 / 45%);
-}
-
-.custom-dialog form {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.custom-dialog label {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.custom-dialog input[type='number'] {
-	width: 100px;
-	padding: 4px 6px;
-	border: var(--text) 2px solid;
-	background: var(--background);
-	color: var(--text);
-	font-family: 'Tiny5', sans-serif;
-}
-
-.custom-dialog button {
-	padding: 4px 8px;
-	border: var(--text) 2px solid;
-	background: var(--main);
-	color: var(--text-invert);
-	font-family: 'Tiny5', sans-serif;
-	cursor: pointer;
-}
-
-.custom-dialog button:hover {
-	background: var(--main-hover);
-}
-
-.wform.popup {
-	position: fixed;
-	top: 50%;
-	left: 50%;
-	z-index: 999;
-	display: none;
-	padding: 1rem;
-	border: var(--text) 2px solid;
-	box-shadow: 0 0 15px rgb(0 0 0 / 30%);
-	transform: translate(-50%, -50%);
-}
-
-.wform.popup.show {
-	display: block;
-}
-
-.wform.popup .close-popup {
-	float: right;
-	width: 24px;
-	height: 24px;
-	border: none;
-	background: var(--error);
-	color: #fff;
-	font-size: 16px;
-	line-height: 24px;
-	text-align: center;
-	cursor: pointer;
-}
-
-.wform.popup .close-popup:hover {
-	background: #b91c1c;
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }

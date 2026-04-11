@@ -1,25 +1,13 @@
 // ==UserScript==
-<<<<<<< HEAD
 // @name         wplace-bot
 // @namespace    https://github.com/SoundOfTheSky
 // @version      4.5.2
-=======
-// @name         __APP_NAME__
-// @namespace    https://github.com/robgallardof
-// @version      __APP_VERSION__
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @description  Bot to automate painting on website https://wplace.live
 // @author       SoundOfTheSky
 // @license      MPL-2.0
-<<<<<<< HEAD
 // @homepageURL  https://github.com/SoundOfTheSky/wplace-bot
 // @updateURL    https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
 // @downloadURL  https://raw.githubusercontent.com/SoundOfTheSky/wplace-bot/refs/heads/main/dist.user.js
-=======
-// @homepageURL  https://github.com/robgallardof/__APP_NAME__
-// @updateURL    https://raw.githubusercontent.com/robgallardof/__APP_NAME__/main/dist.user.js
-// @downloadURL  https://raw.githubusercontent.com/robgallardof/__APP_NAME__/main/dist.user.js
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 // @run-at       document-start
 // @match        *://*.wplace.live/*
 // @grant        none
@@ -27,3 +15,4 @@
 
 // Wplace  --> https://wplace.live
 // License --> https://www.mozilla.org/en-US/MPL/2.0/
+

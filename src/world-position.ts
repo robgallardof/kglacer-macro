@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { Me, WPlaceBot } from './bot'
-=======
-import { Me, KglacerMacro } from './bot';
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
 export type Position = {
   x: number
@@ -18,7 +14,6 @@ export const FAVORITE_LOCATIONS_POSITIONS: Position[] = []
 export const FAVORITE_LOCATIONS: Me['favoriteLocations'] = []
 let lastId = Date.now()
 export function addFavoriteLocation(position: Position) {
-<<<<<<< HEAD
   FAVORITE_LOCATIONS_POSITIONS.push(position)
   FAVORITE_LOCATIONS.push({
     id: lastId++,
@@ -37,18 +32,6 @@ export function addFavoriteLocation(position: Position) {
       Math.PI,
     name: 'WBOT_FAVORITE',
   })
-=======
-	FAVORITE_LOCATIONS_POSITIONS.push(position);
-	FAVORITE_LOCATIONS.push({
-		id: lastId++,
-		latitude:
-			((2 * Math.atan(Math.exp(-((position.y / WORLD_PIXEL_SIZE) * (2 * Math.PI) - Math.PI))) - Math.PI / 2) *
-				180) /
-			Math.PI,
-		longitude: (((position.x / WORLD_PIXEL_SIZE) * (2 * Math.PI) - Math.PI) * 180) / Math.PI,
-		name: 'KGLACER_MACRO_FAVORITE',
-	});
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 }
 
 addFavoriteLocation({
@@ -80,7 +63,6 @@ export function extractScreenPositionFromStar($star: HTMLDivElement) {
 }
 
 export class WorldPosition {
-<<<<<<< HEAD
   public static fromJSON(
     bot: WPlaceBot,
     data: ReturnType<WorldPosition['toJSON']>,
@@ -101,20 +83,6 @@ export class WorldPosition {
         0,
     )
   }
-=======
-	public static fromJSON(bot: KglacerMacro, data: ReturnType<WorldPosition['toJSON']>) {
-		return new WorldPosition(bot, ...data);
-	}
-
-	public static fromScreenPosition(bot: KglacerMacro, position: Position) {
-		const { anchorScreenPosition, pixelSize, anchorWorldPosition } = bot.findAnchorsForScreen(position);
-		return new WorldPosition(
-			bot,
-			(anchorWorldPosition.x + (position.x - anchorScreenPosition.x) / pixelSize) | 0,
-			(anchorWorldPosition.y + (position.y - anchorScreenPosition.y) / pixelSize) | 0
-		);
-	}
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   public globalX = 0
 
@@ -154,7 +122,6 @@ export class WorldPosition {
   /** Second anchor that is used to align screen position for this world positions */
   public anchor2Index!: number
 
-<<<<<<< HEAD
   /** Pixel size around with world position. Calculated on every read */
   public get pixelSize() {
     return (
@@ -205,59 +172,6 @@ export class WorldPosition {
       }
     }
   }
-=======
-	/** Pixel size around with world position. Calculated on every read */
-	public get pixelSize() {
-		const screen1 = extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]!);
-		const screen2 = extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]!);
-		const world1 = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!;
-		const world2 = FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!;
-		const deltaScreenX = screen2.x - screen1.x;
-		const deltaScreenY = screen2.y - screen1.y;
-		const deltaWorldX = world2.x - world1.x;
-		const deltaWorldY = world2.y - world1.y;
-		const sizeX = deltaWorldX === 0 ? 0 : deltaScreenX / deltaWorldX;
-		const sizeY = deltaWorldY === 0 ? 0 : deltaScreenY / deltaWorldY;
-		const pixelSize = Math.abs(sizeX) > 0 ? Math.abs(sizeX) : Math.abs(sizeY);
-		return Number.isFinite(pixelSize) && pixelSize > 0 ? pixelSize : 1;
-	}
-
-	public constructor(
-		protected bot: KglacerMacro,
-		tileorGlobalX: number,
-		tileorGlobalY: number,
-		x?: number,
-		y?: number
-	) {
-		if (x === undefined || y === undefined) {
-			this.globalX = tileorGlobalX;
-			this.globalY = tileorGlobalY;
-		} else {
-			this.globalX = tileorGlobalX * WORLD_TILE_SIZE + x;
-			this.globalY = tileorGlobalY * WORLD_TILE_SIZE + y;
-		}
-		this.updateAnchor();
-	}
-
-	/** Find closest anchor point for best accuracy */
-	public updateAnchor() {
-		const ordered = FAVORITE_LOCATIONS_POSITIONS.map((position, index) => ({
-			index,
-			distance:
-				(position.x - this.globalX) * (position.x - this.globalX) +
-				(position.y - this.globalY) * (position.y - this.globalY),
-		})).sort((a, b) => a.distance - b.distance);
-		this.anchor1Index = ordered[0]?.index ?? 0;
-		this.anchor2Index =
-			ordered.find((candidate) => {
-				const primary = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!;
-				const other = FAVORITE_LOCATIONS_POSITIONS[candidate.index]!;
-				return primary.x !== other.x && primary.y !== other.y;
-			})?.index ??
-			ordered[1]?.index ??
-			this.anchor1Index;
-	}
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   /** Get screen position */
   public toScreenPosition(): Position {
@@ -278,7 +192,6 @@ export class WorldPosition {
     ]![this.x]!
   }
 
-<<<<<<< HEAD
   /** Scroll screen to this position */
   public scrollScreenTo() {
     const { x, y } = this.toScreenPosition()
@@ -287,16 +200,6 @@ export class WorldPosition {
       y: y - window.innerHeight / 3,
     })
   }
-=======
-	/** Scroll screen to this position */
-	public scrollScreenTo() {
-		const { x, y } = this.toScreenPosition();
-		this.bot.moveMap({
-			x: Math.round(x - window.innerWidth / 3),
-			y: Math.round(y - window.innerHeight / 3),
-		});
-	}
->>>>>>> d6e8f17a211b2cef7128ade79a63e7e33d3fc87b
 
   public clone() {
     return new WorldPosition(this.bot, this.tileX, this.tileY, this.x, this.y)
