@@ -73,7 +73,7 @@ const MESSAGES = {
     previewStrategy: 'Preview',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
-      'Simple visual reference with sample paint order using the KGlacer logo.',
+      'Animated visual reference of all paint modes using the KGlacer logo as the base preview image.',
     exportImage: 'Export image settings',
     lockImage: 'Lock/unlock image',
     deleteImage: 'Delete image',
@@ -150,7 +150,7 @@ const MESSAGES = {
     previewStrategy: 'Vista',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:
-      'Referencia visual simple con orden de pintado usando el logo de KGlacer.',
+      'Referencia visual animada de todos los modos de pintado usando el logo de KGlacer como imagen base.',
     exportImage: 'Exportar configuración de imagen',
     lockImage: 'Bloquear/desbloquear imagen',
     deleteImage: 'Eliminar imagen',

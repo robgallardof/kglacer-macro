@@ -59,8 +59,7 @@
   width: 52px;
   height: auto;
   border-radius: 14px;
-  filter:
-    drop-shadow(0 8px 14px rgb(0 0 0 / 35%))
+  filter: drop-shadow(0 8px 14px rgb(0 0 0 / 35%))
     drop-shadow(0 0 14px rgb(125 145 255 / 35%));
   animation: logo-float 3.6s ease-in-out infinite;
 }
@@ -572,9 +571,11 @@
 }
 
 .wimage .colors-dialog {
+  overflow: auto;
   width: min(560px, 92vw);
   min-width: min(320px, 92vw);
   max-height: min(85dvh, 680px);
+  margin: auto;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -582,7 +583,6 @@
   color: var(--text);
   box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
   resize: both;
-  overflow: auto;
 }
 
 .wimage .colors-dialog::backdrop {
@@ -614,16 +614,17 @@
 }
 
 .wimage .preview-dialog {
+  overflow: auto;
   width: min(600px, 92vw);
   min-width: min(330px, 92vw);
-  max-height: min(82dvh, 640px);
+  max-height: min(84dvh, 680px);
+  margin: auto;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #0f1526;
   color: var(--text);
   box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
-  overflow: auto;
 }
 
 .wimage .preview-dialog::backdrop {
@@ -646,8 +647,11 @@
 
 .wimage .preview-dialog-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
+  overflow: auto;
+  max-height: min(68dvh, 560px);
+  padding-right: 2px;
 }
 
 .wimage .preview-card {

@@ -127,6 +127,11 @@ export class BotImage extends Base {
   }
   protected suppressNextColorDialogBackdropClick = false
   protected logoPreviewMask?: Position[]
+  protected logoPreviewImage?: HTMLImageElement
+  protected readonly previewAnimations = new WeakMap<
+    HTMLCanvasElement,
+    number
+  >()
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -183,6 +188,7 @@ export class BotImage extends Base {
       this.$resetSize.querySelector<HTMLSpanElement>('span')!
     this.$canvas = this.pixels.canvas
     this.$wrapper.prepend(this.pixels.canvas)
+    document.body.append(this.$colorsDialog, this.$previewDialog)
 
     // Strategy
     this.registerEvent(this.$strategy, 'change', () => {
@@ -265,7 +271,11 @@ export class BotImage extends Base {
       this.moveColorDialog.bind(this),
       { passive: false },
     )
-    this.registerEvent(document, 'pointerup', this.stopColorDialogDrag.bind(this))
+    this.registerEvent(
+      document,
+      'pointerup',
+      this.stopColorDialogDrag.bind(this),
+    )
     this.registerEvent(
       document,
       'pointercancel',
@@ -379,6 +389,8 @@ export class BotImage extends Base {
   public destroy() {
     super.destroy()
     this.element.remove()
+    this.$colorsDialog.remove()
+    this.$previewDialog.remove()
     removeFromArray(this.bot.images, this)
     this.bot.widget.update()
     save(this.bot)
@@ -389,16 +401,12 @@ export class BotImage extends Base {
       this.$colorSearch.focus()
       return
     }
-    const width = 560
-    const maxWidth = Math.min(width, window.innerWidth - 16)
-    const estimatedHeight = Math.min(680, window.innerHeight - 16)
-    const left = Math.max(8, (window.innerWidth - maxWidth) / 2)
-    const top = Math.max(8, (window.innerHeight - estimatedHeight) / 2)
-    this.$colorsDialog.style.margin = '0'
     this.$colorsDialog.style.position = 'fixed'
-    this.$colorsDialog.style.left = `${Math.round(left)}px`
-    this.$colorsDialog.style.top = `${Math.round(top)}px`
-    this.$colorsDialog.show()
+    this.$colorsDialog.style.left = ''
+    this.$colorsDialog.style.top = ''
+    this.$colorsDialog.style.margin = 'auto'
+    this.$colorsDialog.showModal()
+    this.$colorSearch.focus()
   }
 
   public openPreviewPanel() {
@@ -406,16 +414,11 @@ export class BotImage extends Base {
       this.renderStrategyPreviewSamples()
       return
     }
-    const width = 580
-    const maxWidth = Math.min(width, window.innerWidth - 16)
-    const estimatedHeight = Math.min(560, window.innerHeight - 16)
-    const left = Math.max(8, (window.innerWidth - maxWidth) / 2)
-    const top = Math.max(8, (window.innerHeight - estimatedHeight) / 2)
-    this.$previewDialog.style.margin = '0'
     this.$previewDialog.style.position = 'fixed'
-    this.$previewDialog.style.left = `${Math.round(left)}px`
-    this.$previewDialog.style.top = `${Math.round(top)}px`
-    this.$previewDialog.show()
+    this.$previewDialog.style.left = ''
+    this.$previewDialog.style.top = ''
+    this.$previewDialog.style.margin = 'auto'
+    this.$previewDialog.showModal()
     this.renderStrategyPreviewSamples()
   }
 
@@ -467,7 +470,13 @@ export class BotImage extends Base {
 
   protected renderStrategyPreviewSamples() {
     const selected = this.$strategy.value as ImageStrategy
-    const uniqueSamples = [...new Set([selected, ImageStrategy.SPIRAL_FROM_CENTER, ImageStrategy.ZIGZAG, ImageStrategy.HUMANIZED])]
+    const uniqueSamples = (
+      Object.values(ImageStrategy) as ImageStrategy[]
+    ).sort((a, b) => {
+      if (a === selected) return -1
+      if (b === selected) return 1
+      return 0
+    })
     this.$previewDialogList.innerHTML = ''
     const fragment = document.createDocumentFragment()
     for (let index = 0; index < uniqueSamples.length; index++) {
@@ -489,40 +498,74 @@ export class BotImage extends Base {
 
   protected getStrategyLabel(strategy: ImageStrategy) {
     switch (strategy) {
-      case ImageStrategy.RANDOM: return t('random')
-      case ImageStrategy.HUMANIZED: return t('humanized')
-      case ImageStrategy.HUMAN_SOFT_DITHER: return t('humanSoftDither')
-      case ImageStrategy.HUMAN_PATCHY: return t('humanPatchy')
-      case ImageStrategy.HUMAN_SWEEP_ARCS: return t('humanSweepArcs')
-      case ImageStrategy.HUMAN_MICRO_CORRECTIONS: return t('humanMicroCorrections')
-      case ImageStrategy.HUMAN_JITTER_FILL: return t('humanJitterFill')
-      case ImageStrategy.HUMAN_CORNER_BIAS: return t('humanCornerBias')
-      case ImageStrategy.HUMAN_LONG_STROKES: return t('humanLongStrokes')
-      case ImageStrategy.HUMAN_TAP_CLUSTERS: return t('humanTapClusters')
-      case ImageStrategy.HUMAN_MESSY_SPIRAL: return t('humanMessySpiral')
-      case ImageStrategy.HUMAN_DRUNK_WALK: return t('humanDrunkWalk')
-      case ImageStrategy.HUMAN_NOISE_CLOUD: return t('humanNoiseCloud')
-      case ImageStrategy.HUMAN_PATCH_JUMP: return t('humanPatchJump')
-      case ImageStrategy.ZIGZAG: return t('zigzag')
-      case ImageStrategy.BRUSH_STROKES: return t('brushStrokes')
-      case ImageStrategy.DIAGONAL_BRUSH: return t('diagonalBrush')
-      case ImageStrategy.DOWN: return t('down')
-      case ImageStrategy.UP: return t('up')
-      case ImageStrategy.LEFT: return t('left')
-      case ImageStrategy.RIGHT: return t('right')
-      case ImageStrategy.SPIRAL_FROM_CENTER: return t('spiralOut')
-      case ImageStrategy.SPIRAL_TO_CENTER: return t('spiralIn')
-      case ImageStrategy.SCRIBBLE: return t('scribble')
-      case ImageStrategy.CROSSHATCH: return t('crosshatch')
-      case ImageStrategy.WAVE_SWEEP: return t('waveSweep')
-      case ImageStrategy.SCATTERED_LINES: return t('scatteredLines')
-      case ImageStrategy.CONTOUR_JITTER: return t('contourJitter')
-      case ImageStrategy.SPIRAL_WOBBLE: return t('spiralWobble')
-      case ImageStrategy.CLUSTER_BURSTS: return t('clusterBursts')
-      case ImageStrategy.ORBITAL: return t('orbital')
-      case ImageStrategy.FLOW_FIELD: return t('flowField')
-      case ImageStrategy.EDGE_IN: return t('edgeIn')
-      default: return strategy
+      case ImageStrategy.RANDOM:
+        return t('random')
+      case ImageStrategy.HUMANIZED:
+        return t('humanized')
+      case ImageStrategy.HUMAN_SOFT_DITHER:
+        return t('humanSoftDither')
+      case ImageStrategy.HUMAN_PATCHY:
+        return t('humanPatchy')
+      case ImageStrategy.HUMAN_SWEEP_ARCS:
+        return t('humanSweepArcs')
+      case ImageStrategy.HUMAN_MICRO_CORRECTIONS:
+        return t('humanMicroCorrections')
+      case ImageStrategy.HUMAN_JITTER_FILL:
+        return t('humanJitterFill')
+      case ImageStrategy.HUMAN_CORNER_BIAS:
+        return t('humanCornerBias')
+      case ImageStrategy.HUMAN_LONG_STROKES:
+        return t('humanLongStrokes')
+      case ImageStrategy.HUMAN_TAP_CLUSTERS:
+        return t('humanTapClusters')
+      case ImageStrategy.HUMAN_MESSY_SPIRAL:
+        return t('humanMessySpiral')
+      case ImageStrategy.HUMAN_DRUNK_WALK:
+        return t('humanDrunkWalk')
+      case ImageStrategy.HUMAN_NOISE_CLOUD:
+        return t('humanNoiseCloud')
+      case ImageStrategy.HUMAN_PATCH_JUMP:
+        return t('humanPatchJump')
+      case ImageStrategy.ZIGZAG:
+        return t('zigzag')
+      case ImageStrategy.BRUSH_STROKES:
+        return t('brushStrokes')
+      case ImageStrategy.DIAGONAL_BRUSH:
+        return t('diagonalBrush')
+      case ImageStrategy.DOWN:
+        return t('down')
+      case ImageStrategy.UP:
+        return t('up')
+      case ImageStrategy.LEFT:
+        return t('left')
+      case ImageStrategy.RIGHT:
+        return t('right')
+      case ImageStrategy.SPIRAL_FROM_CENTER:
+        return t('spiralOut')
+      case ImageStrategy.SPIRAL_TO_CENTER:
+        return t('spiralIn')
+      case ImageStrategy.SCRIBBLE:
+        return t('scribble')
+      case ImageStrategy.CROSSHATCH:
+        return t('crosshatch')
+      case ImageStrategy.WAVE_SWEEP:
+        return t('waveSweep')
+      case ImageStrategy.SCATTERED_LINES:
+        return t('scatteredLines')
+      case ImageStrategy.CONTOUR_JITTER:
+        return t('contourJitter')
+      case ImageStrategy.SPIRAL_WOBBLE:
+        return t('spiralWobble')
+      case ImageStrategy.CLUSTER_BURSTS:
+        return t('clusterBursts')
+      case ImageStrategy.ORBITAL:
+        return t('orbital')
+      case ImageStrategy.FLOW_FIELD:
+        return t('flowField')
+      case ImageStrategy.EDGE_IN:
+        return t('edgeIn')
+      default:
+        return strategy
     }
   }
 
@@ -542,10 +585,66 @@ export class BotImage extends Base {
     const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
     const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
     const cell = canvas.width / this.pixels.width
-    for (let index = 0; index < filtered.length; index++) {
-      const pixel = filtered[index]!
-      const progress = index / Math.max(1, filtered.length - 1)
-      context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
+    const activeAnimation = this.previewAnimations.get(canvas)
+    if (activeAnimation) cancelAnimationFrame(activeAnimation)
+    const drawFrame = (progressCount: number) => {
+      context.fillStyle = '#0f1526'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+      this.paintLogoGhost(context, cell, mask)
+      for (
+        let index = 0;
+        index < Math.min(progressCount, filtered.length);
+        index++
+      ) {
+        const pixel = filtered[index]!
+        const progress = index / Math.max(1, filtered.length - 1)
+        context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
+        context.fillRect(
+          pixel.x * cell,
+          pixel.y * cell,
+          Math.max(1, cell),
+          Math.max(1, cell),
+        )
+      }
+    }
+    const start = performance.now()
+    const duration = Math.min(3800, Math.max(900, filtered.length * 8))
+    const animate = (now: number) => {
+      const elapsed = now - start
+      const ratio = Math.min(1, elapsed / duration)
+      drawFrame(Math.floor(filtered.length * ratio))
+      const animationId =
+        ratio >= 1
+          ? requestAnimationFrame(() => {
+              drawFrame(filtered.length)
+            })
+          : requestAnimationFrame(animate)
+      this.previewAnimations.set(canvas, animationId)
+    }
+    animate(start)
+  }
+
+  protected paintLogoGhost(
+    context: CanvasRenderingContext2D,
+    cell: number,
+    mask: Position[],
+  ) {
+    if (this.logoPreviewImage) {
+      context.save()
+      context.globalAlpha = 0.22
+      context.drawImage(
+        this.logoPreviewImage,
+        0,
+        0,
+        this.pixels.width * cell,
+        this.pixels.height * cell,
+      )
+      context.restore()
+      return
+    }
+    context.fillStyle = 'rgb(115 132 190 / 28%)'
+    for (let index = 0; index < mask.length; index++) {
+      const pixel = mask[index]!
       context.fillRect(
         pixel.x * cell,
         pixel.y * cell,
@@ -563,6 +662,7 @@ export class BotImage extends Base {
     image
       .decode()
       .then(() => {
+        this.logoPreviewImage = image
         const offscreen = document.createElement('canvas')
         offscreen.width = this.pixels.width
         offscreen.height = this.pixels.height
@@ -577,7 +677,7 @@ export class BotImage extends Base {
         )
         if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
       })
-      .catch(() => {})
+      .catch(() => undefined)
     return this.logoPreviewMask
   }
 
