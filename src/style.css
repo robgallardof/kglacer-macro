@@ -16,6 +16,14 @@
   --main: #6d7bff;
   --main-hover: #7f8bff;
   --border: #2a3044;
+  --surface-card: #141c31;
+  --surface-card-hover: #1b2743;
+  --glow-main: rgb(122 148 255 / 40%);
+  --ring: rgb(129 140 248 / 55%);
+  --input-bg: #111a2e;
+  --input-border: rgb(148 163 255 / 28%);
+  --input-hover: #17233d;
+  --card-radius: 12px;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -206,8 +214,10 @@
   padding: 8px;
   border: 1px solid rgb(109 123 255 / 20%);
   border-radius: 12px;
-  background: linear-gradient(180deg, #171f33, #141a2a);
-  box-shadow: 0 10px 24px rgb(0 0 0 / 25%);
+  background: linear-gradient(180deg, #1a2440, #141b2f);
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 30%),
+    0 0 0 1px rgb(109 123 255 / 10%);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -216,7 +226,9 @@
 
 .wwidget .images .image:hover {
   border-color: rgb(109 123 255 / 55%);
-  box-shadow: 0 14px 28px rgb(0 0 0 / 35%);
+  box-shadow:
+    0 14px 28px rgb(0 0 0 / 38%),
+    0 0 0 1px rgb(109 123 255 / 24%);
   transform: translateY(-1px);
 }
 
@@ -378,17 +390,21 @@
 .wform select,
 .wform textarea,
 .wform label:has(input[type='checkbox']) {
-  padding: 8px;
-  border: var(--border) 1px solid;
-  border-radius: 10px;
-  background: #171e30;
+  padding: 9px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--card-radius);
+  background: linear-gradient(180deg, #17233d 0%, var(--input-bg) 100%);
   color: var(--text);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 4%),
+    0 1px 0 rgb(7 11 22 / 35%);
   cursor: pointer;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
     background-color 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .wform input[type='range'] {
@@ -412,22 +428,41 @@
 .wform button:hover,
 .wform input:hover,
 .wform select:hover {
-  border-color: rgb(109 123 255 / 60%);
-  background-color: var(--background-hover);
+  border-color: rgb(129 140 248 / 66%);
+  background: linear-gradient(180deg, #1a2947 0%, var(--input-hover) 100%);
   box-shadow: 0 8px 18px rgb(0 0 0 / 20%);
+  filter: saturate(1.08);
   transform: translateY(-1px);
 }
 
+.wform button:focus-visible,
+.wform input:focus-visible,
+.wform select:focus-visible {
+  border-color: rgb(165 180 252 / 85%);
+  box-shadow:
+    0 0 0 3px var(--ring),
+    0 10px 22px rgb(0 0 0 / 26%);
+  outline: none;
+}
+
+.wform input::placeholder {
+  color: #9ba9d8;
+}
+
 .wform select {
+  padding-right: 34px;
   background-image:
-    linear-gradient(45deg, transparent 50%, #8fa2ff 50%),
-    linear-gradient(135deg, #8fa2ff 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, #c7d2fe 50%),
+    linear-gradient(135deg, #c7d2fe 50%, transparent 50%),
+    linear-gradient(180deg, #1a2948 0%, #131d34 100%);
   background-position:
-    calc(100% - 16px) 55%,
-    calc(100% - 11px) 55%;
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%,
+    0 0;
   background-size:
     5px 5px,
-    5px 5px;
+    5px 5px,
+    100% 100%;
   background-repeat: no-repeat;
   appearance: none;
 }
@@ -468,22 +503,66 @@
 
 .wform .wprogress {
   position: relative;
+  overflow: hidden;
   width: 100%;
+  height: 34px;
   margin: 0;
+  border: 1px solid rgb(129 140 248 / 28%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #111a2e, #0e1628);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 5%),
+    inset 0 -1px 0 rgb(0 0 0 / 35%);
 }
 
 .wform .wprogress div {
   position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border-radius: 10px;
-  background-color: var(--main);
+  background:
+    linear-gradient(90deg, rgb(99 102 241 / 95%), rgb(56 189 248 / 88%)),
+    linear-gradient(180deg, rgb(255 255 255 / 18%), transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 24%),
+    0 0 18px rgb(99 102 241 / 35%);
   transform-origin: left;
 }
 
+.wform .wprogress div::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgb(255 255 255 / 10%) 35%,
+    rgb(255 255 255 / 28%) 50%,
+    rgb(255 255 255 / 10%) 65%,
+    transparent 100%
+  );
+  animation: progress-shimmer 1.8s linear infinite;
+}
+
 .wform .wprogress span {
+  position: relative;
   z-index: 1;
-  mix-blend-mode: screen;
+  color: #e9eeff;
+  font-weight: 600;
+  font-size: 11px;
+  text-shadow: 0 1px 6px rgb(3 8 18 / 60%);
+  mix-blend-mode: normal;
+}
+
+@keyframes progress-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
 }
 
 .wform .colors {
@@ -579,15 +658,20 @@
 
 .kgm-modal {
   margin: auto;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #0f1526;
+  border: 1px solid rgb(130 150 255 / 35%);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #131c34 0%, #0e1526 100%);
   color: var(--text);
-  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
+  box-shadow:
+    0 24px 46px rgb(2 6 23 / 62%),
+    0 0 0 1px rgb(143 162 255 / 22%);
 }
 
 .kgm-modal::backdrop {
-  background: rgb(0 0 0 / 55%);
+  background:
+    radial-gradient(circle at 50% 20%, rgb(90 122 255 / 20%), transparent 55%),
+    rgb(4 8 16 / 72%);
+  backdrop-filter: blur(5px) saturate(1.15);
 }
 
 .kgm-modal-head {
@@ -619,11 +703,19 @@
 .wimage .modal-close {
   min-width: 72px;
   padding: 6px 10px;
-  border: 1px solid #56608a;
+  border: 1px solid #6c79ad;
   border-radius: 8px;
-  background: #212c49;
+  background: linear-gradient(180deg, #2a3963, #1f2c4d);
   color: #f0f4ff;
+  box-shadow: 0 10px 20px rgb(7 12 24 / 30%);
   font-weight: 600;
+}
+
+.wimage .modal-close:hover {
+  border-color: #9fb0ff;
+  box-shadow:
+    0 10px 22px rgb(7 12 24 / 40%),
+    0 0 0 1px rgb(159 176 255 / 35%);
 }
 
 .wimage .preview-dialog {
@@ -653,9 +745,22 @@
   display: grid;
   gap: 8px;
   padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #131c30;
+  border: 1px solid rgb(143 162 255 / 22%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #1a2542, #131d34);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.wimage .preview-card:hover {
+  border-color: rgb(143 162 255 / 48%);
+  box-shadow:
+    0 12px 24px rgb(0 0 0 / 24%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+  transform: translateY(-1px);
 }
 
 .wimage .preview-card strong {
@@ -739,11 +844,21 @@
   align-items: center;
   width: 100%;
   padding: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid rgb(143 162 255 / 20%);
   border-radius: 8px;
-  background: #161d2f;
+  background: linear-gradient(180deg, #1a2540, #151d31);
   color: var(--text);
   font-size: 11px;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+.wimage .color-chip:hover {
+  border-color: rgb(143 162 255 / 52%);
+  box-shadow: 0 10px 18px rgb(0 0 0 / 25%);
+  transform: translateY(-1px);
 }
 
 .wimage .color-chip .order-index {
@@ -797,17 +912,20 @@
 
 .wtopbar button {
   min-height: 36px;
-  border: 1px solid var(--border);
-  background: #182035;
+  border: 1px solid rgb(125 146 255 / 34%);
+  background: linear-gradient(180deg, #202d50, #19223d);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
-    background-color 0.2s ease;
+    background-color 0.2s ease,
+    filter 0.2s ease;
 }
 
 .wtopbar button:hover {
-  background: #273150;
+  background: linear-gradient(180deg, #2b3960, #1f2c4b);
   box-shadow: 0 8px 18px rgb(0 0 0 / 30%);
+  filter: saturate(1.12);
   transform: translateY(-1px);
 }
 
@@ -816,15 +934,23 @@
 }
 
 .wtopbar button.delete {
-  color: #ff8fa3;
+  color: #ff6b8e;
+  text-shadow: 0 0 12px rgb(255 107 142 / 35%);
 }
 
 .wtopbar button.open-colors {
-  color: #9ed6ff;
+  color: #88d8ff;
+  text-shadow: 0 0 12px rgb(136 216 255 / 35%);
+}
+
+.wtopbar button.export {
+  color: #7cffcd;
+  text-shadow: 0 0 12px rgb(124 255 205 / 32%);
 }
 
 .wtopbar button.lock.locked {
   color: #ffd166;
+  text-shadow: 0 0 12px rgb(255 209 102 / 40%);
 }
 
 .resize {
@@ -869,6 +995,12 @@
 }
 
 .overlay-hidden .wimage {
+  display: none !important;
+}
+
+.kgm-access-locked .wwidget,
+.kgm-access-locked .wimage,
+.kgm-access-locked .wopen-button {
   display: none !important;
 }
 

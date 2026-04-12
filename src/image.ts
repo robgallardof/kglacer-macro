@@ -255,10 +255,10 @@ export class BotImage extends Base {
       this.openPreviewPanel()
     })
     this.registerEvent(this.$closeColors, 'click', () => {
-      this.$colorsDialog.close()
+      this.closeDialog(this.$colorsDialog)
     })
     this.registerEvent(this.$closePreview, 'click', () => {
-      this.$previewDialog.close()
+      this.closeDialog(this.$previewDialog)
     })
     this.registerEvent(
       this.$colorsDialog.querySelector('.colors-dialog-head')!,
@@ -286,10 +286,12 @@ export class BotImage extends Base {
         this.suppressNextColorDialogBackdropClick = false
         return
       }
-      if (event.target === this.$colorsDialog) this.$colorsDialog.close()
+      if (event.target === this.$colorsDialog)
+        this.closeDialog(this.$colorsDialog)
     })
     this.registerEvent(this.$previewDialog, 'click', (event: MouseEvent) => {
-      if (event.target === this.$previewDialog) this.$previewDialog.close()
+      if (event.target === this.$previewDialog)
+        this.closeDialog(this.$previewDialog)
     })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
@@ -420,6 +422,12 @@ export class BotImage extends Base {
     this.$previewDialog.style.margin = 'auto'
     this.$previewDialog.showModal()
     this.renderStrategyPreviewSamples()
+  }
+
+  protected closeDialog(dialog: HTMLDialogElement) {
+    if (!dialog.open) return
+    if (typeof dialog.requestClose === 'function') dialog.requestClose()
+    else dialog.close()
   }
 
   protected startColorDialogDrag(event: PointerEvent) {

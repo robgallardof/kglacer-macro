@@ -58,6 +58,7 @@ const SAVE_VERSION = 2
 const BOT_LOG_PREFIX = '[KGM]'
 const ACCESS_KEY_STORAGE_KEY = 'kglacer-macro:access-ok'
 const ACCESS_SERIAL_B64 = 'S0dNLXlZUjhTMW81bEhVemVjS1RFMEhxRVB4OVFkcjgxaEVz'
+const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
 
 /**
  * Main class. Initializes everything.
@@ -82,7 +83,12 @@ export class KGlacerMacro {
   /** Images on canvas */
   public images: BotImage[] = []
 
-  public widget = new Widget(this)
+  protected _widget?: Widget
+
+  public get widget() {
+    if (!this._widget) throw new Error('Widget is not initialized yet')
+    return this._widget
+  }
 
   /** Used to wait for pixel data on marker set */
   protected markerPixelPositionResolvers: ((
@@ -99,6 +105,7 @@ export class KGlacerMacro {
 
   public constructor() {
     this.log('Boot sequence started')
+    document.body.classList.add(ACCESS_LOCKED_CLASS)
     // Try to load save
     const save = loadSave()
     this.log('Save loaded', {
@@ -137,53 +144,57 @@ export class KGlacerMacro {
       fakeFavoriteLocations: FAVORITE_LOCATIONS.length,
     })
 
-    void this.widget.run('Initializing', async () => {
+    void (async () => {
       this.log('Widget initialization flow started')
       await this.ensureAccessKey()
-      // Waiting for all of website to load
-      await this.waitForElement('login', '.avatar.center-absolute.absolute')
-      await this.waitForElement(
-        'pixel count',
-        '.btn.btn-primary.btn-lg.relative.z-30 canvas',
-      )
-      const $canvasContainer = await this.waitForElement(
-        'canvas',
-        '.maplibregl-canvas-container',
-      )
-      new MutationObserver((mutations: MutationRecord[]) => {
-        // If elements were removed, update stars
-        for (let index = 0; index < mutations.length; index++)
-          if (mutations[index]!.removedNodes.length !== 0) {
-            this.updateStars()
-            break
-          }
-        this.updateImages()
-      }).observe($canvasContainer, {
-        attributes: true,
-        childList: true,
-        subtree: true,
-      })
-      this.updateStars()
-      this.log('Stars updated after boot', { stars: this.$stars.length })
-      await wait(500) // Sometimes wplace UI becomes bugged if interacted too early
-      await this.updateColors()
+      document.body.classList.remove(ACCESS_LOCKED_CLASS)
+      this._widget = new Widget(this)
+      await this.widget.run('Initializing', async () => {
+        // Waiting for all of website to load
+        await this.waitForElement('login', '.avatar.center-absolute.absolute')
+        await this.waitForElement(
+          'pixel count',
+          '.btn.btn-primary.btn-lg.relative.z-30 canvas',
+        )
+        const $canvasContainer = await this.waitForElement(
+          'canvas',
+          '.maplibregl-canvas-container',
+        )
+        new MutationObserver((mutations: MutationRecord[]) => {
+          // If elements were removed, update stars
+          for (let index = 0; index < mutations.length; index++)
+            if (mutations[index]!.removedNodes.length !== 0) {
+              this.updateStars()
+              break
+            }
+          this.updateImages()
+        }).observe($canvasContainer, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+        })
+        this.updateStars()
+        this.log('Stars updated after boot', { stars: this.$stars.length })
+        await wait(500) // Sometimes wplace UI becomes bugged if interacted too early
+        await this.updateColors()
 
-      // Load images
-      if (save)
-        for (let index = 0; index < save.images.length; index++) {
-          const image = await BotImage.fromJSON(this, save.images[index]!)
-          this.images.push(image)
-          image.update()
-        }
-      this.log('Saved images restored', { images: this.images.length })
-      await this.readMap()
-      this.updateTasks()
-      // Unblock buttons
-      this.widget.setDisabled('draw', false)
-      this.widget.setDisabled('add-image', false)
-      this.log('Initialization completed; controls enabled')
-      // this.widget.setDisabled('pumpkin-hunt', false)
-    })
+        // Load images
+        if (save)
+          for (let index = 0; index < save.images.length; index++) {
+            const image = await BotImage.fromJSON(this, save.images[index]!)
+            this.images.push(image)
+            image.update()
+          }
+        this.log('Saved images restored', { images: this.images.length })
+        await this.readMap()
+        this.updateTasks()
+        // Unblock buttons
+        this.widget.setDisabled('draw', false)
+        this.widget.setDisabled('add-image', false)
+        this.log('Initialization completed; controls enabled')
+        // this.widget.setDisabled('pumpkin-hunt', false)
+      })
+    })()
   }
 
   protected async ensureAccessKey() {
