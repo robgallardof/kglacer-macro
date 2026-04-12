@@ -54,7 +54,7 @@ const BOT_LOG_PREFIX = '[KGM]'
  * Main class. Initializes everything.
  * Used to interact with wplace
  * */
-export class WPlaceBot {
+export class KGlacerMacro {
   /** Colors that can be bought */
   public unavailableColors = new Set<number>()
 
@@ -153,6 +153,24 @@ export class WPlaceBot {
         childList: true,
         subtree: true,
       })
+      globalThis.addEventListener(
+        'resize',
+        () => {
+          this.updateImages()
+        },
+        {
+          passive: true,
+        },
+      )
+      document.addEventListener(
+        'visibilitychange',
+        () => {
+          this.updateImages()
+        },
+        {
+          passive: true,
+        },
+      )
       this.updateStars()
       this.log('Stars updated after boot', { stars: this.$stars.length })
       await wait(500) // Sometimes wplace UI becomes bugged if interacted too early
@@ -310,7 +328,9 @@ export class WPlaceBot {
           Math.abs(Number.parseInt($button.id.slice(6))),
         )
     this.updateImageColors()
-    this.log('Colors updated', { unavailableColors: this.unavailableColors.size })
+    this.log('Colors updated', {
+      unavailableColors: this.unavailableColors.size,
+    })
   }
 
   /** Move map */
@@ -594,8 +614,10 @@ export class WPlaceBot {
 
   /** Update images position and contents */
   protected updateImages() {
-    for (let index = 0; index < this.images.length; index++)
+    for (let index = 0; index < this.images.length; index++) {
+      this.images[index]!.position.updateAnchor()
       this.images[index]!.update()
+    }
   }
 
   /** Update tasks of all images */
@@ -612,9 +634,9 @@ export class WPlaceBot {
 }
 
 declare global {
-  var kgm: WPlaceBot
-  var wbot: WPlaceBot
+  var kgm: KGlacerMacro
+  var wbot: KGlacerMacro
 }
 
-globalThis.kgm = new WPlaceBot()
+globalThis.kgm = new KGlacerMacro()
 globalThis.wbot = globalThis.kgm

@@ -1,10 +1,10 @@
 import { removeFromArray } from '@softsky/utils'
 
 import { Base } from './base'
-import { WPlaceBot } from './bot'
+import { KGlacerMacro } from './bot'
 import { colorToCSS } from './colors'
 // @ts-ignore
-import { applyTranslations } from './i18n'
+import { applyTranslations, t } from './i18n'
 import html from './image.html' with { type: 'text' }
 import { Pixels } from './pixels'
 import { save } from './save'
@@ -33,11 +33,21 @@ export enum ImageStrategy {
   RIGHT = 'RIGHT',
   SPIRAL_FROM_CENTER = 'SPIRAL_FROM_CENTER',
   SPIRAL_TO_CENTER = 'SPIRAL_TO_CENTER',
+  SCRIBBLE = 'SCRIBBLE',
+  CROSSHATCH = 'CROSSHATCH',
+  WAVE_SWEEP = 'WAVE_SWEEP',
+  SCATTERED_LINES = 'SCATTERED_LINES',
+  CONTOUR_JITTER = 'CONTOUR_JITTER',
+  SPIRAL_WOBBLE = 'SPIRAL_WOBBLE',
+  CLUSTER_BURSTS = 'CLUSTER_BURSTS',
+  ORBITAL = 'ORBITAL',
+  FLOW_FIELD = 'FLOW_FIELD',
+  EDGE_IN = 'EDGE_IN',
 }
 
 export class BotImage extends Base {
   public static async fromJSON(
-    bot: WPlaceBot,
+    bot: KGlacerMacro,
     data: ReturnType<BotImage['toJSON']>,
   ) {
     return new BotImage(
@@ -87,7 +97,7 @@ export class BotImage extends Base {
   protected readonly $wrapper!: HTMLDivElement
 
   public constructor(
-    protected bot: WPlaceBot,
+    protected bot: KGlacerMacro,
     /** Top-left corner of image */
     public position: WorldPosition,
     /** Parsed imageto draw */
@@ -261,6 +271,7 @@ export class BotImage extends Base {
     const { x, y } = this.position.toScreenPosition()
     this.element.style.transform = `translate(${x}px, ${y}px)`
     this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`
+    this.element.style.height = `${this.position.pixelSize * this.pixels.height}px`
     this.$canvas.style.opacity = `${this.opacity}%`
     this.element.classList.remove('hidden')
 
@@ -293,6 +304,11 @@ export class BotImage extends Base {
     this.$colors.innerHTML = ''
     const pixelsSum = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const itemWidth = 100 / this.pixels.colors.size
+    const $track = document.createElement('div')
+    $track.className = 'colors-track'
+    $track.setAttribute('aria-label', t('overlayColors'))
+    const $legend = document.createElement('div')
+    $legend.className = 'colors-legend'
 
     // If not the synced with colors then rebuild order
     if (
@@ -316,16 +332,22 @@ export class BotImage extends Base {
       const drawColor = this.colors[index]!
       const color = this.pixels.colors.get(drawColor.realColor)!
       let dragging = false
+      const isPremium = color.realColor !== color.color
+      const width = (color.amount / pixelsSum) * 100
       const toggleDisabled = () => {
         if (dragging) return
         drawColor.disabled = drawColor.disabled ? undefined : true
         $button.classList.toggle('color-disabled')
+        $chip.classList.toggle('disabled', Boolean(drawColor.disabled))
+        const $state = $chip.querySelector<HTMLElement>('.state')
+        if ($state)
+          $state.textContent = drawColor.disabled ? t('disabled') : t('enabled')
         save(this.bot)
       }
       const $button = document.createElement('button')
+      $button.title = `${width.toFixed(1)}%`
       if (drawColor.disabled) $button.classList.add('color-disabled')
-      if (color.realColor === color.color)
-        $button.style.background = colorToCSS(color.realColor)
+      if (!isPremium) $button.style.background = colorToCSS(color.realColor)
       else {
         $button.classList.add('substitution')
         $button.style.setProperty('--wreal-color', colorToCSS(color.realColor))
@@ -335,8 +357,10 @@ export class BotImage extends Base {
         )
         const $button1 = document.createElement('button')
         const $button2 = document.createElement('button')
-        $button1.textContent = '$'
+        $button1.textContent = t('buy')
         $button2.textContent = '✓'
+        $button1.classList.add('buy')
+        $button2.classList.add('disable')
         $button1.addEventListener('click', () => {
           document.getElementById('color-' + color.realColor)?.click()
         })
@@ -345,12 +369,37 @@ export class BotImage extends Base {
         $button.append($button2)
       }
       $button.style.left = nextXPosition + '%'
-      const width = (color.amount / pixelsSum) * 100
       $button.style.width = width + '%'
       nextXPosition += width
       $button.style.setProperty('--wleft', itemWidth * index + '%')
       $button.style.setProperty('--wwidth', itemWidth + '%')
-      this.$colors.append($button)
+      $track.append($button)
+
+      const $chip = document.createElement('button')
+      $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
+      $chip.innerHTML = `<span class="swatch"></span>
+<span class="meta">
+  <span class="coverage">${width.toFixed(1)}%</span>
+  <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
+</span>
+<span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
+      $chip
+        .querySelector<HTMLElement>('.swatch')!
+        .style.setProperty('--swatch-color', colorToCSS(color.realColor))
+      $chip.addEventListener('click', () => {
+        toggleDisabled()
+      })
+      if (isPremium) {
+        const $buy = document.createElement('button')
+        $buy.textContent = t('buy')
+        $buy.className = 'buy-chip'
+        $buy.addEventListener('click', (event) => {
+          event.stopPropagation()
+          document.getElementById('color-' + color.realColor)?.click()
+        })
+        $chip.append($buy)
+      }
+      $legend.append($chip)
 
       // Drag functionality
       const startDrag = (startEvent: MouseEvent) => {
@@ -368,7 +417,7 @@ export class BotImage extends Base {
           )
           if (newIndex !== index) dragging = true
           let childIndex = 0
-          for (const $child of this.$colors.children as Iterable<HTMLElement>) {
+          for (const $child of $track.children as Iterable<HTMLElement>) {
             if ($child === $button) continue
             if (childIndex === newIndex) childIndex++
             $child.style.setProperty('--wleft', itemWidth * childIndex + '%')
@@ -395,9 +444,9 @@ export class BotImage extends Base {
         )
       }
       $button.addEventListener('mousedown', startDrag)
-      if (color.realColor === color.color)
-        $button.addEventListener('click', toggleDisabled)
+      if (!isPremium) $button.addEventListener('click', toggleDisabled)
     }
+    this.$colors.append($track, $legend)
   }
 
   /** Create iterator that generates positions based on strategy */
@@ -580,6 +629,251 @@ export class BotImage extends Base {
           const collected = [...emit()]
           for (let index = collected.length - 1; index >= 0; index--)
             yield collected[index]!
+        }
+        break
+      }
+      case ImageStrategy.SCRIBBLE: {
+        const visited = new Set<string>()
+        const total = width * height
+        let x = Math.floor(width / 2)
+        let y = Math.floor(height / 2)
+        while (visited.size < total) {
+          const key = `${x},${y}`
+          if (!visited.has(key)) {
+            visited.add(key)
+            yield { x, y }
+          }
+          x += Math.floor(Math.random() * 3) - 1
+          y += Math.floor(Math.random() * 3) - 1
+          if (x < 0 || x >= width || y < 0 || y >= height) {
+            x = Math.floor(Math.random() * width)
+            y = Math.floor(Math.random() * height)
+          }
+        }
+        break
+      }
+      case ImageStrategy.CROSSHATCH: {
+        const diagonals: Position[] = []
+        for (let sum = 0; sum < width + height - 1; sum++)
+          for (
+            let y = Math.max(0, sum - width + 1);
+            y <= Math.min(height - 1, sum);
+            y++
+          ) {
+            const x = sum - y
+            diagonals.push({ x, y })
+          }
+        const anti: Position[] = []
+        for (let diff = -height + 1; diff < width; diff++)
+          for (let y = 0; y < height; y++) {
+            const x = y + diff
+            if (x >= 0 && x < width) anti.push({ x, y })
+          }
+        const seen = new Set<string>()
+        for (const point of [...diagonals, ...anti]) {
+          const key = `${point.x},${point.y}`
+          if (seen.has(key)) continue
+          seen.add(key)
+          yield point
+        }
+        break
+      }
+      case ImageStrategy.WAVE_SWEEP: {
+        const emitted = new Set<string>()
+        for (let x = 0; x < width; x++) {
+          const wave = Math.sin((x / Math.max(1, width - 1)) * Math.PI * 4)
+          const center = ((wave + 1) * 0.5 * (height - 1)) | 0
+          for (let delta = 0; delta < height; delta++) {
+            const y1 = center + delta
+            const y2 = center - delta
+            for (const y of [y1, y2]) {
+              if (y < 0 || y >= height) continue
+              const key = `${x},${y}`
+              if (emitted.has(key)) continue
+              emitted.add(key)
+              yield { x, y }
+            }
+          }
+        }
+        break
+      }
+      case ImageStrategy.SCATTERED_LINES: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          let x = Math.floor(Math.random() * width)
+          let y = Math.floor(Math.random() * height)
+          const angle = Math.random() * Math.PI * 2
+          const dx = Math.round(Math.cos(angle))
+          const dy = Math.round(Math.sin(angle))
+          const length = 6 + Math.floor(Math.random() * 28)
+          for (let step = 0; step < length; step++) {
+            if (x < 0 || x >= width || y < 0 || y >= height) break
+            const key = `${x},${y}`
+            if (!visited.has(key)) {
+              visited.add(key)
+              yield { x, y }
+            }
+            x += dx
+            y += dy
+          }
+        }
+        break
+      }
+      case ImageStrategy.CONTOUR_JITTER: {
+        const seen = new Set<string>()
+        for (
+          let layer = 0;
+          layer < Math.ceil(Math.min(width, height) / 2);
+          layer++
+        ) {
+          const points: Position[] = []
+          const left = layer
+          const top = layer
+          const right = width - layer - 1
+          const bottom = height - layer - 1
+          for (let x = left; x <= right; x++) points.push({ x, y: top })
+          for (let y = top + 1; y <= bottom; y++) points.push({ x: right, y })
+          for (let x = right - 1; x >= left; x--) points.push({ x, y: bottom })
+          for (let y = bottom - 1; y > top; y--) points.push({ x: left, y })
+          for (let i = points.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            const temp = points[i]!
+            points[i] = points[j]!
+            points[j] = temp
+          }
+          for (const point of points) {
+            const key = `${point.x},${point.y}`
+            if (seen.has(key)) continue
+            seen.add(key)
+            yield point
+          }
+        }
+        break
+      }
+      case ImageStrategy.SPIRAL_WOBBLE: {
+        const visited = new Set<string>()
+        const cx = width / 2
+        const cy = height / 2
+        const maxRadius = Math.hypot(cx, cy)
+        for (
+          let t = 0;
+          visited.size < width * height && t < width * height * 9;
+          t++
+        ) {
+          const radius = (t / (width * height * 9)) * maxRadius
+          const theta = t * 0.31 + Math.sin(t * 0.07) * 0.7
+          const x = Math.round(cx + Math.cos(theta) * radius)
+          const y = Math.round(cy + Math.sin(theta) * radius)
+          if (x < 0 || x >= width || y < 0 || y >= height) continue
+          const key = `${x},${y}`
+          if (visited.has(key)) continue
+          visited.add(key)
+          yield { x, y }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.CLUSTER_BURSTS: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const radius = 2 + Math.floor(Math.random() * 10)
+          for (let y = cy - radius; y <= cy + radius; y++)
+            for (let x = cx - radius; x <= cx + radius; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              if (Math.hypot(x - cx, y - cy) > radius) continue
+              const key = `${x},${y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield { x, y }
+            }
+        }
+        break
+      }
+      case ImageStrategy.ORBITAL: {
+        const visited = new Set<string>()
+        const cx = (width - 1) / 2
+        const cy = (height - 1) / 2
+        const maxR = Math.ceil(Math.max(cx, cy))
+        for (let r = 0; r <= maxR; r++) {
+          const turns = Math.max(
+            16,
+            Math.ceil(2 * Math.PI * Math.max(1, r) * 2),
+          )
+          for (let step = 0; step < turns; step++) {
+            const theta = (step / turns) * Math.PI * 2 + (r % 2 ? 0.3 : -0.3)
+            const x = Math.round(cx + Math.cos(theta) * r)
+            const y = Math.round(cy + Math.sin(theta) * r)
+            if (x < 0 || x >= width || y < 0 || y >= height) continue
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.FLOW_FIELD: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          let x = Math.floor(Math.random() * width)
+          let y = Math.floor(Math.random() * height)
+          for (let step = 0; step < 120; step++) {
+            if (x < 0 || x >= width || y < 0 || y >= height) break
+            const key = `${x},${y}`
+            if (!visited.has(key)) {
+              visited.add(key)
+              yield { x, y }
+            }
+            const angle =
+              Math.sin(x * 0.09) * 1.8 +
+              Math.cos(y * 0.08) * 1.6 +
+              Math.sin((x + y) * 0.05)
+            x += Math.round(Math.cos(angle))
+            y += Math.round(Math.sin(angle))
+          }
+        }
+        break
+      }
+      case ImageStrategy.EDGE_IN: {
+        const seen = new Set<string>()
+        const maxLayer = Math.ceil(Math.min(width, height) / 2)
+        for (let layer = 0; layer < maxLayer; layer++) {
+          const left = layer
+          const right = width - 1 - layer
+          const top = layer
+          const bottom = height - 1 - layer
+          for (let x = left; x <= right; x++) {
+            for (const y of [top, bottom]) {
+              const key = `${x},${y}`
+              if (seen.has(key)) continue
+              seen.add(key)
+              yield { x, y }
+            }
+          }
+          for (let y = top + 1; y <= bottom - 1; y++) {
+            for (const x of [left, right]) {
+              const key = `${x},${y}`
+              if (seen.has(key)) continue
+              seen.add(key)
+              yield { x, y }
+            }
+          }
         }
         break
       }
