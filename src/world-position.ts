@@ -55,11 +55,11 @@ addFavoriteLocation({
 // }
 
 export function extractScreenPositionFromStar($star: HTMLDivElement) {
-  const rect = $star.getBoundingClientRect()
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2,
-  }
+  const [x, y] = $star.style.transform
+    .slice(32, -31)
+    .split(', ')
+    .map((x) => Number.parseFloat(x)) as [number, number]
+  return { x, y }
 }
 
 export class WorldPosition {
