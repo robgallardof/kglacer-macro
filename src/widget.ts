@@ -236,13 +236,23 @@ export class Widget extends Base {
       const $image = document.createElement('div')
       fragment.append($image)
       $image.className = 'image'
-      $image.innerHTML = `<img src="${image.pixels.image.src}">
-  <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
-  <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>`
+      $image.innerHTML = `<button class="preview" title="Focus image">
+  <img src="${image.pixels.image.src}" alt="Image preview">
+</button>
+  <div class="image-controls">
+    <button class="settings" title="Color settings">⚙</button>
+    <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
+    <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>
+  </div>`
       $image
-        .querySelector<HTMLButtonElement>('img')!
+        .querySelector<HTMLButtonElement>('.preview')!
         .addEventListener('click', () => {
           image.position.scrollScreenTo()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.settings')!
+        .addEventListener('click', () => {
+          image.openColorPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!

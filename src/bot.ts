@@ -616,9 +616,11 @@ export class KGlacerMacro {
 }
 
 declare global {
+  var kglacerMacro: KGlacerMacro
   var kgm: KGlacerMacro
   var wbot: KGlacerMacro
 }
 
-globalThis.kgm = new KGlacerMacro()
-globalThis.wbot = globalThis.kgm
+globalThis.kglacerMacro = new KGlacerMacro()
+globalThis.kgm = globalThis.kglacerMacro
+globalThis.wbot = globalThis.kglacerMacro

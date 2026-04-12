@@ -1,4 +1,5 @@
-const LOCALE_STORAGE_KEY = 'kglacermacro:locale'
+const LOCALE_STORAGE_KEY = 'kglacer-macro:locale'
+const LEGACY_LOCALE_STORAGE_KEYS = ['kglacermacro:locale']
 
 const MESSAGES = {
   en: {
@@ -123,6 +124,14 @@ export function getLocale(): Locale {
     | null
     | undefined
   if (savedLocale && savedLocale in MESSAGES) return savedLocale
+  for (let index = 0; index < LEGACY_LOCALE_STORAGE_KEYS.length; index++) {
+    const legacyLocale = localStorage.getItem(
+      LEGACY_LOCALE_STORAGE_KEYS[index]!,
+    ) as Locale | null
+    if (!legacyLocale || !(legacyLocale in MESSAGES)) continue
+    localStorage.setItem(LOCALE_STORAGE_KEY, legacyLocale)
+    return legacyLocale
+  }
   return getNavigatorLocale()
 }
 
