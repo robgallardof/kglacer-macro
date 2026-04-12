@@ -420,6 +420,7 @@ export class BotImage extends Base {
       const drawColor = this.colors[index]!
       const color = this.pixels.colors.get(drawColor.realColor)!
       let dragging = false
+      let draggingChip = false
       const isPremium = color.realColor !== color.color
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
@@ -472,7 +473,9 @@ export class BotImage extends Base {
 
       const $chip = document.createElement('button')
       $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
+      $chip.draggable = true
       $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
+<span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
 <span class="swatch"></span>
 <span class="meta">
   <span class="coverage">${width.toFixed(1)}% · ${hex.toUpperCase()}</span>
@@ -483,7 +486,40 @@ export class BotImage extends Base {
         .querySelector<HTMLElement>('.swatch')!
         .style.setProperty('--swatch-color', colorToCSS(color.realColor))
       $chip.addEventListener('click', () => {
+        if (draggingChip) {
+          draggingChip = false
+          return
+        }
         toggleDisabled()
+      })
+      $chip.addEventListener('dragstart', (event) => {
+        draggingChip = true
+        $chip.classList.add('dragging')
+        event.dataTransfer?.setData('text/plain', String(index))
+        event.dataTransfer!.effectAllowed = 'move'
+      })
+      $chip.addEventListener('dragend', () => {
+        $chip.classList.remove('dragging')
+      })
+      $chip.addEventListener('dragover', (event) => {
+        event.preventDefault()
+        $chip.classList.add('drag-target')
+      })
+      $chip.addEventListener('dragleave', () => {
+        $chip.classList.remove('drag-target')
+      })
+      $chip.addEventListener('drop', (event) => {
+        event.preventDefault()
+        $chip.classList.remove('drag-target')
+        const source = Number.parseInt(
+          event.dataTransfer?.getData('text/plain') ?? '-1',
+          10,
+        )
+        if (source < 0 || source === index || source >= this.colors.length)
+          return
+        this.colors.splice(index, 0, ...this.colors.splice(source, 1))
+        save(this.bot)
+        this.updateColors()
       })
       if (isPremium) {
         const $buy = document.createElement('button')

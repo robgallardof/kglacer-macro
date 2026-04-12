@@ -54,31 +54,18 @@
   text-align: left;
 }
 
+.wwidget .widget-logo {
+  object-fit: contain;
+  width: min(170px, 62vw);
+  height: auto;
+  border-radius: 10px;
+  filter: drop-shadow(0 8px 14px rgb(0 0 0 / 35%));
+}
+
 .wwidget .widget-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
-}
-
-.wwidget .minimized-bar {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #161e31;
-  font-size: 12px;
-}
-
-.wwidget .minimized-bar button {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #222c48;
-  color: var(--text);
 }
 
 .wwidget .widget-actions button {
@@ -121,7 +108,7 @@
 
 .wwidget .wopen-button {
   position: fixed;
-  bottom: 16px;
+  top: 14px;
   left: 16px;
   display: grid;
   place-items: center;
@@ -577,7 +564,7 @@
 
 .wimage .color-chip {
   display: grid;
-  grid-template-columns: auto 18px 1fr auto auto;
+  grid-template-columns: auto 18px 1fr auto auto auto;
   gap: 6px;
   align-items: center;
   width: 100%;
@@ -719,6 +706,23 @@
   pointer-events: none;
 }
 
+.wimage .color-chip .drag {
+  color: #8da1e5;
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+}
+
+.wimage .color-chip.dragging {
+  border-style: dashed;
+  opacity: 0.45;
+}
+
+.wimage .color-chip.drag-target {
+  border-color: #8fa2ff;
+  box-shadow: 0 0 0 1px rgb(143 162 255 / 45%);
+}
+
 @media (width <= 700px) {
   .wwidget {
     width: 100vw;
@@ -731,5 +735,9 @@
 
   .wimage .wform {
     width: min(320px, calc(100vw - 20px));
+  }
+
+  .wimage .colors-dialog-list {
+    grid-template-columns: 1fr;
   }
 }

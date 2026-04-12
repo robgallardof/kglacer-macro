@@ -50,7 +50,7 @@ const MESSAGES = {
     drawColorsInOrder: 'Draw colors in order',
     keyboardShortcuts: 'Shortcuts',
     shortcutsHelp:
-      'Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image · Shift+/ focus shortcuts · Shift+N next image · Shift+P previous image · Shift+O color panel (active image) · Shift+L lock/unlock active image',
+      'Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image · Shift+/ focus shortcuts · Shift+N next image · Shift+P previous image · Shift+O color panel (active image) · Shift+L lock/unlock active image',
     language: 'Language',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
@@ -68,7 +68,7 @@ const MESSAGES = {
     searchColors: 'Search by hex, English or Spanish',
     colorPanelResults: 'Color panel results',
     colorPanelHelp:
-      'Turn colors on/off with a click. Drag blocks in the color strip to change drawing priority.',
+      'Turn colors on/off with a click. Drag blocks in the strip or cards in this panel to set which color paints first.',
     colorPanelOrderHint: 'Color #1 is painted first.',
     exportImage: 'Export image settings',
     lockImage: 'Lock/unlock image',
@@ -123,7 +123,7 @@ const MESSAGES = {
     drawColorsInOrder: 'Dibujar colores en orden',
     keyboardShortcuts: 'Atajos',
     shortcutsHelp:
-      'Shift+B mostrar widget · Shift+M ocultar/mostrar panel · Shift+S mostrar panel · Shift+H ocultar panel · Shift+V ocultar/mostrar overlays · Shift+Enter dibujar · Shift+I agregar imagen · Shift+/ enfocar atajos · Shift+N siguiente imagen · Shift+P imagen anterior · Shift+O panel de colores (imagen activa) · Shift+L bloquear/desbloquear imagen activa',
+      'Shift+B mostrar widget · Shift+V ocultar/mostrar overlays · Shift+Enter dibujar · Shift+I agregar imagen · Shift+/ enfocar atajos · Shift+N siguiente imagen · Shift+P imagen anterior · Shift+O panel de colores (imagen activa) · Shift+L bloquear/desbloquear imagen activa',
     language: 'Idioma',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',
@@ -141,7 +141,7 @@ const MESSAGES = {
     searchColors: 'Buscar por hexa, inglés o español',
     colorPanelResults: 'Resultados del panel de color',
     colorPanelHelp:
-      'Activa o desactiva colores con un clic. Arrastra bloques en la barra de colores para cambiar la prioridad de pintado.',
+      'Activa o desactiva colores con un clic. Arrastra bloques en la barra o tarjetas en este panel para definir qué color se pinta primero.',
     colorPanelOrderHint: 'El color #1 se pinta primero.',
     exportImage: 'Exportar configuración de imagen',
     lockImage: 'Bloquear/desbloquear imagen',
