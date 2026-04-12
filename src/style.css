@@ -108,9 +108,16 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
-  margin-top: 2px;
-  padding-top: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
   border-top: 1px solid rgb(143 162 255 / 20%);
+}
+
+.wwidget .widget-actions strong {
+  color: #c1cdf3;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
 }
 
 .wwidget .widget-actions button {
@@ -570,31 +577,37 @@
   gap: 6px;
 }
 
-.wimage .colors-dialog {
-  overflow: auto;
-  width: min(560px, 92vw);
-  min-width: min(320px, 92vw);
-  max-height: min(85dvh, 680px);
+.kgm-modal {
   margin: auto;
-  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #0f1526;
   color: var(--text);
   box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
-  resize: both;
 }
 
-.wimage .colors-dialog::backdrop {
+.kgm-modal::backdrop {
   background: rgb(0 0 0 / 55%);
 }
 
-.wimage .colors-dialog-head {
+.kgm-modal-head {
   display: flex;
   gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+}
+
+.wimage .colors-dialog {
+  overflow: auto;
+  width: min(560px, 92vw);
+  min-width: min(320px, 92vw);
+  max-height: min(85dvh, 680px);
+  padding: 12px;
+  resize: both;
+}
+
+.wimage .colors-dialog-head {
   cursor: move;
   user-select: none;
 }
@@ -615,28 +628,10 @@
 
 .wimage .preview-dialog {
   overflow: auto;
-  width: min(600px, 92vw);
+  width: min(760px, 94vw);
   min-width: min(330px, 92vw);
-  max-height: min(84dvh, 680px);
-  margin: auto;
+  max-height: min(86dvh, 720px);
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #0f1526;
-  color: var(--text);
-  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
-}
-
-.wimage .preview-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
-}
-
-.wimage .preview-dialog-head {
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
 }
 
 .wimage .preview-dialog-help {
@@ -647,10 +642,10 @@
 
 .wimage .preview-dialog-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
   overflow: auto;
-  max-height: min(68dvh, 560px);
+  max-height: min(70dvh, 600px);
   padding-right: 2px;
 }
 
@@ -695,11 +690,46 @@
 
 .wimage .colors-dialog-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 8px;
   overflow: auto;
   max-height: min(62dvh, 520px);
   padding-right: 2px;
+}
+
+.access-dialog {
+  width: min(440px, 92vw);
+  padding: 14px;
+}
+
+.access-form {
+  display: grid;
+  gap: 10px;
+}
+
+.access-label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.access-input,
+.access-locale,
+.access-submit {
+  min-height: 38px;
+}
+
+.access-submit {
+  border: 1px solid #5c6bc9;
+  border-radius: 8px;
+  background: #233155;
+  color: #edf2ff;
+  font-weight: 600;
+}
+
+.access-error {
+  min-height: 18px;
+  color: #ff9bb0;
 }
 
 .wimage .color-chip {

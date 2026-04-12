@@ -226,11 +226,11 @@ export class Widget extends Base {
       const $image = document.createElement('div')
       fragment.append($image)
       $image.className = 'image'
-      $image.innerHTML = `<button class="preview" title="Focus image">
+      $image.innerHTML = `<button class="preview" title="View preview">
   <img src="${image.pixels.image.src}" alt="Image preview">
 </button>
   <div class="image-controls">
-    <button class="settings" title="Color settings">⚙</button>
+    <button class="settings" title="Show colors">⚙</button>
     <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
     <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>
   </div>`
@@ -238,7 +238,7 @@ export class Widget extends Base {
         .querySelector<HTMLButtonElement>('.preview')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
-          image.position.scrollScreenTo()
+          image.openPreviewPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.settings')!

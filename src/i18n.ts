@@ -78,6 +78,14 @@ const MESSAGES = {
     lockImage: 'Lock/unlock image',
     deleteImage: 'Delete image',
     toggleOverlay: 'Hide/show overlays',
+    overlaySection: 'Overlay',
+    accessTitle: 'Access key',
+    accessHelp:
+      'Enter your serial key to continue. You can also pick the UI language before starting.',
+    accessInputLabel: 'Serial key',
+    accessInputPlaceholder: 'KGM-********',
+    accessContinue: 'Continue',
+    invalidAccessKey: 'Invalid serial key. Please try again.',
   },
   es: {
     widgetTitle: 'KGlacerMacro',
@@ -155,6 +163,14 @@ const MESSAGES = {
     lockImage: 'Bloquear/desbloquear imagen',
     deleteImage: 'Eliminar imagen',
     toggleOverlay: 'Ocultar/mostrar overlays',
+    overlaySection: 'Overlay',
+    accessTitle: 'Clave de acceso',
+    accessHelp:
+      'Ingresa tu serial para continuar. También puedes elegir el idioma antes de iniciar.',
+    accessInputLabel: 'Serial',
+    accessInputPlaceholder: 'KGM-********',
+    accessContinue: 'Continuar',
+    invalidAccessKey: 'Serial inválido. Inténtalo de nuevo.',
   },
 } as const
 
