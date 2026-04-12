@@ -70,6 +70,10 @@ const MESSAGES = {
     colorPanelHelp:
       'Turn colors on/off with a click. Drag blocks in the strip or cards in this panel to set which color paints first.',
     colorPanelOrderHint: 'Color #1 is painted first.',
+    previewStrategy: 'Preview',
+    previewStrategyTitle: 'Paint preview',
+    previewStrategyHelp:
+      'Simple visual reference with sample paint order using the KGlacer logo.',
     exportImage: 'Export image settings',
     lockImage: 'Lock/unlock image',
     deleteImage: 'Delete image',
@@ -143,6 +147,10 @@ const MESSAGES = {
     colorPanelHelp:
       'Activa o desactiva colores con un clic. Arrastra bloques en la barra o tarjetas en este panel para definir qué color se pinta primero.',
     colorPanelOrderHint: 'El color #1 se pinta primero.',
+    previewStrategy: 'Vista',
+    previewStrategyTitle: 'Previsualización de pintado',
+    previewStrategyHelp:
+      'Referencia visual simple con orden de pintado usando el logo de KGlacer.',
     exportImage: 'Exportar configuración de imagen',
     lockImage: 'Bloquear/desbloquear imagen',
     deleteImage: 'Eliminar imagen',
