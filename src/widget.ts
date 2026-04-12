@@ -43,11 +43,8 @@ export class Widget extends Base {
 
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
-  protected readonly $minimize!: HTMLButtonElement
   protected readonly $shortcuts!: HTMLDivElement
   protected readonly $locale!: HTMLSelectElement
-  protected readonly $minimizedBar!: HTMLDivElement
-  protected readonly $restorePanel!: HTMLButtonElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
@@ -72,11 +69,8 @@ export class Widget extends Base {
       $wopenButton: '.wopen-button',
       $settings: '.wform',
       $status: '.wstatus',
-      $minimize: '.minimize',
       $shortcuts: '.shortcuts',
       $locale: '.locale',
-      $minimizedBar: '.minimized-bar',
-      $restorePanel: '.restore-panel',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
@@ -90,12 +84,6 @@ export class Widget extends Base {
 
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
-    this.$minimize.addEventListener('click', () => {
-      this.minimize()
-    })
-    this.$restorePanel.addEventListener('click', () => {
-      this.minimize(false)
-    })
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
@@ -212,9 +200,6 @@ export class Widget extends Base {
   /** Update widget position and contents */
   public update() {
     this.$strategy.value = this.bot.strategy
-    this.$minimize.textContent = this.$settings.classList.contains('hidden')
-      ? t('expandPanel')
-      : t('minimize')
     // Progress
     let maxTasks = 0
     let totalTasks = 0
@@ -329,32 +314,11 @@ export class Widget extends Base {
     }
   }
 
-  /** Hides content */
-  protected minimize(force?: boolean) {
-    const next =
-      force === undefined
-        ? !this.$settings.classList.contains('hidden')
-        : !force
-    this.$settings.classList.toggle('hidden', next)
-    this.$minimizedBar.classList.toggle('hidden', !next)
-    this.$minimize.textContent = next ? t('expandPanel') : t('minimize')
-  }
-
   protected handleKeyboard(event: KeyboardEvent) {
     if (isEditableTarget(event.target)) return
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
       event.preventDefault()
       this.open = !this.open
-      return
-    }
-    if (matchesShortcut(event, SHORTCUTS.minimizeWidget)) {
-      event.preventDefault()
-      this.minimize()
-      return
-    }
-    if (matchesShortcut(event, SHORTCUTS.showWidgetPanel)) {
-      event.preventDefault()
-      this.minimize(false)
       return
     }
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
@@ -367,11 +331,6 @@ export class Widget extends Base {
       requestAnimationFrame(() => {
         this.$shortcuts.classList.add('shortcut-pulse')
       })
-      return
-    }
-    if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
-      event.preventDefault()
-      this.minimize(true)
       return
     }
     if (matchesShortcut(event, SHORTCUTS.toggleOverlay)) {
