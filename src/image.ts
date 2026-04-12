@@ -6,6 +6,7 @@ import { COLORS_RGB, colorToCSS } from './colors'
 // @ts-ignore
 import { applyTranslations, t } from './i18n'
 import html from './image.html' with { type: 'text' }
+import { ModalWidget } from './modal-widget'
 import { Pixels } from './pixels'
 import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
@@ -13,6 +14,7 @@ import { Position, WorldPosition } from './world-position'
 
 const LOGO_PREVIEW_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
+const PREVIEW_GRID_SIZE = 56
 
 export type DrawTask = {
   position: WorldPosition
@@ -101,8 +103,6 @@ export class BotImage extends Base {
   protected readonly $colorSearch!: HTMLInputElement
   protected readonly $openColors!: HTMLButtonElement
   protected readonly $openPreview!: HTMLButtonElement
-  protected readonly $closeColors!: HTMLButtonElement
-  protected readonly $closePreview!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
@@ -125,13 +125,16 @@ export class BotImage extends Base {
     offsetY: number
     moved: boolean
   }
-  protected suppressNextColorDialogBackdropClick = false
+  protected readonly colorModal: ModalWidget
+  protected readonly previewModal: ModalWidget
   protected logoPreviewMask?: Position[]
   protected logoPreviewImage?: HTMLImageElement
+  protected readonly previewSequenceCache = new Map<ImageStrategy, Position[]>()
   protected readonly previewAnimations = new WeakMap<
     HTMLCanvasElement,
     number
   >()
+  protected settingsPinTimeout?: ReturnType<typeof setTimeout>
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -166,8 +169,6 @@ export class BotImage extends Base {
       $colorSearch: '.color-search',
       $openColors: '.open-colors',
       $openPreview: '.open-preview',
-      $closeColors: '.close-colors',
-      $closePreview: '.close-preview',
       $delete: '.delete',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
@@ -189,6 +190,13 @@ export class BotImage extends Base {
     this.$canvas = this.pixels.canvas
     this.$wrapper.prepend(this.pixels.canvas)
     document.body.append(this.$colorsDialog, this.$previewDialog)
+    this.colorModal = new ModalWidget(this.$colorsDialog, {
+      closeSelector: '.close-colors',
+      focusSelector: '.color-search',
+    })
+    this.previewModal = new ModalWidget(this.$previewDialog, {
+      closeSelector: '.close-preview',
+    })
 
     // Strategy
     this.registerEvent(this.$strategy, 'change', () => {
@@ -254,12 +262,6 @@ export class BotImage extends Base {
     this.registerEvent(this.$openPreview, 'click', () => {
       this.openPreviewPanel()
     })
-    this.registerEvent(this.$closeColors, 'click', () => {
-      this.$colorsDialog.close()
-    })
-    this.registerEvent(this.$closePreview, 'click', () => {
-      this.$previewDialog.close()
-    })
     this.registerEvent(
       this.$colorsDialog.querySelector('.colors-dialog-head')!,
       'pointerdown',
@@ -281,16 +283,6 @@ export class BotImage extends Base {
       'pointercancel',
       this.stopColorDialogDrag.bind(this),
     )
-    this.registerEvent(this.$colorsDialog, 'click', (event: MouseEvent) => {
-      if (this.suppressNextColorDialogBackdropClick) {
-        this.suppressNextColorDialogBackdropClick = false
-        return
-      }
-      if (event.target === this.$colorsDialog) this.$colorsDialog.close()
-    })
-    this.registerEvent(this.$previewDialog, 'click', (event: MouseEvent) => {
-      if (event.target === this.$previewDialog) this.$previewDialog.close()
-    })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
@@ -397,29 +389,22 @@ export class BotImage extends Base {
   }
 
   public openColorPanel() {
-    if (this.$colorsDialog.open) {
-      this.$colorSearch.focus()
-      return
-    }
-    this.$colorsDialog.style.position = 'fixed'
-    this.$colorsDialog.style.left = ''
-    this.$colorsDialog.style.top = ''
-    this.$colorsDialog.style.margin = 'auto'
-    this.$colorsDialog.showModal()
-    this.$colorSearch.focus()
+    this.colorModal.open()
   }
 
   public openPreviewPanel() {
-    if (this.$previewDialog.open) {
-      this.renderStrategyPreviewSamples()
-      return
-    }
-    this.$previewDialog.style.position = 'fixed'
-    this.$previewDialog.style.left = ''
-    this.$previewDialog.style.top = ''
-    this.$previewDialog.style.margin = 'auto'
-    this.$previewDialog.showModal()
+    this.previewModal.open()
     this.renderStrategyPreviewSamples()
+  }
+
+  public openSettingsPanel() {
+    this.position.scrollScreenTo()
+    this.element.classList.add('settings-pinned')
+    this.$settings.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    clearTimeout(this.settingsPinTimeout)
+    this.settingsPinTimeout = setTimeout(() => {
+      this.element.classList.remove('settings-pinned')
+    }, 6000)
   }
 
   protected startColorDialogDrag(event: PointerEvent) {
@@ -464,7 +449,7 @@ export class BotImage extends Base {
     if (!this.colorDialogDragState) return
     if (event.pointerId !== this.colorDialogDragState.pointerId) return
     if (this.colorDialogDragState.moved)
-      this.suppressNextColorDialogBackdropClick = true
+      this.colorModal.markBackdropClickIgnored()
     this.colorDialogDragState = undefined
   }
 
@@ -489,7 +474,14 @@ export class BotImage extends Base {
       $canvas.className = 'preview-canvas'
       $canvas.width = 156
       $canvas.height = 156
-      this.paintStrategyPreview($canvas, strategy)
+      this.paintStrategyPreview($canvas, strategy, strategy === selected)
+      $card.classList.toggle('active', strategy === selected)
+      $card.addEventListener('click', () => {
+        this.$strategy.value = strategy
+        this.strategy = strategy
+        save(this.bot)
+        this.renderStrategyPreviewSamples()
+      })
       $card.append($title, $canvas)
       fragment.append($card)
     }
@@ -572,19 +564,19 @@ export class BotImage extends Base {
   protected paintStrategyPreview(
     canvas: HTMLCanvasElement,
     strategy: ImageStrategy,
+    animatePreview = false,
   ) {
     const context = canvas.getContext('2d')
     if (!context) return
     context.fillStyle = '#0f1526'
     context.fillRect(0, 0, canvas.width, canvas.height)
     const mask = this.getLogoPreviewMask()
-    const previousStrategy = this.strategy
-    this.strategy = strategy
-    const sequence = [...this.strategyPositionIterator()]
-    this.strategy = previousStrategy
-    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
-    const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
-    const cell = canvas.width / this.pixels.width
+    const sequence =
+      this.previewSequenceCache.get(strategy) ??
+      this.computePreviewSequence(strategy, mask)
+    if (!this.previewSequenceCache.has(strategy))
+      this.previewSequenceCache.set(strategy, sequence)
+    const cell = canvas.width / PREVIEW_GRID_SIZE
     const activeAnimation = this.previewAnimations.get(canvas)
     if (activeAnimation) cancelAnimationFrame(activeAnimation)
     const drawFrame = (progressCount: number) => {
@@ -593,11 +585,11 @@ export class BotImage extends Base {
       this.paintLogoGhost(context, cell, mask)
       for (
         let index = 0;
-        index < Math.min(progressCount, filtered.length);
+        index < Math.min(progressCount, sequence.length);
         index++
       ) {
-        const pixel = filtered[index]!
-        const progress = index / Math.max(1, filtered.length - 1)
+        const pixel = sequence[index]!
+        const progress = index / Math.max(1, sequence.length - 1)
         context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
         context.fillRect(
           pixel.x * cell,
@@ -607,16 +599,20 @@ export class BotImage extends Base {
         )
       }
     }
+    if (!animatePreview) {
+      drawFrame(sequence.length)
+      return
+    }
     const start = performance.now()
-    const duration = Math.min(3800, Math.max(900, filtered.length * 8))
+    const duration = Math.min(2400, Math.max(700, sequence.length * 5))
     const animate = (now: number) => {
       const elapsed = now - start
       const ratio = Math.min(1, elapsed / duration)
-      drawFrame(Math.floor(filtered.length * ratio))
+      drawFrame(Math.floor(sequence.length * ratio))
       const animationId =
         ratio >= 1
           ? requestAnimationFrame(() => {
-              drawFrame(filtered.length)
+              drawFrame(sequence.length)
             })
           : requestAnimationFrame(animate)
       this.previewAnimations.set(canvas, animationId)
@@ -636,8 +632,8 @@ export class BotImage extends Base {
         this.logoPreviewImage,
         0,
         0,
-        this.pixels.width * cell,
-        this.pixels.height * cell,
+        PREVIEW_GRID_SIZE * cell,
+        PREVIEW_GRID_SIZE * cell,
       )
       context.restore()
       return
@@ -664,8 +660,8 @@ export class BotImage extends Base {
       .then(() => {
         this.logoPreviewImage = image
         const offscreen = document.createElement('canvas')
-        offscreen.width = this.pixels.width
-        offscreen.height = this.pixels.height
+        offscreen.width = PREVIEW_GRID_SIZE
+        offscreen.height = PREVIEW_GRID_SIZE
         const context = offscreen.getContext('2d')
         if (!context) return
         context.clearRect(0, 0, offscreen.width, offscreen.height)
@@ -699,14 +695,11 @@ export class BotImage extends Base {
 
   protected fallbackPreviewMask() {
     const mask: Position[] = []
-    const centerX = this.pixels.width / 2
-    const centerY = this.pixels.height / 2
-    const radius = Math.max(
-      4,
-      Math.min(this.pixels.width, this.pixels.height) / 2.5,
-    )
-    for (let y = 0; y < this.pixels.height; y++) {
-      for (let x = 0; x < this.pixels.width; x++) {
+    const centerX = PREVIEW_GRID_SIZE / 2
+    const centerY = PREVIEW_GRID_SIZE / 2
+    const radius = Math.max(4, PREVIEW_GRID_SIZE / 2.5)
+    for (let y = 0; y < PREVIEW_GRID_SIZE; y++) {
+      for (let x = 0; x < PREVIEW_GRID_SIZE; x++) {
         if ((x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2)
           mask.push({ x, y })
       }
@@ -717,7 +710,19 @@ export class BotImage extends Base {
   public applyLocale() {
     applyTranslations(this.element)
     this.updateColors()
+    this.previewSequenceCache.clear()
     if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
+  }
+
+  protected computePreviewSequence(strategy: ImageStrategy, mask: Position[]) {
+    const previousStrategy = this.strategy
+    this.strategy = strategy
+    const sequence = [...this.strategyPositionIterator(PREVIEW_GRID_SIZE)]
+    this.strategy = previousStrategy
+    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
+    return sequence.filter(({ x, y }) => {
+      return maskKeys.has(`${x}:${y}`)
+    })
   }
 
   protected colorHex(realColor: number) {
@@ -947,9 +952,11 @@ export class BotImage extends Base {
   }
 
   /** Create iterator that generates positions based on strategy */
-  protected *strategyPositionIterator(): Generator<Position> {
-    const width = this.pixels.pixels[0]!.length
-    const height = this.pixels.pixels.length
+  protected *strategyPositionIterator(
+    previewSize?: number,
+  ): Generator<Position> {
+    const width = previewSize ?? this.pixels.pixels[0]!.length
+    const height = previewSize ?? this.pixels.pixels.length
     switch (this.strategy) {
       case ImageStrategy.DOWN: {
         for (let y = 0; y < height; y++)

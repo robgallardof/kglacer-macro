@@ -1,13 +1,15 @@
 {
   "name": "kglacer-macro",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "scripts": {
     "start": "bun src/build.ts",
     "lint": "stylelint \"src/**/*.{css,scss,sass}\" --fix && eslint \"src/**/*{.js,.ts}\" --fix && tsc",
-    "test": "bun test"
+    "test": "bun test",
+    "version:sync": "bun scripts/manage-version.ts --sync",
+    "version:bump": "bun scripts/manage-version.ts patch"
   },
   "devDependencies": {
     "@softsky/configs": "^1.3.5",
