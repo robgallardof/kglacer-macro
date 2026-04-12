@@ -11,6 +11,7 @@ import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
 import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
+import logo from './img/logo.svg'
 import { WorldPosition } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
@@ -54,6 +55,7 @@ export class Widget extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
   protected readonly $wopenButton!: HTMLButtonElement
+  protected readonly $widgetLogo!: HTMLImageElement
   protected activeImageIndex = -1
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
@@ -67,6 +69,7 @@ export class Widget extends Base {
 
     this.populateElementsWithSelector(this.element, {
       $wopenButton: '.wopen-button',
+      $widgetLogo: '.widget-logo',
       $settings: '.wform',
       $status: '.wstatus',
       $shortcuts: '.shortcuts',
@@ -81,6 +84,7 @@ export class Widget extends Base {
       $images: '.images',
       // $pumpkinHunt: '.pumpkin-hunt',
     })
+    this.$widgetLogo.src = logo
 
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))

@@ -56,10 +56,53 @@
 
 .wwidget .widget-logo {
   object-fit: contain;
-  width: min(170px, 62vw);
+  width: 52px;
   height: auto;
-  border-radius: 10px;
-  filter: drop-shadow(0 8px 14px rgb(0 0 0 / 35%));
+  border-radius: 14px;
+  filter:
+    drop-shadow(0 8px 14px rgb(0 0 0 / 35%))
+    drop-shadow(0 0 14px rgb(125 145 255 / 35%));
+  animation: logo-float 3.6s ease-in-out infinite;
+}
+
+.wwidget .widget-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.wwidget .widget-brand-text {
+  position: relative;
+  color: #e8ecff;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.4px;
+  text-shadow:
+    0 0 12px rgb(109 123 255 / 35%),
+    0 0 26px rgb(87 189 255 / 22%);
+}
+
+.wwidget .widget-brand-text::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  bottom: -2px;
+  width: 46px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6d7bff, #8fd8ff);
+  box-shadow: 0 0 10px rgb(143 216 255 / 55%);
+}
+
+@keyframes logo-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-2px) scale(1.02);
+  }
 }
 
 .wwidget .widget-actions {
@@ -505,6 +548,7 @@
 
 .wimage .colors-dialog {
   width: min(560px, 92vw);
+  min-width: min(320px, 92vw);
   max-height: min(85dvh, 680px);
   padding: 12px;
   border: 1px solid var(--border);
@@ -512,6 +556,8 @@
   background: #0f1526;
   color: var(--text);
   box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
+  resize: both;
+  overflow: auto;
 }
 
 .wimage .colors-dialog::backdrop {
@@ -524,6 +570,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  cursor: move;
+  user-select: none;
 }
 
 .wimage .close-colors {

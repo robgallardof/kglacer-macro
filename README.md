@@ -2,6 +2,12 @@
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
+## Novedades v1.1.0
+
+- El modal de colores ahora se puede mover (arrastrando la cabecera) y redimensionar libremente.
+- El logo principal ahora usa `src/img/logo.svg`, con efecto glow moderno y etiqueta lateral **KGlacer**.
+- Se actualizó la versión del userscript distribuido (`dist.user.js`) para instalación directa.
+
 ## Novedades v1.0.8
 
 - Correcciones de visibilidad en íconos del mini widget (candado, descargar, etc.).

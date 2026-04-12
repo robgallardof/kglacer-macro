@@ -112,6 +112,11 @@ export class BotImage extends Base {
   protected readonly $strategy!: HTMLSelectElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $wrapper!: HTMLDivElement
+  protected colorDialogDragState?: {
+    pointerId: number
+    offsetX: number
+    offsetY: number
+  }
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -229,6 +234,23 @@ export class BotImage extends Base {
     this.registerEvent(this.$closeColors, 'click', () => {
       this.$colorsDialog.close()
     })
+    this.registerEvent(
+      this.$colorsDialog.querySelector('.colors-dialog-head')!,
+      'pointerdown',
+      this.startColorDialogDrag.bind(this),
+    )
+    this.registerEvent(
+      document,
+      'pointermove',
+      this.moveColorDialog.bind(this),
+      { passive: false },
+    )
+    this.registerEvent(document, 'pointerup', this.stopColorDialogDrag.bind(this))
+    this.registerEvent(
+      document,
+      'pointercancel',
+      this.stopColorDialogDrag.bind(this),
+    )
     this.registerEvent(this.$colorsDialog, 'click', (event: MouseEvent) => {
       if (event.target === this.$colorsDialog) this.$colorsDialog.close()
     })
@@ -350,6 +372,44 @@ export class BotImage extends Base {
     this.$colorsDialog.style.left = `${Math.round(left)}px`
     this.$colorsDialog.style.top = `${Math.round(top)}px`
     this.$colorsDialog.show()
+  }
+
+  protected startColorDialogDrag(event: PointerEvent) {
+    if (event.button !== 0) return
+    const target = event.target as HTMLElement | null
+    if (target?.closest('button,input,select,textarea,a,label')) return
+    const bounds = this.$colorsDialog.getBoundingClientRect()
+    this.colorDialogDragState = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - bounds.left,
+      offsetY: event.clientY - bounds.top,
+    }
+    event.preventDefault()
+  }
+
+  protected moveColorDialog(event: PointerEvent) {
+    if (!this.colorDialogDragState) return
+    if (event.pointerId !== this.colorDialogDragState.pointerId) return
+    const dialogBounds = this.$colorsDialog.getBoundingClientRect()
+    const maxLeft = Math.max(8, window.innerWidth - dialogBounds.width - 8)
+    const maxTop = Math.max(8, window.innerHeight - dialogBounds.height - 8)
+    const left = Math.min(
+      maxLeft,
+      Math.max(8, event.clientX - this.colorDialogDragState.offsetX),
+    )
+    const top = Math.min(
+      maxTop,
+      Math.max(8, event.clientY - this.colorDialogDragState.offsetY),
+    )
+    this.$colorsDialog.style.left = `${Math.round(left)}px`
+    this.$colorsDialog.style.top = `${Math.round(top)}px`
+    event.preventDefault()
+  }
+
+  protected stopColorDialogDrag(event: PointerEvent) {
+    if (!this.colorDialogDragState) return
+    if (event.pointerId !== this.colorDialogDragState.pointerId) return
+    this.colorDialogDragState = undefined
   }
 
   public applyLocale() {
