@@ -6,13 +6,16 @@ import { COLORS_RGB, colorToCSS } from './colors'
 // @ts-ignore
 import { applyTranslations, t } from './i18n'
 import html from './image.html' with { type: 'text' }
+import logoSVG from './img/logo.svg' with { type: 'text' }
 import { ModalWidget } from './modal-widget'
 import { Pixels } from './pixels'
 import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
 
-const LOGO_PREVIEW_URL = new URL('./img/logo.svg', import.meta.url).href
+const LOGO_PREVIEW_URL = URL.createObjectURL(
+  new Blob([logoSVG], { type: 'image/svg+xml' }),
+)
 const PREVIEW_GRID_SIZE = 56
 
 export type DrawTask = {
