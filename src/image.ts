@@ -12,7 +12,8 @@ import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
 
-const LOGO_PREVIEW_URL = new URL('./img/logo.svg', import.meta.url).href
+const LOGO_PREVIEW_URL =
+  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 const PREVIEW_GRID_SIZE = 56
 
 export type DrawTask = {

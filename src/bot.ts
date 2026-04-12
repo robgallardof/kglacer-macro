@@ -90,6 +90,19 @@ export class KGlacerMacro {
 
   public constructor() {
     this.log('Boot sequence started')
+    void this.requestAccess().then((authorized) => {
+      if (!authorized) {
+        this.log('Access denied; controllers remain hidden')
+        this.widget.status = 'Access denied'
+        return
+      }
+      this.widget.unlock()
+      this.log('Access granted; starting initialization flow')
+      this.start()
+    })
+  }
+
+  protected start() {
     // Try to load save
     const save = loadSave()
     this.log('Save loaded', {
@@ -174,6 +187,41 @@ export class KGlacerMacro {
       this.log('Initialization completed; controls enabled')
       // this.widget.setDisabled('pumpkin-hunt', false)
     })
+  }
+
+  protected async requestAccess() {
+    const expectedHash =
+      '48583a634c2513c2' + 'd9d6ffa6107d70b1' + 'a5a46cfb515c910b120b1c5f550bcbc2'
+    const dialog = document.createElement('dialog')
+    dialog.innerHTML = `<form method="dialog" style="min-width:320px;padding:18px;border:none;border-radius:12px;background:#0f172a;color:#e2e8f0;font:14px/1.4 system-ui,Segoe UI,sans-serif;">
+      <h3 style="margin:0 0 10px 0;">KGM Access</h3>
+      <p style="margin:0 0 10px 0;opacity:.9;">Enter access key to enable controllers.</p>
+      <input id="kgm-access-input" type="password" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#f8fafc;" />
+      <menu style="display:flex;justify-content:flex-end;margin:12px 0 0 0;padding:0;">
+        <button value="submit" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;">Continue</button>
+      </menu>
+    </form>`
+    document.body.append(dialog)
+    dialog.showModal()
+    const result = await new Promise<boolean>((resolve) => {
+      dialog.addEventListener(
+        'close',
+        async () => {
+          const value =
+            dialog.querySelector<HTMLInputElement>('#kgm-access-input')?.value ??
+            ''
+          const bytes = new TextEncoder().encode(value)
+          const hashBuffer = await crypto.subtle.digest('SHA-256', bytes)
+          const hashHex = Array.from(new Uint8Array(hashBuffer))
+            .map((x) => x.toString(16).padStart(2, '0'))
+            .join('')
+          resolve(hashHex === expectedHash)
+          dialog.remove()
+        },
+        { once: true },
+      )
+    })
+    return result
   }
 
   /** Start drawing */

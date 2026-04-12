@@ -64,6 +64,7 @@ export class Widget extends Base {
   public constructor(protected bot: KGlacerMacro) {
     super()
     this.element.classList.add('wwidget')
+    this.element.style.display = 'none'
     this.element.innerHTML = html as unknown as string
     applyTranslations(this.element)
     document.body.append(this.element)
@@ -114,6 +115,10 @@ export class Widget extends Base {
     this.syncOverlayVisibilityFromStorage()
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
+  }
+
+  public unlock() {
+    this.element.style.display = ''
   }
 
   /** Add image handler */
