@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         kglacer-macro
 // @namespace    https://github.com/robgallardof
-// @version      1.1.0
+// @version      1.1.1
 // @description  Macro para automatizar pintado en https://wplace.live
 // @author       robergallardof + contributors
 // @license      MPL-2.0
@@ -164,7 +164,7 @@ function e(C,a,l){let r=C[l];return C[l]=C[a],C[a]=r,C}function C1(C,a){let l=C.
 .wwidget .title {
   display: grid;
   gap: 8px;
-  padding: 14px 12px;
+  padding: 14px 12px 14px 66px;
   border-bottom: var(--border) 1px solid;
   background-color: #0f1424;
   color: var(--text-invert);
