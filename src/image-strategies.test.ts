@@ -30,8 +30,8 @@ describe('Image strategies', () => {
     return positions
   }
 
-  test('has 30 available strategies', () => {
-    expect(Object.values(ImageStrategy)).toHaveLength(30)
+  test('has 33 available strategies', () => {
+    expect(Object.values(ImageStrategy)).toHaveLength(33)
   })
 
   test.each(Object.values(ImageStrategy))(

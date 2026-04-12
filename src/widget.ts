@@ -42,9 +42,7 @@ export class Widget extends Base {
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
   protected readonly $minimize!: HTMLButtonElement
-  protected readonly $showShortcuts!: HTMLButtonElement
-  protected readonly $closeShortcuts!: HTMLButtonElement
-  protected readonly $shortcutsDialog!: HTMLDialogElement
+  protected readonly $shortcuts!: HTMLDivElement
   protected readonly $locale!: HTMLSelectElement
   protected readonly $minimizedBar!: HTMLDivElement
   protected readonly $restorePanel!: HTMLButtonElement
@@ -72,9 +70,7 @@ export class Widget extends Base {
       $settings: '.wform',
       $status: '.wstatus',
       $minimize: '.minimize',
-      $showShortcuts: '.show-shortcuts',
-      $closeShortcuts: '.close-shortcuts',
-      $shortcutsDialog: '.shortcuts-dialog',
+      $shortcuts: '.shortcuts',
       $locale: '.locale',
       $minimizedBar: '.minimized-bar',
       $restorePanel: '.restore-panel',
@@ -95,12 +91,6 @@ export class Widget extends Base {
     })
     this.$restorePanel.addEventListener('click', () => {
       this.minimize(false)
-    })
-    this.$showShortcuts.addEventListener('click', () => {
-      this.$shortcutsDialog.showModal()
-    })
-    this.$closeShortcuts.addEventListener('click', () => {
-      this.$shortcutsDialog.close()
     })
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
@@ -253,8 +243,9 @@ export class Widget extends Base {
         })
       $image
         .querySelector<HTMLButtonElement>('.settings')!
-        .addEventListener('click', (event) => {
-          image.openColorPanel(event.currentTarget as HTMLButtonElement)
+        .addEventListener('click', () => {
+          this.activeImageIndex = index
+          image.openColorPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!
@@ -337,7 +328,14 @@ export class Widget extends Base {
     }
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
       event.preventDefault()
-      this.$shortcutsDialog.showModal()
+      this.$shortcuts.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+      this.$shortcuts.classList.remove('shortcut-pulse')
+      requestAnimationFrame(() => {
+        this.$shortcuts.classList.add('shortcut-pulse')
+      })
       return
     }
     if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
@@ -353,6 +351,16 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.focusPreviousImage)) {
       event.preventDefault()
       this.focusImageByStep(-1)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openColorPanel)) {
+      event.preventDefault()
+      this.openColorPanelForActiveImage()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.toggleImageLock)) {
+      event.preventDefault()
+      this.toggleLockForActiveImage()
       return
     }
     if (
@@ -381,6 +389,30 @@ export class Widget extends Base {
         (this.activeImageIndex + step + this.bot.images.length) %
         this.bot.images.length
     this.bot.images[this.activeImageIndex]!.position.scrollScreenTo()
+  }
+
+  protected getActiveImage() {
+    if (!this.bot.images.length) return
+    if (
+      this.activeImageIndex < 0 ||
+      this.activeImageIndex >= this.bot.images.length
+    )
+      this.activeImageIndex = 0
+    return this.bot.images[this.activeImageIndex]
+  }
+
+  protected openColorPanelForActiveImage() {
+    const image = this.getActiveImage()
+    if (!image) return
+    image.openColorPanel()
+  }
+
+  protected toggleLockForActiveImage() {
+    const image = this.getActiveImage()
+    if (!image) return
+    image.lock = !image.lock
+    image.update()
+    save(this.bot)
   }
 
   // protected async pumpkinHunt() {

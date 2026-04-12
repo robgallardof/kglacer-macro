@@ -6,7 +6,6 @@
 <div class="title">
   <span data-i18n="widgetTitle">KGlacerMacro</span>
   <div class="widget-actions">
-    <button class="show-shortcuts" data-i18n="showShortcuts">Show shortcuts</button>
     <button class="minimize" data-i18n="minimize">Minimize panel</button>
   </div>
 </div>
@@ -22,22 +21,17 @@
   <div class="wprogress"><div></div><span></span></div>
   <div class="wp wstatus"></div>
   <button class="draw" disabled data-i18n="draw">Draw</button>
-  <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
-    <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
-    <option value="ALL" data-i18n="all">All</option>
-    <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
-  </select></label>
   <div class="shortcuts">
     <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
     <span data-i18n="shortcutsHelp"
       >Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</span
     >
   </div>
+  <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
+    <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
+    <option value="ALL" data-i18n="all">All</option>
+    <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
+  </select></label>
   <div class="images"></div>
   <button class="add-image" disabled data-i18n="addImage">Add image</button>
 </div>
-<dialog class="shortcuts-dialog">
-  <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-  <p data-i18n="shortcutsHelp">Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</p>
-  <button class="close-shortcuts" data-i18n="close">Close</button>
-</dialog>
