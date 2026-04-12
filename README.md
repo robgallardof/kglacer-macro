@@ -1,58 +1,38 @@
-# Wplace-bot
+# kglacer-macro
 
-## Features
+Macro/UI para apoyar el pintado en **wplace.live**.
 
-1. Auto draw (still need to click captcha manually)
-2. Multiple images
-3. Many strategies
-4. Auto image convert/scale
-5. Suggests colors to buy
-6. Optional captcha bypass
+## Novedades v1.0.0
 
-## Installation
+- Rename completo de marca a **kglacer-macro**.
+- Persistencia migrada de `wbot` a `kglacermacro` (con compatibilidad hacia atrás).
+- Import/Export ahora usa extensión de configuración **`.kgm`**.
+- UI/UX modernizada (Poppins, widgets más limpios, responsive móvil, iconos).
+- Soporte de i18n para **es/en** (textos clave del widget e imagen).
+- Atajos de teclado: `Shift+B` (mostrar/ocultar), `Shift+Enter` (dibujar), `Shift+I` (agregar imagen).
+- Nuevas estrategias menos robóticas: `Humanized`, `Zigzag`, `Brush strokes` y `Diagonal brush` para simular pinceladas humanas.
+- Build más robusto: la versión del userscript sale de `src/version.ts`.
 
-1. Install TamperMonkey browser extension: [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en)|[Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
-2. [Open this link](https://github.com/SoundOfTheSky/wplace-bot/raw/refs/heads/main/dist.user.js)
-3. Press install
-4. Allow user scripts
-   1. Chrome: Settings>Extensions>Manage Extensions>Tampermonkey>Details>Allow User Scripts
-   2. Firefox: Settings>Extensions and Themes>Tampermonkey>Allow User Scripts
+## Instalación
 
-## How to use
+1. Instala Tampermonkey: [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) | [Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
+2. Abre: <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
+3. Pulsa instalar.
+4. Habilita user scripts en el navegador.
 
-1. Add your image or exported "###.wbot" files.
-2. Drag image and it's edges to position it.
-3. Change order of images.
-4. This is colors bar. Colors can be dragged. Don't forget to check "Draw color in order".
-5. It's a substitution color. Top button to buy, lower button to disable.
-6. Export an image. Exports file with brightness and resize applied and "###.wbot" file with all settings.
-7. Lock image to prevent accidental edits and allow click-through.
-8. Delete image.
-9. Finally click "Draw" to start drawing :)
+## Uso rápido
 
-![Instruction1](https://github.com/SoundOfTheSky/wplace-bot/raw/refs/heads/main/Instruction.png)
+1. Agrega tu imagen o un archivo exportado `###.kgm`.
+2. Posiciona y ajusta la imagen en el mapa.
+3. Ordena imágenes y configura estrategia.
+4. Pulsa **Draw / Dibujar**.
+5. Usa atajos de teclado para operar sin abrir menús.
 
-## Captcha bypass
+## Desarrollo
 
-I recommend using simple autoclicker like this
-
-1. Reload tab "CTRL+SHIFT", wait 10 seconds (Optional, but recommended)
-2. Click "Draw", wait 15 seconds
-3. Click Captcha, wait 5s
-4. Click "Paint", wait 30 minutes
-5. Repeat
-
-Also I'm using [Firefox Multi-Account Containers](https://addons.mozilla.org/en-GB/firefox/addon/multi-account-containers/) to open multiple bots, each in it's own tab.
-
-## Known issues
-
-1. Once your session on website ends, bot obviously stops.
-2. Very big images make everything lag.
-
-## Contribution
-
-1. Install [Bun](https://bun.sh/)
-2. Install dependencies `bun i`
-3. Up version in `script.txt`
-4. Lint `bun run lint`
-5. Build `bun start`
+1. Instala [Bun](https://bun.sh/)
+2. `bun i`
+3. Ajusta versión en `src/version.ts`
+4. `bun run lint`
+5. `bun test`
+6. `bun start`

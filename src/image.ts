@@ -4,9 +4,11 @@ import { Base } from './base'
 import { WPlaceBot } from './bot'
 import { colorToCSS } from './colors'
 // @ts-ignore
+import { applyTranslations } from './i18n'
 import html from './image.html' with { type: 'text' }
 import { Pixels } from './pixels'
 import { save } from './save'
+import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
 
 export type DrawTask = {
@@ -21,6 +23,10 @@ export type ImageColorSetting = {
 
 export enum ImageStrategy {
   RANDOM = 'RANDOM',
+  HUMANIZED = 'HUMANIZED',
+  ZIGZAG = 'ZIGZAG',
+  BRUSH_STROKES = 'BRUSH_STROKES',
+  DIAGONAL_BRUSH = 'DIAGONAL_BRUSH',
   DOWN = 'DOWN',
   UP = 'UP',
   LEFT = 'LEFT',
@@ -102,6 +108,7 @@ export class BotImage extends Base {
     super()
     this.element.innerHTML = html as unknown as string
     this.element.classList.add('wimage')
+    applyTranslations(this.element)
     document.body.append(this.element)
 
     this.populateElementsWithSelector(this.element, {
@@ -269,7 +276,7 @@ export class BotImage extends Base {
     this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(this.tasks.length / 120) | 0}h`
     this.$progressLine.style.transform = `scaleX(${percent}%)`
     this.$wrapper.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
-    this.$lock.textContent = this.lock ? '🔒' : '🔓'
+    this.$lock.classList[this.lock ? 'add' : 'remove']('locked')
   }
 
   /** Removes image. Don't forget to remove from array inside widget. */
@@ -431,6 +438,103 @@ export class BotImage extends Base {
         yield* positions
         break
       }
+      case ImageStrategy.ZIGZAG: {
+        for (let y = 0; y < height; y++) {
+          if (y % 2 === 0) for (let x = 0; x < width; x++) yield { x, y }
+          else for (let x = width - 1; x >= 0; x--) yield { x, y }
+        }
+        break
+      }
+      case ImageStrategy.HUMANIZED: {
+        const blockSize = Math.max(4, Math.floor(Math.min(width, height) / 10))
+        const blocks: Position[] = []
+        for (let y = 0; y < height; y += blockSize)
+          for (let x = 0; x < width; x += blockSize) blocks.push({ x, y })
+        for (let index = blocks.length - 1; index >= 0; index--) {
+          const index_ = Math.floor(Math.random() * (index + 1))
+          const temporary = blocks[index]!
+          blocks[index] = blocks[index_]!
+          blocks[index_] = temporary
+        }
+        for (let index = 0; index < blocks.length; index++) {
+          const block = blocks[index]!
+          const yEnd = Math.min(height, block.y + blockSize)
+          const xEnd = Math.min(width, block.x + blockSize)
+          for (let y = block.y; y < yEnd; y++) {
+            const startFromLeft = Math.random() > 0.35
+            if (startFromLeft)
+              for (let x = block.x; x < xEnd; x++) yield { x, y }
+            else for (let x = xEnd - 1; x >= block.x; x--) yield { x, y }
+          }
+        }
+        break
+      }
+      case ImageStrategy.DIAGONAL_BRUSH: {
+        for (let diagonal = 0; diagonal < width + height - 1; diagonal++) {
+          const reverse = diagonal % 2 === 0
+          const points: Position[] = []
+          const startY = Math.max(0, diagonal - width + 1)
+          const endY = Math.min(height - 1, diagonal)
+          for (let y = startY; y <= endY; y++) {
+            const x = diagonal - y
+            if (x >= 0 && x < width) points.push({ x, y })
+          }
+          if (Math.random() > 0.55) points.reverse()
+          if (reverse)
+            for (let index = points.length - 1; index >= 0; index--)
+              yield points[index]!
+          else yield* points
+        }
+        break
+      }
+      case ImageStrategy.BRUSH_STROKES: {
+        const visited = Array.from({ length: height }, () =>
+          Array<boolean>(width).fill(false),
+        )
+        const directions: Position[] = [
+          { x: 1, y: 0 },
+          { x: -1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 0, y: -1 },
+          { x: 1, y: 1 },
+          { x: 1, y: -1 },
+          { x: -1, y: 1 },
+          { x: -1, y: -1 },
+        ]
+        const inBounds = (x: number, y: number) =>
+          x >= 0 && x < width && y >= 0 && y < height
+        let painted = 0
+        const total = width * height
+
+        for (
+          let attempts = 0;
+          attempts < total * 6 && painted < total;
+          attempts++
+        ) {
+          let x = Math.floor(Math.random() * width)
+          let y = Math.floor(Math.random() * height)
+          let direction =
+            directions[Math.floor(Math.random() * directions.length)]!
+          const strokeLength = 3 + Math.floor(Math.random() * 16)
+          for (let step = 0; step < strokeLength; step++) {
+            if (!inBounds(x, y)) break
+            if (!visited[y]![x]!) {
+              visited[y]![x] = true
+              painted++
+              yield { x, y }
+            }
+            if (Math.random() > 0.72)
+              direction =
+                directions[Math.floor(Math.random() * directions.length)]!
+            x += direction.x
+            y += direction.y
+          }
+        }
+
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) if (!visited[y]![x]!) yield { x, y }
+        break
+      }
 
       case ImageStrategy.SPIRAL_FROM_CENTER:
       case ImageStrategy.SPIRAL_TO_CENTER: {
@@ -553,7 +657,7 @@ export class BotImage extends Base {
     a.href = URL.createObjectURL(
       new Blob([JSON.stringify(this.toJSON())], { type: 'application/json' }),
     )
-    a.download = `${this.pixels.width}x${this.pixels.height}.wbot`
+    a.download = `${this.pixels.width}x${this.pixels.height}.${SETTINGS_EXTENSION}`
     a.click()
     URL.revokeObjectURL(a.href)
     a.href = this.pixels.canvas.toDataURL('image/webp', 1)

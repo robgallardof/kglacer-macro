@@ -3,10 +3,13 @@ import { promisifyEventSource, swap } from '@softsky/utils'
 import { Base } from './base'
 import { WPlaceBot } from './bot'
 import { NoImageError, WPlaceBotError } from './errors'
+import { applyTranslations } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
 import { save } from './save'
+import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
+import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition } from './world-position'
 
@@ -54,6 +57,7 @@ export class Widget extends Base {
     super()
     this.element.classList.add('wwidget')
     this.element.innerHTML = html as unknown as string
+    applyTranslations(this.element)
     document.body.append(this.element)
 
     this.populateElementsWithSelector(this.element, {
@@ -79,6 +83,9 @@ export class Widget extends Base {
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
+    this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
+      passive: false,
+    })
 
     this.update()
     this.open = true
@@ -93,13 +100,13 @@ export class Widget extends Base {
         await this.bot.updateColors()
         const input = document.createElement('input')
         input.type = 'file'
-        input.accept = 'image/*,.wbot'
+        input.accept = `image/*,.${SETTINGS_EXTENSION}`
         input.click()
         await promisifyEventSource(input, ['change'], ['cancel', 'error'])
         const file = input.files?.[0]
         if (!file) throw new NoImageError(this.bot)
         let botImage
-        if (file.name.endsWith('.wbot')) {
+        if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
           botImage = await BotImage.fromJSON(
             this.bot,
             JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
@@ -150,10 +157,11 @@ export class Widget extends Base {
 
     // Images
     this.$images.innerHTML = ''
+    const fragment = document.createDocumentFragment()
     for (let index = 0; index < this.bot.images.length; index++) {
       const image = this.bot.images[index]!
       const $image = document.createElement('div')
-      this.$images.append($image)
+      fragment.append($image)
       $image.className = 'image'
       $image.innerHTML = `<img src="${image.pixels.image.src}">
   <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
@@ -178,6 +186,7 @@ export class Widget extends Base {
           save(this.bot)
         })
     }
+    this.$images.append(fragment)
   }
 
   /** Disable/enable element by class name */
@@ -191,10 +200,10 @@ export class Widget extends Base {
     status: string,
     run: () => Promise<T>,
     fin?: () => unknown,
-    emoji = '⌛',
+    prefix = '...',
   ): Promise<T> {
     const originalStatus = this.status
-    this.status = `${emoji} ${status}`
+    this.status = `${prefix} ${status}`
     try {
       const result = await run()
       this.status = originalStatus
@@ -202,7 +211,7 @@ export class Widget extends Base {
     } catch (error) {
       if (!(error instanceof WPlaceBotError)) {
         console.error(error)
-        this.status = `❌ ${status}`
+        this.status = `Error: ${status}`
       }
       throw error
     } finally {
@@ -213,6 +222,27 @@ export class Widget extends Base {
   /** Hides content */
   protected minimize() {
     this.$settings.classList.toggle('hidden')
+  }
+
+  protected handleKeyboard(event: KeyboardEvent) {
+    if (isEditableTarget(event.target)) return
+    if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
+      event.preventDefault()
+      this.open = !this.open
+      return
+    }
+    if (
+      matchesShortcut(event, SHORTCUTS.addImage) &&
+      !this.$addImage.disabled
+    ) {
+      event.preventDefault()
+      void this.addImage()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.draw) && !this.$draw.disabled) {
+      event.preventDefault()
+      void this.bot.draw()
+    }
   }
 
   // protected async pumpkinHunt() {

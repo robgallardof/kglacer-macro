@@ -574,5 +574,10 @@ export class WPlaceBot {
   }
 }
 
-// @ts-ignore
-globalThis.wbot = new WPlaceBot()
+declare global {
+  var kgm: WPlaceBot
+  var wbot: WPlaceBot
+}
+
+globalThis.kgm = new WPlaceBot()
+globalThis.wbot = globalThis.kgm

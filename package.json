@@ -1,12 +1,13 @@
 {
-  "name": "wplacebot",
+  "name": "kglacer-macro",
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "scripts": {
     "start": "bun src/build.ts",
-    "lint": "stylelint \"src/**/*.{css,scss,sass}\" --fix && eslint \"src/**/*{.js,.ts}\" --fix && tsc"
+    "lint": "stylelint \"src/**/*.{css,scss,sass}\" --fix && eslint \"src/**/*{.js,.ts}\" --fix && tsc",
+    "test": "bun test"
   },
   "devDependencies": {
     "@softsky/configs": "^1.3.5",
