@@ -213,10 +213,10 @@ export class Widget extends Base {
       maxTasks += image.pixels.pixels.length * image.pixels.pixels[0]!.length
       totalTasks += image.tasks.length
     }
-    const doneTasks = maxTasks - totalTasks
-    const percent = ((doneTasks / maxTasks) * 100) | 0
+    const doneTasks = Math.max(0, maxTasks - totalTasks)
+    const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
     this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`
-    this.$progressLine.style.transform = `scaleX(${percent}%)`
+    this.$progressLine.style.transform = `scaleX(${percent / 100})`
 
     // Images
     this.$images.innerHTML = ''
@@ -230,9 +230,12 @@ export class Widget extends Base {
   <img src="${image.pixels.image.src}" alt="Image preview">
 </button>
   <div class="image-controls">
-    <button class="settings" title="Show colors">⚙</button>
-    <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
-    <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>
+    <button class="colors" title="Show colors"><i class="fa-solid fa-palette" aria-hidden="true"></i></button>
+    <button class="preview-strategy" title="Preview strategy"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
+    <button class="download" title="Download settings"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+    <button class="delete" title="Delete image"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+    <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+    <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
   </div>`
       $image
         .querySelector<HTMLButtonElement>('.preview')!
@@ -241,10 +244,26 @@ export class Widget extends Base {
           image.openPreviewPanel()
         })
       $image
-        .querySelector<HTMLButtonElement>('.settings')!
+        .querySelector<HTMLButtonElement>('.colors')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
           image.openColorPanel()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.preview-strategy')!
+        .addEventListener('click', () => {
+          this.activeImageIndex = index
+          image.openPreviewPanel()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.download')!
+        .addEventListener('click', () => {
+          image.exportImage()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.delete')!
+        .addEventListener('click', () => {
+          image.destroy()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!

@@ -95,7 +95,6 @@ export class BotImage extends Base {
 
   protected readonly $brightness!: HTMLInputElement
   protected readonly $canvas!: HTMLCanvasElement
-  protected readonly $colors!: HTMLDivElement
   protected readonly $colorsDialog!: HTMLDialogElement
   protected readonly $colorsDialogList!: HTMLDivElement
   protected readonly $colorSearch!: HTMLInputElement
@@ -160,7 +159,6 @@ export class BotImage extends Base {
 
     this.populateElementsWithSelector(this.element, {
       $brightness: '.brightness',
-      $colors: '.colors',
       $colorsDialog: '.colors-dialog',
       $colorsDialogList: '.colors-dialog-list',
       $colorSearch: '.color-search',
@@ -379,12 +377,16 @@ export class BotImage extends Base {
     this.$drawTransparent.checked = this.drawTransparentPixels
     this.$drawColorsInOrder.checked = this.drawColorsInOrder
     const maxTasks = this.pixels.pixels.length * this.pixels.pixels[0]!.length
-    const doneTasks = maxTasks - this.tasks.length
-    const percent = ((doneTasks / maxTasks) * 100) | 0
+    const doneTasks = Math.max(0, maxTasks - this.tasks.length)
+    const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
     this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(this.tasks.length / 120) | 0}h`
-    this.$progressLine.style.transform = `scaleX(${percent}%)`
+    this.$progressLine.style.transform = `scaleX(${percent / 100})`
     this.$wrapper.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
     this.$lock.classList[this.lock ? 'add' : 'remove']('locked')
+  }
+
+  public exportImage() {
+    this.export()
   }
 
   /** Removes image. Don't forget to remove from array inside widget. */
@@ -759,13 +761,8 @@ export class BotImage extends Base {
 
   /** Update colors array */
   public updateColors() {
-    this.$colors.innerHTML = ''
     this.$colorsDialogList.innerHTML = ''
     const pixelsSum = this.pixels.pixels.length * this.pixels.pixels[0]!.length
-    const itemWidth = 100 / this.pixels.colors.size
-    const $track = document.createElement('div')
-    $track.className = 'colors-track'
-    $track.setAttribute('aria-label', t('overlayColors'))
     this.$colorsDialogList.setAttribute('aria-label', t('colorPanelResults'))
     const searchValue = this.$colorSearch.value.trim().toLowerCase()
 
@@ -786,70 +783,35 @@ export class BotImage extends Base {
     }
 
     // Build colors UI
-    let nextXPosition = 0
     for (let index = 0; index < this.colors.length; index++) {
       const drawColor = this.colors[index]!
       const color = this.pixels.colors.get(drawColor.realColor)!
-      let dragging = false
       let draggingChip = false
       const isPremium = color.realColor !== color.color
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
       const toggleDisabled = () => {
-        if (dragging) return
         drawColor.disabled = drawColor.disabled ? undefined : true
-        $button.classList.toggle('color-disabled')
         $chip.classList.toggle('disabled', Boolean(drawColor.disabled))
         const $state = $chip.querySelector<HTMLElement>('.state')
         if ($state)
           $state.textContent = drawColor.disabled ? t('disabled') : t('enabled')
         save(this.bot)
       }
-      const $button = document.createElement('button')
-      $button.setAttribute(
-        'aria-label',
-        `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
-      )
-      $button.title = `${width.toFixed(1)}%`
-      $button.innerHTML = `<span class="order-index">#${index + 1}</span>`
-      if (drawColor.disabled) $button.classList.add('color-disabled')
-      if (!isPremium) $button.style.background = colorToCSS(color.realColor)
-      else {
-        $button.classList.add('substitution')
-        $button.style.setProperty('--wreal-color', colorToCSS(color.realColor))
-        $button.style.setProperty(
-          '--wsubstitution-color',
-          colorToCSS(color.color),
-        )
-        const $button1 = document.createElement('button')
-        const $button2 = document.createElement('button')
-        $button1.textContent = t('buy')
-        $button2.textContent = '✓'
-        $button1.classList.add('buy')
-        $button2.classList.add('disable')
-        $button1.addEventListener('click', () => {
-          document.getElementById('color-' + color.realColor)?.click()
-        })
-        $button2.addEventListener('click', toggleDisabled)
-        $button.append($button1)
-        $button.append($button2)
-      }
-      $button.style.left = nextXPosition + '%'
-      $button.style.width = width + '%'
-      nextXPosition += width
-      $button.style.setProperty('--wleft', itemWidth * index + '%')
-      $button.style.setProperty('--wwidth', itemWidth + '%')
-      $track.append($button)
-
       const $chip = document.createElement('button')
       $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
       $chip.draggable = true
+      $chip.setAttribute(
+        'aria-label',
+        `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
+      )
       $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
 <span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
 <span class="swatch"></span>
 <span class="meta">
-  <span class="coverage">${width.toFixed(1)}% · ${hex.toUpperCase()}</span>
+  <span class="coverage">${width.toFixed(1)}%</span>
+  <span class="hex">${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
 </span>
 <span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
@@ -905,53 +867,7 @@ export class BotImage extends Base {
       const searchTokens = `${hex} ${keywords.join(' ')} ${color.realColor} ${COLORS_RGB[color.realColor]}`
       if (!searchValue || searchTokens.toLowerCase().includes(searchValue))
         this.$colorsDialogList.append($chip)
-
-      // Drag functionality
-      const startDrag = (startEvent: MouseEvent) => {
-        let newIndex = index
-        const buttonWidth = $button.getBoundingClientRect().width
-        const mouseMoveHandler = (event: MouseEvent) => {
-          newIndex = Math.min(
-            this.colors.length - 1,
-            Math.max(
-              0,
-              Math.round(
-                index + (event.clientX - startEvent.clientX) / buttonWidth,
-              ),
-            ),
-          )
-          if (newIndex !== index) dragging = true
-          let childIndex = 0
-          for (const $child of $track.children as Iterable<HTMLElement>) {
-            if ($child === $button) continue
-            if (childIndex === newIndex) childIndex++
-            $child.style.setProperty('--wleft', itemWidth * childIndex + '%')
-            childIndex++
-          }
-          $button.style.setProperty('--wleft', itemWidth * newIndex + '%')
-        }
-        document.addEventListener('mousemove', mouseMoveHandler)
-        document.addEventListener(
-          'mouseup',
-          () => {
-            document.removeEventListener('mousemove', mouseMoveHandler)
-            if (newIndex !== index)
-              this.colors.splice(newIndex, 0, ...this.colors.splice(index, 1))
-            save(this.bot)
-            $button.removeEventListener('mousedown', startDrag)
-            setTimeout(() => {
-              this.updateColors()
-            }, 200)
-          },
-          {
-            once: true,
-          },
-        )
-      }
-      $button.addEventListener('mousedown', startDrag)
-      if (!isPremium) $button.addEventListener('click', toggleDisabled)
     }
-    this.$colors.append($track)
   }
 
   /** Create iterator that generates positions based on strategy */
