@@ -9,7 +9,7 @@ const build = await Bun.build({
 })
 for (const log of build.logs) console.log(log)
 let content = await build.outputs[0]!.text()
-content = content.replace(/export\s*{/, '{')
+content = content.replace(/export\s*\{[^}]*\};?\s*$/m, '')
 const scriptHeader = readFileSync('./script.txt')
   .toString()
   .replaceAll('__APP_VERSION__', APP_VERSION)

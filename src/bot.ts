@@ -48,6 +48,7 @@ export type Me = {
 }
 
 const SAVE_VERSION = 2
+const BOT_LOG_PREFIX = '[KGM]'
 
 /**
  * Main class. Initializes everything.
@@ -82,9 +83,20 @@ export class WPlaceBot {
   /** Last color drawn */
   protected lastColor?: number
 
+  protected log(message: string, payload?: unknown) {
+    if (payload === undefined) console.log(`${BOT_LOG_PREFIX} ${message}`)
+    else console.log(`${BOT_LOG_PREFIX} ${message}`, payload)
+  }
+
   public constructor() {
+    this.log('Boot sequence started')
     // Try to load save
     const save = loadSave()
+    this.log('Save loaded', {
+      hasSave: Boolean(save),
+      imageCount: save?.images.length ?? 0,
+      strategy: save?.strategy,
+    })
 
     // Preinit save data before page has loaded
     if (save) {
@@ -103,6 +115,7 @@ export class WPlaceBot {
     }
 
     this.registerFetchInterceptor()
+    this.log('Fetch interceptor registered')
 
     // Embed styles
     const style = document.createElement('style')
@@ -111,8 +124,12 @@ export class WPlaceBot {
       FAVORITE_LOCATIONS.length.toString(),
     )
     document.head.append(style)
+    this.log('Styles injected', {
+      fakeFavoriteLocations: FAVORITE_LOCATIONS.length,
+    })
 
     void this.widget.run('Initializing', async () => {
+      this.log('Widget initialization flow started')
       // Waiting for all of website to load
       await this.waitForElement('login', '.avatar.center-absolute.absolute')
       await this.waitForElement(
@@ -137,6 +154,7 @@ export class WPlaceBot {
         subtree: true,
       })
       this.updateStars()
+      this.log('Stars updated after boot', { stars: this.$stars.length })
       await wait(500) // Sometimes wplace UI becomes bugged if interacted too early
       await this.updateColors()
 
@@ -147,17 +165,23 @@ export class WPlaceBot {
           this.images.push(image)
           image.update()
         }
+      this.log('Saved images restored', { images: this.images.length })
       await this.readMap()
       this.updateTasks()
       // Unblock buttons
       this.widget.setDisabled('draw', false)
       this.widget.setDisabled('add-image', false)
+      this.log('Initialization completed; controls enabled')
       // this.widget.setDisabled('pumpkin-hunt', false)
     })
   }
 
   /** Start drawing */
   public draw() {
+    this.log('Draw requested', {
+      strategy: this.strategy,
+      images: this.images.length,
+    })
     this.widget.setDisabled('draw', true)
     this.widget.status = ''
     // Clear maps cache to refetch pixels
@@ -182,10 +206,12 @@ export class WPlaceBot {
           credentials: 'include',
         }).then((x) => x.json())) as Me
         let charges = Math.floor(me.charges.count)
+        this.log('Charges fetched', { charges })
 
         let n = 0
         for (let index = 0; index < this.images.length; index++)
           n += this.images[index]!.tasks.length
+        this.log('Tasks prepared', { tasks: n })
         switch (this.strategy) {
           case BotStrategy.ALL: {
             while (charges > 0) {
@@ -252,6 +278,7 @@ export class WPlaceBot {
           }
         }
         this.widget.update()
+        this.log('Draw flow finished', { remainingCharges: charges })
       },
       () => {
         globalThis.removeEventListener('mousemove', prevent, true)
@@ -272,6 +299,7 @@ export class WPlaceBot {
 
   /** Read colors */
   public async updateColors() {
+    this.log('Updating colors palette')
     await this.openColors()
     this.unavailableColors.clear()
     for (const $button of document.querySelectorAll<HTMLButtonElement>(
@@ -282,6 +310,7 @@ export class WPlaceBot {
           Math.abs(Number.parseInt($button.id.slice(6))),
         )
     this.updateImageColors()
+    this.log('Colors updated', { unavailableColors: this.unavailableColors.size })
   }
 
   /** Move map */
@@ -323,6 +352,7 @@ export class WPlaceBot {
           imagesToDownload.add(`${tileX}/${tileY}`)
     }
     let done = 0
+    this.log('Reading map tiles', { tileCount: imagesToDownload.size })
     return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () =>
       Promise.all(
         [...imagesToDownload].map(async (x) => {
@@ -429,6 +459,7 @@ export class WPlaceBot {
         document.getElementById('color-' + task.color) as HTMLButtonElement
       ).click()
       this.lastColor = task.color
+      this.log('Color switched for draw task', { color: task.color })
     }
     const halfPixel = task.position.pixelSize / 2
     const position = task.position.toScreenPosition()
@@ -480,6 +511,9 @@ export class WPlaceBot {
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
         this.me.maxFavoriteLocations = Infinity
         response.json = () => Promise.resolve(this.me)
+        this.log('Patched /me response with favorite locations', {
+          totalFavorites: this.me.favoriteLocations.length,
+        })
       }
       const pixelMatch = pixelRegExp.exec(url)
       if (pixelMatch) {
@@ -498,6 +532,7 @@ export class WPlaceBot {
             ),
           )
         this.markerPixelPositionResolvers.length = 0
+        this.log('Resolved marker pixel position from network event')
       }
       return response
     }
@@ -522,6 +557,7 @@ export class WPlaceBot {
     name: string,
     selector: string,
   ): Promise<T> {
+    this.log('Waiting for element', { name, selector })
     return this.widget.run(`Waiting for ${name}`, () => {
       return new Promise<T>((resolve) => {
         // If element already exists, resolve immediately
@@ -553,6 +589,7 @@ export class WPlaceBot {
         '.text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center',
       ),
     ].slice(0, FAVORITE_LOCATIONS.length)
+    this.log('Star cache updated', { stars: this.$stars.length })
   }
 
   /** Update images position and contents */
