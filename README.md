@@ -1,52 +1,75 @@
 # kglacer-macro
 
+> 🇬🇧 **English** and 🇪🇸 **Español** guide for the KGlacer Macro userscript.
+
+---
+
+## English
+
+Macro/UI to support pixel painting on **wplace.live**.
+
+### Highlights (v1.1.0)
+
+- Movable and freely resizable color modal (drag from the header).
+- Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
+- Updated distributed userscript version in `dist.user.js` for direct install.
+
+### Install
+
+1. Install Tampermonkey: [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) | [Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
+2. Open: <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
+3. Click install.
+4. Make sure user scripts are enabled in your browser.
+
+### Quick usage
+
+1. Add your image or import a `###.kgm` file.
+2. Position and adjust the image on the map.
+3. Reorder images and choose a strategy.
+4. Click **Draw**.
+5. Use keyboard shortcuts for faster control.
+
+### Development
+
+1. Install [Bun](https://bun.sh/).
+2. `bun i`
+3. Update version in `src/version.ts`
+4. `bun run lint`
+5. `bun test`
+6. `bun start`
+
+---
+
+## Español
+
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-## Novedades v1.1.0
+### Novedades (v1.1.0)
 
-- El modal de colores ahora se puede mover (arrastrando la cabecera) y redimensionar libremente.
-- El logo principal ahora usa `src/img/logo.svg`, con efecto glow moderno y etiqueta lateral **KGlacer**.
-- Se actualizó la versión del userscript distribuido (`dist.user.js`) para instalación directa.
+- Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
+- El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
+- Versión del userscript distribuido actualizada en `dist.user.js` para instalación directa.
 
-## Novedades v1.0.8
-
-- Correcciones de visibilidad en íconos del mini widget (candado, descargar, etc.).
-- Regresa el acceso al panel de colores desde el mini widget.
-- Sincronización completa de idioma para widget grande y mini widget.
-- Nuevo botón y atajo para ocultar/mostrar overlays (`Shift+V`).
-- URL de instalación del userscript confirmada y actualizada.
-
-## Historial v1.0.0
-
-- Rename completo de marca a **kglacer-macro**.
-- Persistencia migrada de `wbot` a `kglacermacro` (con compatibilidad hacia atrás).
-- Import/Export ahora usa extensión de configuración **`.kgm`**.
-- UI/UX modernizada (Poppins, widgets más limpios, responsive móvil, iconos).
-- Soporte de i18n para **es/en** (textos clave del widget e imagen).
-- Atajos de teclado: `Shift+B` (mostrar/ocultar), `Shift+Enter` (dibujar), `Shift+I` (agregar imagen).
-- Nuevas estrategias menos robóticas: `Humanized`, `Zigzag`, `Brush strokes` y `Diagonal brush` para simular pinceladas humanas.
-- Build más robusto: la versión del userscript sale de `src/version.ts`.
-
-## Instalación
+### Instalación
 
 1. Instala Tampermonkey: [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) | [Firefox](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
 2. Abre: <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
 3. Pulsa instalar.
-4. Habilita user scripts en el navegador.
+4. Habilita los user scripts en el navegador.
 
-## Uso rápido
+### Uso rápido
 
-1. Agrega tu imagen o un archivo exportado `###.kgm`.
+1. Agrega tu imagen o importa un archivo `###.kgm`.
 2. Posiciona y ajusta la imagen en el mapa.
 3. Ordena imágenes y configura estrategia.
-4. Pulsa **Draw / Dibujar**.
-5. Usa atajos de teclado para operar sin abrir menús.
+4. Pulsa **Dibujar / Draw**.
+5. Usa atajos de teclado para operar más rápido.
 
-## Desarrollo
+### Desarrollo
 
-1. Instala [Bun](https://bun.sh/)
+1. Instala [Bun](https://bun.sh/).
 2. `bun i`
-3. Ajusta versión en `src/version.ts`
+3. Ajusta la versión en `src/version.ts`
 4. `bun run lint`
 5. `bun test`
 6. `bun start`
