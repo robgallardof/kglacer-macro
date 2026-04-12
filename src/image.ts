@@ -352,6 +352,11 @@ export class BotImage extends Base {
     this.$colorsDialog.show()
   }
 
+  public applyLocale() {
+    applyTranslations(this.element)
+    this.updateColors()
+  }
+
   protected colorHex(realColor: number) {
     const rgb = COLORS_RGB[realColor] ?? '0,0,0'
     const [r = 0, g = 0, b = 0] = rgb
