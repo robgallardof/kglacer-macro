@@ -11,6 +11,9 @@ import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
 
+const LOGO_PREVIEW_URL =
+  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
+
 export type DrawTask = {
   position: WorldPosition
   color: number
@@ -97,7 +100,9 @@ export class BotImage extends Base {
   protected readonly $colorsDialogList!: HTMLDivElement
   protected readonly $colorSearch!: HTMLInputElement
   protected readonly $openColors!: HTMLButtonElement
+  protected readonly $openPreview!: HTMLButtonElement
   protected readonly $closeColors!: HTMLButtonElement
+  protected readonly $closePreview!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
@@ -106,6 +111,8 @@ export class BotImage extends Base {
   protected readonly $opacity!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
+  protected readonly $previewDialog!: HTMLDialogElement
+  protected readonly $previewDialogList!: HTMLDivElement
   protected readonly $resetSize!: HTMLButtonElement
   protected readonly $resetSizeSpan!: HTMLSpanElement
   protected readonly $settings!: HTMLDivElement
@@ -116,7 +123,10 @@ export class BotImage extends Base {
     pointerId: number
     offsetX: number
     offsetY: number
+    moved: boolean
   }
+  protected suppressNextColorDialogBackdropClick = false
+  protected logoPreviewMask?: Position[]
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -150,7 +160,9 @@ export class BotImage extends Base {
       $colorsDialogList: '.colors-dialog-list',
       $colorSearch: '.color-search',
       $openColors: '.open-colors',
+      $openPreview: '.open-preview',
       $closeColors: '.close-colors',
+      $closePreview: '.close-preview',
       $delete: '.delete',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
@@ -159,6 +171,8 @@ export class BotImage extends Base {
       $opacity: '.opacity',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
+      $previewDialog: '.preview-dialog',
+      $previewDialogList: '.preview-dialog-list',
       $resetSize: '.reset-size',
       $settings: '.wform',
       $strategy: '.strategy',
@@ -231,8 +245,14 @@ export class BotImage extends Base {
     this.registerEvent(this.$openColors, 'click', () => {
       this.openColorPanel()
     })
+    this.registerEvent(this.$openPreview, 'click', () => {
+      this.openPreviewPanel()
+    })
     this.registerEvent(this.$closeColors, 'click', () => {
       this.$colorsDialog.close()
+    })
+    this.registerEvent(this.$closePreview, 'click', () => {
+      this.$previewDialog.close()
     })
     this.registerEvent(
       this.$colorsDialog.querySelector('.colors-dialog-head')!,
@@ -252,7 +272,14 @@ export class BotImage extends Base {
       this.stopColorDialogDrag.bind(this),
     )
     this.registerEvent(this.$colorsDialog, 'click', (event: MouseEvent) => {
+      if (this.suppressNextColorDialogBackdropClick) {
+        this.suppressNextColorDialogBackdropClick = false
+        return
+      }
       if (event.target === this.$colorsDialog) this.$colorsDialog.close()
+    })
+    this.registerEvent(this.$previewDialog, 'click', (event: MouseEvent) => {
+      if (event.target === this.$previewDialog) this.$previewDialog.close()
     })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
@@ -374,6 +401,24 @@ export class BotImage extends Base {
     this.$colorsDialog.show()
   }
 
+  public openPreviewPanel() {
+    if (this.$previewDialog.open) {
+      this.renderStrategyPreviewSamples()
+      return
+    }
+    const width = 580
+    const maxWidth = Math.min(width, window.innerWidth - 16)
+    const estimatedHeight = Math.min(560, window.innerHeight - 16)
+    const left = Math.max(8, (window.innerWidth - maxWidth) / 2)
+    const top = Math.max(8, (window.innerHeight - estimatedHeight) / 2)
+    this.$previewDialog.style.margin = '0'
+    this.$previewDialog.style.position = 'fixed'
+    this.$previewDialog.style.left = `${Math.round(left)}px`
+    this.$previewDialog.style.top = `${Math.round(top)}px`
+    this.$previewDialog.show()
+    this.renderStrategyPreviewSamples()
+  }
+
   protected startColorDialogDrag(event: PointerEvent) {
     if (event.button !== 0) return
     const target = event.target as HTMLElement | null
@@ -383,6 +428,7 @@ export class BotImage extends Base {
       pointerId: event.pointerId,
       offsetX: event.clientX - bounds.left,
       offsetY: event.clientY - bounds.top,
+      moved: false,
     }
     event.preventDefault()
   }
@@ -401,6 +447,11 @@ export class BotImage extends Base {
       maxTop,
       Math.max(8, event.clientY - this.colorDialogDragState.offsetY),
     )
+    if (
+      !this.colorDialogDragState.moved &&
+      (Math.abs(event.movementX) > 0 || Math.abs(event.movementY) > 0)
+    )
+      this.colorDialogDragState.moved = true
     this.$colorsDialog.style.left = `${Math.round(left)}px`
     this.$colorsDialog.style.top = `${Math.round(top)}px`
     event.preventDefault()
@@ -409,12 +460,164 @@ export class BotImage extends Base {
   protected stopColorDialogDrag(event: PointerEvent) {
     if (!this.colorDialogDragState) return
     if (event.pointerId !== this.colorDialogDragState.pointerId) return
+    if (this.colorDialogDragState.moved)
+      this.suppressNextColorDialogBackdropClick = true
     this.colorDialogDragState = undefined
+  }
+
+  protected renderStrategyPreviewSamples() {
+    const selected = this.$strategy.value as ImageStrategy
+    const uniqueSamples = [...new Set([selected, ImageStrategy.SPIRAL_FROM_CENTER, ImageStrategy.ZIGZAG, ImageStrategy.HUMANIZED])]
+    this.$previewDialogList.innerHTML = ''
+    const fragment = document.createDocumentFragment()
+    for (let index = 0; index < uniqueSamples.length; index++) {
+      const strategy = uniqueSamples[index]!
+      const $card = document.createElement('article')
+      $card.className = 'preview-card'
+      const $title = document.createElement('strong')
+      $title.textContent = this.getStrategyLabel(strategy)
+      const $canvas = document.createElement('canvas')
+      $canvas.className = 'preview-canvas'
+      $canvas.width = 156
+      $canvas.height = 156
+      this.paintStrategyPreview($canvas, strategy)
+      $card.append($title, $canvas)
+      fragment.append($card)
+    }
+    this.$previewDialogList.append(fragment)
+  }
+
+  protected getStrategyLabel(strategy: ImageStrategy) {
+    switch (strategy) {
+      case ImageStrategy.RANDOM: return t('random')
+      case ImageStrategy.HUMANIZED: return t('humanized')
+      case ImageStrategy.HUMAN_SOFT_DITHER: return t('humanSoftDither')
+      case ImageStrategy.HUMAN_PATCHY: return t('humanPatchy')
+      case ImageStrategy.HUMAN_SWEEP_ARCS: return t('humanSweepArcs')
+      case ImageStrategy.HUMAN_MICRO_CORRECTIONS: return t('humanMicroCorrections')
+      case ImageStrategy.HUMAN_JITTER_FILL: return t('humanJitterFill')
+      case ImageStrategy.HUMAN_CORNER_BIAS: return t('humanCornerBias')
+      case ImageStrategy.HUMAN_LONG_STROKES: return t('humanLongStrokes')
+      case ImageStrategy.HUMAN_TAP_CLUSTERS: return t('humanTapClusters')
+      case ImageStrategy.HUMAN_MESSY_SPIRAL: return t('humanMessySpiral')
+      case ImageStrategy.HUMAN_DRUNK_WALK: return t('humanDrunkWalk')
+      case ImageStrategy.HUMAN_NOISE_CLOUD: return t('humanNoiseCloud')
+      case ImageStrategy.HUMAN_PATCH_JUMP: return t('humanPatchJump')
+      case ImageStrategy.ZIGZAG: return t('zigzag')
+      case ImageStrategy.BRUSH_STROKES: return t('brushStrokes')
+      case ImageStrategy.DIAGONAL_BRUSH: return t('diagonalBrush')
+      case ImageStrategy.DOWN: return t('down')
+      case ImageStrategy.UP: return t('up')
+      case ImageStrategy.LEFT: return t('left')
+      case ImageStrategy.RIGHT: return t('right')
+      case ImageStrategy.SPIRAL_FROM_CENTER: return t('spiralOut')
+      case ImageStrategy.SPIRAL_TO_CENTER: return t('spiralIn')
+      case ImageStrategy.SCRIBBLE: return t('scribble')
+      case ImageStrategy.CROSSHATCH: return t('crosshatch')
+      case ImageStrategy.WAVE_SWEEP: return t('waveSweep')
+      case ImageStrategy.SCATTERED_LINES: return t('scatteredLines')
+      case ImageStrategy.CONTOUR_JITTER: return t('contourJitter')
+      case ImageStrategy.SPIRAL_WOBBLE: return t('spiralWobble')
+      case ImageStrategy.CLUSTER_BURSTS: return t('clusterBursts')
+      case ImageStrategy.ORBITAL: return t('orbital')
+      case ImageStrategy.FLOW_FIELD: return t('flowField')
+      case ImageStrategy.EDGE_IN: return t('edgeIn')
+      default: return strategy
+    }
+  }
+
+  protected paintStrategyPreview(
+    canvas: HTMLCanvasElement,
+    strategy: ImageStrategy,
+  ) {
+    const context = canvas.getContext('2d')
+    if (!context) return
+    context.fillStyle = '#0f1526'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    const mask = this.getLogoPreviewMask()
+    const previousStrategy = this.strategy
+    this.strategy = strategy
+    const sequence = [...this.strategyPositionIterator()]
+    this.strategy = previousStrategy
+    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
+    const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+    const cell = canvas.width / this.pixels.width
+    for (let index = 0; index < filtered.length; index++) {
+      const pixel = filtered[index]!
+      const progress = index / Math.max(1, filtered.length - 1)
+      context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
+      context.fillRect(
+        pixel.x * cell,
+        pixel.y * cell,
+        Math.max(1, cell),
+        Math.max(1, cell),
+      )
+    }
+  }
+
+  protected getLogoPreviewMask() {
+    if (this.logoPreviewMask) return this.logoPreviewMask
+    this.logoPreviewMask = this.fallbackPreviewMask()
+    const image = new Image()
+    image.src = LOGO_PREVIEW_URL
+    image
+      .decode()
+      .then(() => {
+        const offscreen = document.createElement('canvas')
+        offscreen.width = this.pixels.width
+        offscreen.height = this.pixels.height
+        const context = offscreen.getContext('2d')
+        if (!context) return
+        context.clearRect(0, 0, offscreen.width, offscreen.height)
+        context.drawImage(image, 0, 0, offscreen.width, offscreen.height)
+        this.logoPreviewMask = this.alphaMaskFromCanvas(
+          context,
+          offscreen.width,
+          offscreen.height,
+        )
+        if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
+      })
+      .catch(() => {})
+    return this.logoPreviewMask
+  }
+
+  protected alphaMaskFromCanvas(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ) {
+    const data = context.getImageData(0, 0, width, height).data
+    const mask: Position[] = []
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const alpha = data[(y * width + x) * 4 + 3] ?? 0
+        if (alpha > 24) mask.push({ x, y })
+      }
+    }
+    return mask.length ? mask : this.fallbackPreviewMask()
+  }
+
+  protected fallbackPreviewMask() {
+    const mask: Position[] = []
+    const centerX = this.pixels.width / 2
+    const centerY = this.pixels.height / 2
+    const radius = Math.max(
+      4,
+      Math.min(this.pixels.width, this.pixels.height) / 2.5,
+    )
+    for (let y = 0; y < this.pixels.height; y++) {
+      for (let x = 0; x < this.pixels.width; x++) {
+        if ((x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2)
+          mask.push({ x, y })
+      }
+    }
+    return mask
   }
 
   public applyLocale() {
     applyTranslations(this.element)
     this.updateColors()
+    if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
   }
 
   protected colorHex(realColor: number) {

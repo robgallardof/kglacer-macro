@@ -44,8 +44,8 @@
 
 .wwidget .title {
   display: grid;
-  gap: 8px;
-  padding: 14px 12px 14px 66px;
+  gap: 12px;
+  padding: 16px 12px 12px 66px;
   border-bottom: var(--border) 1px solid;
   background-color: #0f1424;
   color: var(--text-invert);
@@ -109,14 +109,20 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(143 162 255 / 20%);
 }
 
 .wwidget .widget-actions button {
-  padding: 6px 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
   border: var(--border) 1px solid;
   border-radius: 8px;
   background: #1a2032;
   color: var(--text);
+  font-weight: 600;
   font-size: 11px;
   transition:
     transform 0.2s ease,
@@ -435,6 +441,25 @@
   width: inherit;
 }
 
+.wform .strategy-row {
+  align-items: stretch;
+}
+
+.wform .strategy-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+.wform .strategy-controls .open-preview {
+  min-width: 86px;
+  padding: 8px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .wform .wprogress {
   position: relative;
   width: 100%;
@@ -576,12 +601,75 @@
 
 .wimage .close-colors {
   min-width: 72px;
+}
+
+.wimage .modal-close {
+  min-width: 72px;
   padding: 6px 10px;
   border: 1px solid #56608a;
   border-radius: 8px;
   background: #212c49;
   color: #f0f4ff;
   font-weight: 600;
+}
+
+.wimage .preview-dialog {
+  width: min(600px, 92vw);
+  min-width: min(330px, 92vw);
+  max-height: min(82dvh, 640px);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0f1526;
+  color: var(--text);
+  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
+  overflow: auto;
+}
+
+.wimage .preview-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.wimage .preview-dialog-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.wimage .preview-dialog-help {
+  margin: 0 0 10px;
+  color: #b4bfdc;
+  font-size: 12px;
+}
+
+.wimage .preview-dialog-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wimage .preview-card {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #131c30;
+}
+
+.wimage .preview-card strong {
+  color: #dce6ff;
+  font-size: 12px;
+}
+
+.wimage .preview-canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  image-rendering: pixelated;
 }
 
 .wimage .colors-dialog-help {
@@ -786,6 +874,10 @@
   }
 
   .wimage .colors-dialog-list {
+    grid-template-columns: 1fr;
+  }
+
+  .wimage .preview-dialog-list {
     grid-template-columns: 1fr;
   }
 }
