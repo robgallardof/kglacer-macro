@@ -302,16 +302,77 @@
 
 .wwidget .shortcuts {
   display: grid;
-  gap: 4px;
-  justify-items: start;
+  gap: 8px;
   width: calc(100% - 10px);
   margin: 4px 5px;
-  padding: 8px 10px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #151d30;
   text-align: left;
   white-space: normal;
+}
+
+.wwidget .shortcuts .shortcut-list {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wwidget .shortcuts .shortcut-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 1px solid rgb(140 159 255 / 16%);
+  border-radius: 8px;
+  background: rgb(13 20 35 / 70%);
+}
+
+.wwidget .shortcuts .shortcut-label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  color: #cfdbff;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.wwidget .shortcuts .shortcut-label span {
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.wwidget .shortcuts .shortcut-label i {
+  color: #86d7ff;
+  font-size: 11px;
+}
+
+.wwidget .shortcuts .shortcut-keys {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.wwidget .shortcuts kbd {
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 1px solid rgb(141 160 255 / 34%);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #273559, #1b2743);
+  color: #ebf1ff;
+  font-weight: 700;
+  font-size: 10px;
+  font-family: Poppins, sans-serif;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
 }
 
 .wwidget .shortcuts.shortcut-pulse {
@@ -468,13 +529,26 @@
     100% 100%;
   background-repeat: no-repeat;
   color: #edf2ff;
+  font-weight: 700;
+  font-size: 12px;
   appearance: none;
+  color-scheme: dark;
 }
 
 .wform select option {
-  background: #eef2ff;
-  color: #0f172a;
+  background: #111a2f;
+  color: #ecf2ff;
   font-weight: 700;
+  font-size: 12px;
+}
+
+.wform select option:checked {
+  background: #265fc2;
+  color: #fff;
+}
+
+.wform select option:hover {
+  background: #1a315d;
 }
 
 .wform button:active,
@@ -881,6 +955,7 @@
     box-shadow 0.2s ease,
     background-color 0.2s ease,
     filter 0.2s ease;
+  color: #b9c8ff;
 }
 
 .wtopbar button:hover {
@@ -930,6 +1005,11 @@
 .wtopbar button.lock.locked {
   color: #ffd166;
   text-shadow: 0 0 12px rgb(255 209 102 / 40%);
+}
+
+.wtopbar button.lock {
+  color: #b8c6ff;
+  text-shadow: 0 0 10px rgb(184 198 255 / 25%);
 }
 
 .wwidget .images .image .image-controls .colors,

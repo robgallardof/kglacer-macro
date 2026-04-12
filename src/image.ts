@@ -127,6 +127,8 @@ export class BotImage extends Base {
   protected suppressNextColorDialogBackdropClick = false
   protected logoPreviewMask?: Position[]
   protected logoPreviewImage?: HTMLImageElement
+  protected previewCacheSignature?: string
+  protected readonly previewSequenceCache = new Map<string, Position[]>()
   protected readonly previewAnimations = new WeakMap<
     HTMLCanvasElement,
     number
@@ -488,6 +490,7 @@ export class BotImage extends Base {
 
   protected renderStrategyPreviewSamples() {
     this.stopPreviewAnimations()
+    this.invalidatePreviewCacheIfNeeded()
     const selected = this.$strategy.value as ImageStrategy
     const uniqueSamples = (
       Object.values(ImageStrategy) as ImageStrategy[]
@@ -513,6 +516,13 @@ export class BotImage extends Base {
       fragment.append($card)
     }
     this.$previewDialogList.append(fragment)
+  }
+
+  protected invalidatePreviewCacheIfNeeded() {
+    const signature = `${this.pixels.width}x${this.pixels.height}:${this.logoPreviewMask?.length ?? 0}`
+    if (this.previewCacheSignature === signature) return
+    this.previewCacheSignature = signature
+    this.previewSequenceCache.clear()
   }
 
   protected getStrategyLabel(strategy: ImageStrategy) {
@@ -597,12 +607,7 @@ export class BotImage extends Base {
     context.fillStyle = '#0f1526'
     context.fillRect(0, 0, canvas.width, canvas.height)
     const mask = this.getLogoPreviewMask()
-    const previousStrategy = this.strategy
-    this.strategy = strategy
-    const sequence = [...this.strategyPositionIterator()]
-    this.strategy = previousStrategy
-    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
-    const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+    const filtered = this.getCachedPreviewSequence(strategy, mask)
     const cell = canvas.width / this.pixels.width
     const activeAnimation = this.previewAnimations.get(canvas)
     if (activeAnimation) {
@@ -637,35 +642,39 @@ export class BotImage extends Base {
         )
       }
     }
-    const duration = Math.min(5200, Math.max(1800, filtered.length * 14))
-    const holdDuration = 520
+    const drawDuration = Math.min(3400, Math.max(900, filtered.length * 8))
+    const holdDuration = 220
+    const cycleDuration = drawDuration + holdDuration
     const animate = (start: number, now: number) => {
       if (!this.$previewDialog.open) return
-      const elapsed = now - start
-      const ratio = Math.min(1, elapsed / duration)
-      drawFrame(Math.floor(filtered.length * ratio))
-      const animationId =
-        ratio >= 1
-          ? schedule((time) => {
-              if (time - now < holdDuration) {
-                const next = schedule((tick) => {
-                  animate(start, tick)
-                })
-                this.previewAnimations.set(canvas, next)
-                return
-              }
-              const restart = schedule((restartAt) => {
-                animate(restartAt, restartAt)
-              })
-              this.previewAnimations.set(canvas, restart)
-            })
-          : schedule((time) => {
-              animate(start, time)
-            })
+      const elapsedInCycle = (now - start) % cycleDuration
+      const ratio = Math.min(1, elapsedInCycle / drawDuration)
+      const eased = ratio * ratio * (3 - 2 * ratio)
+      drawFrame(Math.floor(filtered.length * eased))
+      const animationId = schedule((time) => {
+        animate(start, time)
+      })
       this.previewAnimations.set(canvas, animationId)
     }
     const start = performance.now()
     animate(start, start)
+  }
+
+  protected getCachedPreviewSequence(
+    strategy: ImageStrategy,
+    mask: Position[],
+  ) {
+    const cacheKey = `${strategy}:${this.pixels.width}x${this.pixels.height}:${mask.length}`
+    const cached = this.previewSequenceCache.get(cacheKey)
+    if (cached) return cached
+    const previousStrategy = this.strategy
+    this.strategy = strategy
+    const sequence = [...this.strategyPositionIterator()]
+    this.strategy = previousStrategy
+    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
+    const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+    this.previewSequenceCache.set(cacheKey, filtered)
+    return filtered
   }
 
   protected paintLogoGhost(
@@ -719,6 +728,7 @@ export class BotImage extends Base {
           offscreen.width,
           offscreen.height,
         )
+        this.previewSequenceCache.clear()
         if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
       })
       .catch(() => undefined)
