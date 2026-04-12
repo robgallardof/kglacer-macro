@@ -6,7 +6,7 @@
 <div class="title">
   <div class="widget-brand">
     <img class="widget-logo" src="" alt="KGlacer Macro logo" />
-    <span class="widget-brand-text">KGlacer</span>
+    <span class="widget-brand-text">KGlaceMacro</span>
   </div>
 </div>
 <div class="wform">
@@ -19,9 +19,44 @@
   <button class="draw" disabled data-i18n="draw">Draw</button>
   <div class="shortcuts">
     <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-    <span data-i18n="shortcutsHelp"
-      >Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image</span
-    >
+    <ul class="shortcut-list">
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-keyboard"></i><span data-i18n="shortcutToggleWidget">Toggle widget</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>B</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-layer-group"></i><span data-i18n="shortcutToggleOverlay">Toggle overlays</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>V</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-pencil"></i><span data-i18n="shortcutDraw">Draw</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-image"></i><span data-i18n="shortcutAddImage">Add image</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>I</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-list"></i><span data-i18n="shortcutFocusList">Focus shortcuts</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>/</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-arrow-right"></i><span data-i18n="shortcutNextImage">Next image</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>N</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-arrow-left"></i><span data-i18n="shortcutPreviousImage">Previous image</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>P</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-palette"></i><span data-i18n="shortcutColorPanel">Color panel</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>O</kbd></span>
+      </li>
+      <li class="shortcut-item">
+        <span class="shortcut-label"><i class="fa-solid fa-lock"></i><span data-i18n="shortcutLockImage">Lock image</span></span>
+        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>L</kbd></span>
+      </li>
+    </ul>
   </div>
   <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
     <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
