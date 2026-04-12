@@ -13,6 +13,8 @@ import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition } from './world-position'
 
+const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+
 export enum BotStrategy {
   ALL = 'ALL',
   PERCENTAGE = 'PERCENTAGE',
@@ -49,6 +51,7 @@ export class Widget extends Base {
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
+  protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
@@ -77,6 +80,7 @@ export class Widget extends Base {
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
+      $toggleOverlay: '.toggle-overlay',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
@@ -95,6 +99,9 @@ export class Widget extends Base {
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
+    this.$toggleOverlay.addEventListener('click', () => {
+      this.toggleOverlay()
+    })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
@@ -103,13 +110,15 @@ export class Widget extends Base {
       setLocale(this.$locale.value as 'en' | 'es')
       applyTranslations(this.element)
       for (let index = 0; index < this.bot.images.length; index++)
-        this.bot.images[index]!.updateColors()
+        this.bot.images[index]!.applyLocale()
+      this.refreshOverlayToggleText()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
     })
 
     this.update()
+    this.syncOverlayVisibilityFromStorage()
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
   }
@@ -265,6 +274,28 @@ export class Widget extends Base {
     this.$images.append(fragment)
   }
 
+  protected syncOverlayVisibilityFromStorage() {
+    const hidden =
+      localStorage.getItem(OVERLAY_VISIBILITY_STORAGE_KEY) === 'true'
+    document.body.classList.toggle('overlay-hidden', hidden)
+    this.refreshOverlayToggleText()
+  }
+
+  protected toggleOverlay(force?: boolean) {
+    const next = force ?? !document.body.classList.contains('overlay-hidden')
+    document.body.classList.toggle('overlay-hidden', next)
+    localStorage.setItem(OVERLAY_VISIBILITY_STORAGE_KEY, String(next))
+    this.refreshOverlayToggleText()
+  }
+
+  protected refreshOverlayToggleText() {
+    this.$toggleOverlay.textContent = document.body.classList.contains(
+      'overlay-hidden',
+    )
+      ? `${t('toggleOverlay')} (${t('disabled')})`
+      : `${t('toggleOverlay')} (${t('enabled')})`
+  }
+
   /** Disable/enable element by class name */
   public setDisabled(name: string, disabled: boolean) {
     this.element.querySelector<HTMLButtonElement>('.' + name)!.disabled =
@@ -341,6 +372,11 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
       event.preventDefault()
       this.minimize(true)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.toggleOverlay)) {
+      event.preventDefault()
+      this.toggleOverlay()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.focusNextImage)) {

@@ -10,6 +10,7 @@ export const SHORTCUTS = {
   minimizeWidget: { key: 'm', shift: true } satisfies Shortcut,
   showWidgetPanel: { key: 's', shift: true } satisfies Shortcut,
   hideWidgetPanel: { key: 'h', shift: true } satisfies Shortcut,
+  toggleOverlay: { key: 'v', shift: true } satisfies Shortcut,
   draw: { key: 'enter', shift: true } satisfies Shortcut,
   addImage: { key: 'i', shift: true } satisfies Shortcut,
   showShortcuts: { key: '/', shift: true } satisfies Shortcut,

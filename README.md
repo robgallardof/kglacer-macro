@@ -2,7 +2,15 @@
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-## Novedades v1.0.0
+## Novedades v1.0.8
+
+- Correcciones de visibilidad en íconos del mini widget (candado, descargar, etc.).
+- Regresa el acceso al panel de colores desde el mini widget.
+- Sincronización completa de idioma para widget grande y mini widget.
+- Nuevo botón y atajo para ocultar/mostrar overlays (`Shift+V`).
+- URL de instalación del userscript confirmada y actualizada.
+
+## Historial v1.0.0
 
 - Rename completo de marca a **kglacer-macro**.
 - Persistencia migrada de `wbot` a `kglacermacro` (con compatibilidad hacia atrás).

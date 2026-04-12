@@ -82,4 +82,14 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleImageLock)).toBe(true)
   })
+
+  test('matches shift+v toggle overlay shortcut', () => {
+    const keyboardEvent = {
+      key: 'V',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleOverlay)).toBe(true)
+  })
 })
