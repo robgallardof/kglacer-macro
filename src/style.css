@@ -25,6 +25,10 @@
   --input-border: rgb(148 163 255 / 28%);
   --input-hover: #17233d;
   --card-radius: 12px;
+  --action-download: #55d977;
+  --action-lock: #ffd166;
+  --action-delete: #ff6b6b;
+  --action-palette: #ff9f43;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -284,7 +288,7 @@
 }
 
 .wwidget .images .image .image-controls .colors {
-  color: #86d7ff;
+  color: var(--action-palette);
 }
 
 .wwidget .images .image .image-controls .preview-strategy {
@@ -292,7 +296,7 @@
 }
 
 .wwidget .images .image .image-controls .download {
-  color: #7cf5c1;
+  color: var(--action-download);
 }
 
 .wwidget .images .image .image-controls .up,
@@ -324,9 +328,9 @@
 
 .wwidget .shortcuts .shortcut-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 5px 6px;
   border: 1px solid rgb(140 159 255 / 16%);
   border-radius: 8px;
@@ -350,15 +354,23 @@
 }
 
 .wwidget .shortcuts .shortcut-label i {
-  color: #86d7ff;
+  color: #9db3ff;
   font-size: 11px;
+}
+
+.wwidget .shortcuts .shortcut-item-color-panel .shortcut-label i {
+  color: var(--action-palette);
+}
+
+.wwidget .shortcuts .shortcut-item-lock-image .shortcut-label i {
+  color: var(--action-lock);
 }
 
 .wwidget .shortcuts .shortcut-keys {
   display: inline-flex;
   flex-wrap: nowrap;
   gap: 4px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .wwidget .shortcuts kbd {
@@ -988,28 +1000,28 @@
 }
 
 .wtopbar button.delete {
-  color: #ff6b8e;
-  text-shadow: 0 0 12px rgb(255 107 142 / 35%);
+  color: var(--action-delete);
+  text-shadow: 0 0 12px rgb(255 107 107 / 35%);
 }
 
 .wtopbar button.open-colors {
-  color: #88d8ff;
-  text-shadow: 0 0 12px rgb(136 216 255 / 35%);
+  color: var(--action-palette);
+  text-shadow: 0 0 12px rgb(255 159 67 / 35%);
 }
 
 .wtopbar button.export {
-  color: #7cffcd;
-  text-shadow: 0 0 12px rgb(124 255 205 / 32%);
+  color: var(--action-download);
+  text-shadow: 0 0 12px rgb(85 217 119 / 32%);
 }
 
 .wtopbar button.lock.locked {
-  color: #ffd166;
+  color: var(--action-lock);
   text-shadow: 0 0 12px rgb(255 209 102 / 40%);
 }
 
 .wtopbar button.lock {
-  color: #b8c6ff;
-  text-shadow: 0 0 10px rgb(184 198 255 / 25%);
+  color: var(--action-lock);
+  text-shadow: 0 0 10px rgb(255 209 102 / 25%);
 }
 
 .wwidget .images .image .image-controls .colors,
@@ -1026,7 +1038,7 @@
 }
 
 .wwidget .images .image .image-controls .delete {
-  color: #ff8ca8;
+  color: var(--action-delete);
 }
 
 .resize {
