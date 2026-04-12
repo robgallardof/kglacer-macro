@@ -30,6 +30,10 @@ describe('Image strategies', () => {
     return positions
   }
 
+  test('has 30 available strategies', () => {
+    expect(Object.values(ImageStrategy)).toHaveLength(30)
+  })
+
   test.each(Object.values(ImageStrategy))(
     'covers every pixel exactly once for %s',
     (strategy) => {

@@ -56,6 +56,7 @@ export class Widget extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
   protected readonly $wopenButton!: HTMLButtonElement
+  protected activeImageIndex = -1
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -247,12 +248,13 @@ export class Widget extends Base {
       $image
         .querySelector<HTMLButtonElement>('.preview')!
         .addEventListener('click', () => {
+          this.activeImageIndex = index
           image.position.scrollScreenTo()
         })
       $image
         .querySelector<HTMLButtonElement>('.settings')!
-        .addEventListener('click', () => {
-          image.openColorPanel()
+        .addEventListener('click', (event) => {
+          image.openColorPanel(event.currentTarget as HTMLButtonElement)
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!
@@ -333,9 +335,24 @@ export class Widget extends Base {
       this.minimize(false)
       return
     }
+    if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
+      event.preventDefault()
+      this.$shortcutsDialog.showModal()
+      return
+    }
     if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
       event.preventDefault()
       this.minimize(true)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.focusNextImage)) {
+      event.preventDefault()
+      this.focusImageByStep(1)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.focusPreviousImage)) {
+      event.preventDefault()
+      this.focusImageByStep(-1)
       return
     }
     if (
@@ -350,6 +367,20 @@ export class Widget extends Base {
       event.preventDefault()
       void this.bot.draw()
     }
+  }
+
+  protected focusImageByStep(step: 1 | -1) {
+    if (!this.bot.images.length) return
+    if (
+      this.activeImageIndex < 0 ||
+      this.activeImageIndex >= this.bot.images.length
+    )
+      this.activeImageIndex = step > 0 ? 0 : this.bot.images.length - 1
+    else
+      this.activeImageIndex =
+        (this.activeImageIndex + step + this.bot.images.length) %
+        this.bot.images.length
+    this.bot.images[this.activeImageIndex]!.position.scrollScreenTo()
   }
 
   // protected async pumpkinHunt() {

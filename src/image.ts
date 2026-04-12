@@ -24,6 +24,15 @@ export type ImageColorSetting = {
 export enum ImageStrategy {
   RANDOM = 'RANDOM',
   HUMANIZED = 'HUMANIZED',
+  HUMAN_SOFT_DITHER = 'HUMAN_SOFT_DITHER',
+  HUMAN_PATCHY = 'HUMAN_PATCHY',
+  HUMAN_SWEEP_ARCS = 'HUMAN_SWEEP_ARCS',
+  HUMAN_MICRO_CORRECTIONS = 'HUMAN_MICRO_CORRECTIONS',
+  HUMAN_JITTER_FILL = 'HUMAN_JITTER_FILL',
+  HUMAN_CORNER_BIAS = 'HUMAN_CORNER_BIAS',
+  HUMAN_LONG_STROKES = 'HUMAN_LONG_STROKES',
+  HUMAN_TAP_CLUSTERS = 'HUMAN_TAP_CLUSTERS',
+  HUMAN_MESSY_SPIRAL = 'HUMAN_MESSY_SPIRAL',
   ZIGZAG = 'ZIGZAG',
   BRUSH_STROKES = 'BRUSH_STROKES',
   DIAGONAL_BRUSH = 'DIAGONAL_BRUSH',
@@ -217,6 +226,9 @@ export class BotImage extends Base {
     this.registerEvent(this.$closeColors, 'click', () => {
       this.$colorsDialog.close()
     })
+    this.registerEvent(this.$colorsDialog, 'click', (event: MouseEvent) => {
+      if (event.target === this.$colorsDialog) this.$colorsDialog.close()
+    })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
@@ -320,7 +332,20 @@ export class BotImage extends Base {
     save(this.bot)
   }
 
-  public openColorPanel() {
+  public openColorPanel(anchor?: HTMLElement) {
+    const origin = anchor ?? this.element
+    const rect = origin.getBoundingClientRect()
+    const width = 560
+    const dialogWidth = Math.min(width, window.innerWidth - 16)
+    const left = Math.max(
+      8,
+      Math.min(rect.left, window.innerWidth - dialogWidth - 8),
+    )
+    const top = Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 420))
+    this.$colorsDialog.style.margin = '0'
+    this.$colorsDialog.style.position = 'fixed'
+    this.$colorsDialog.style.left = `${Math.round(left)}px`
+    this.$colorsDialog.style.top = `${Math.round(top)}px`
     this.$colorsDialog.showModal()
   }
 
@@ -402,7 +427,12 @@ export class BotImage extends Base {
         save(this.bot)
       }
       const $button = document.createElement('button')
+      $button.setAttribute(
+        'aria-label',
+        `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
+      )
       $button.title = `${width.toFixed(1)}%`
+      $button.innerHTML = `<span class="order-index">#${index + 1}</span>`
       if (drawColor.disabled) $button.classList.add('color-disabled')
       if (!isPremium) $button.style.background = colorToCSS(color.realColor)
       else {
@@ -434,7 +464,8 @@ export class BotImage extends Base {
 
       const $chip = document.createElement('button')
       $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
-      $chip.innerHTML = `<span class="swatch"></span>
+      $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
+<span class="swatch"></span>
 <span class="meta">
   <span class="coverage">${width.toFixed(1)}% · ${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
@@ -575,6 +606,233 @@ export class BotImage extends Base {
             else for (let x = xEnd - 1; x >= block.x; x--) yield { x, y }
           }
         }
+        break
+      }
+      case ImageStrategy.HUMAN_SOFT_DITHER: {
+        const visited = new Set<string>()
+        for (let y = 0; y < height; y++) {
+          const jitter = Math.floor(Math.random() * 3) - 1
+          const odd = (y + jitter) % 2 === 0
+          if (odd)
+            for (let x = 0; x < width; x += 2) {
+              visited.add(`${x},${y}`)
+              yield { x, y }
+            }
+          else
+            for (let x = 1; x < width; x += 2) {
+              visited.add(`${x},${y}`)
+              yield { x, y }
+            }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_PATCHY: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const radius = 1 + Math.floor(Math.random() * 5)
+          for (let y = cy - radius; y <= cy + radius; y++)
+            for (let x = cx - radius; x <= cx + radius; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              if (Math.hypot(x - cx, y - cy) > radius + Math.random() * 1.2)
+                continue
+              const key = `${x},${y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield { x, y }
+            }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_SWEEP_ARCS: {
+        const visited = new Set<string>()
+        const cx = (width - 1) / 2
+        const cy = (height - 1) / 2
+        const radiusLimit = Math.hypot(cx, cy)
+        for (let pass = 0; pass < 4; pass++) {
+          const start = Math.random() * Math.PI * 2
+          for (let r = 0; r <= radiusLimit; r += 0.35) {
+            const sweep = Math.PI / 2 + Math.random() * (Math.PI / 1.5)
+            const steps = Math.max(10, Math.floor(r * 8))
+            for (let step = 0; step < steps; step++) {
+              const theta = start + (sweep * step) / steps + Math.sin(r) * 0.08
+              const x = Math.round(cx + Math.cos(theta) * r)
+              const y = Math.round(cy + Math.sin(theta) * r)
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              const key = `${x},${y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield { x, y }
+            }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_MICRO_CORRECTIONS: {
+        const visited = new Set<string>()
+        for (let y = 0; y < height; y++) {
+          const direction = y % 2 === 0 ? 1 : -1
+          let x = direction > 0 ? 0 : width - 1
+          for (let step = 0; step < width; step++) {
+            const jitterX = x + (Math.random() > 0.82 ? direction : 0)
+            const jitterY = y + (Math.random() > 0.9 ? 1 : 0)
+            for (const point of [
+              { x, y },
+              { x: jitterX, y },
+              { x, y: jitterY },
+            ]) {
+              if (
+                point.x < 0 ||
+                point.x >= width ||
+                point.y < 0 ||
+                point.y >= height
+              )
+                continue
+              const key = `${point.x},${point.y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield point
+            }
+            x += direction
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_JITTER_FILL: {
+        const points: Position[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) points.push({ x, y })
+        points.sort((a, b) => {
+          const ay = a.y + (Math.random() - 0.5) * 1.8
+          const by = b.y + (Math.random() - 0.5) * 1.8
+          if (ay !== by) return ay - by
+          return (
+            a.x + (Math.random() - 0.5) * 2 - (b.x + (Math.random() - 0.5) * 2)
+          )
+        })
+        yield* points
+        break
+      }
+      case ImageStrategy.HUMAN_CORNER_BIAS: {
+        const corners: Position[] = [
+          { x: 0, y: 0 },
+          { x: width - 1, y: 0 },
+          { x: 0, y: height - 1 },
+          { x: width - 1, y: height - 1 },
+        ]
+        const corner = corners[Math.floor(Math.random() * corners.length)]!
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const distance = Math.hypot(x - corner.x, y - corner.y)
+            const score = distance + Math.random() * 3.5
+            points.push({ point: { x, y }, score })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_LONG_STROKES: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          let x = Math.floor(Math.random() * width)
+          let y = Math.floor(Math.random() * height)
+          const angle = Math.random() * Math.PI * 2
+          const dx = Math.sign(Math.cos(angle))
+          const dy = Math.sign(Math.sin(angle))
+          const length = 10 + Math.floor(Math.random() * 40)
+          for (let step = 0; step < length; step++) {
+            if (x < 0 || x >= width || y < 0 || y >= height) break
+            const key = `${x},${y}`
+            if (!visited.has(key)) {
+              visited.add(key)
+              yield { x, y }
+            }
+            if (Math.random() > 0.78) {
+              x += dy
+              y += dx
+            } else {
+              x += dx
+              y += dy
+            }
+          }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_TAP_CLUSTERS: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const taps = 3 + Math.floor(Math.random() * 10)
+          for (let tap = 0; tap < taps; tap++) {
+            const x = Math.round(cx + (Math.random() - 0.5) * 6)
+            const y = Math.round(cy + (Math.random() - 0.5) * 6)
+            if (x < 0 || x >= width || y < 0 || y >= height) continue
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_MESSY_SPIRAL: {
+        const visited = new Set<string>()
+        const cx = (width - 1) / 2
+        const cy = (height - 1) / 2
+        const maxRadius = Math.hypot(cx, cy) + 2
+        for (let step = 0; visited.size < width * height; step++) {
+          const t = step / 3
+          const radius = Math.min(maxRadius, t * 0.18)
+          const theta = t * 0.29 + Math.sin(t * 0.13) * 0.8
+          const x = Math.round(
+            cx + Math.cos(theta) * radius + Math.sin(t) * 0.7,
+          )
+          const y = Math.round(
+            cy + Math.sin(theta) * radius + Math.cos(t) * 0.7,
+          )
+          if (x < 0 || x >= width || y < 0 || y >= height) {
+            if (step > width * height * 18) break
+            continue
+          }
+          const key = `${x},${y}`
+          if (visited.has(key)) {
+            if (Math.random() > 0.9) continue
+          } else {
+            visited.add(key)
+            yield { x, y }
+          }
+          if (step > width * height * 18) break
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.DIAGONAL_BRUSH: {
