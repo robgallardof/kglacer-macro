@@ -33,6 +33,9 @@ export enum ImageStrategy {
   HUMAN_LONG_STROKES = 'HUMAN_LONG_STROKES',
   HUMAN_TAP_CLUSTERS = 'HUMAN_TAP_CLUSTERS',
   HUMAN_MESSY_SPIRAL = 'HUMAN_MESSY_SPIRAL',
+  HUMAN_DRUNK_WALK = 'HUMAN_DRUNK_WALK',
+  HUMAN_NOISE_CLOUD = 'HUMAN_NOISE_CLOUD',
+  HUMAN_PATCH_JUMP = 'HUMAN_PATCH_JUMP',
   ZIGZAG = 'ZIGZAG',
   BRUSH_STROKES = 'BRUSH_STROKES',
   DIAGONAL_BRUSH = 'DIAGONAL_BRUSH',
@@ -332,21 +335,21 @@ export class BotImage extends Base {
     save(this.bot)
   }
 
-  public openColorPanel(anchor?: HTMLElement) {
-    const origin = anchor ?? this.element
-    const rect = origin.getBoundingClientRect()
+  public openColorPanel() {
+    if (this.$colorsDialog.open) {
+      this.$colorSearch.focus()
+      return
+    }
     const width = 560
-    const dialogWidth = Math.min(width, window.innerWidth - 16)
-    const left = Math.max(
-      8,
-      Math.min(rect.left, window.innerWidth - dialogWidth - 8),
-    )
-    const top = Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 420))
+    const maxWidth = Math.min(width, window.innerWidth - 16)
+    const estimatedHeight = Math.min(680, window.innerHeight - 16)
+    const left = Math.max(8, (window.innerWidth - maxWidth) / 2)
+    const top = Math.max(8, (window.innerHeight - estimatedHeight) / 2)
     this.$colorsDialog.style.margin = '0'
     this.$colorsDialog.style.position = 'fixed'
     this.$colorsDialog.style.left = `${Math.round(left)}px`
     this.$colorsDialog.style.top = `${Math.round(top)}px`
-    this.$colorsDialog.showModal()
+    this.$colorsDialog.show()
   }
 
   protected colorHex(realColor: number) {
@@ -831,6 +834,110 @@ export class BotImage extends Base {
           for (let x = 0; x < width; x++) {
             const key = `${x},${y}`
             if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_DRUNK_WALK: {
+        const visited = new Set<string>()
+        let x = Math.floor(Math.random() * width)
+        let y = Math.floor(Math.random() * height)
+        const directions: Position[] = [
+          { x: -1, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: -1 },
+          { x: 0, y: 1 },
+          { x: -1, y: -1 },
+          { x: 1, y: -1 },
+          { x: -1, y: 1 },
+          { x: 1, y: 1 },
+        ]
+        while (visited.size < width * height) {
+          const key = `${x},${y}`
+          if (!visited.has(key)) {
+            visited.add(key)
+            yield { x, y }
+          }
+          const options: Position[] = []
+          for (const direction of directions) {
+            const nx = x + direction.x
+            const ny = y + direction.y
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+            options.push({ x: nx, y: ny })
+          }
+          if (!options.length) break
+          const unvisited = options.filter((point) => {
+            return !visited.has(`${point.x},${point.y}`)
+          })
+          if (unvisited.length && Math.random() > 0.2) {
+            const next =
+              unvisited[Math.floor(Math.random() * unvisited.length)]!
+            x = next.x
+            y = next.y
+            continue
+          }
+          const next = options[Math.floor(Math.random() * options.length)]!
+          x = next.x
+          y = next.y
+        }
+        for (let yy = 0; yy < height; yy++)
+          for (let xx = 0; xx < width; xx++) {
+            const key = `${xx},${yy}`
+            if (visited.has(key)) continue
+            yield { x: xx, y: yy }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_NOISE_CLOUD: {
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const wave =
+              Math.sin((x + 1) * 0.93 + Math.random() * 0.8) +
+              Math.cos((y + 1) * 1.17 + Math.random() * 0.8)
+            const jitter = (Math.random() - 0.5) * 2.6
+            const centerBias = Math.hypot(x - width / 2, y - height / 2) * 0.08
+            points.push({
+              point: { x, y },
+              score: wave + jitter + centerBias,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_PATCH_JUMP: {
+        const emitted = new Set<string>()
+        const centers: Position[] = []
+        for (let index = 0; index < Math.max(6, (width * height) / 18); index++)
+          centers.push({
+            x: Math.floor(Math.random() * width),
+            y: Math.floor(Math.random() * height),
+          })
+        while (emitted.size < width * height) {
+          const center = centers[Math.floor(Math.random() * centers.length)]!
+          const rx = 1 + Math.floor(Math.random() * 3)
+          const ry = 1 + Math.floor(Math.random() * 3)
+          for (let y = center.y - ry; y <= center.y + ry; y++)
+            for (let x = center.x - rx; x <= center.x + rx; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              if (Math.random() > 0.86) continue
+              const key = `${x},${y}`
+              if (emitted.has(key)) continue
+              emitted.add(key)
+              yield { x, y }
+            }
+          if (Math.random() > 0.72 && centers.length < (width * height) / 2)
+            centers.push({
+              x: Math.floor(Math.random() * width),
+              y: Math.floor(Math.random() * height),
+            })
+          if (emitted.size > width * height * 0.92) break
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (emitted.has(key)) continue
             yield { x, y }
           }
         break

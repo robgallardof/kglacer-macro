@@ -62,4 +62,24 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.focusNextImage)).toBe(true)
   })
+
+  test('matches shift+o open color panel shortcut', () => {
+    const keyboardEvent = {
+      key: 'O',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.openColorPanel)).toBe(true)
+  })
+
+  test('matches shift+l toggle lock shortcut', () => {
+    const keyboardEvent = {
+      key: 'L',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleImageLock)).toBe(true)
+  })
 })
