@@ -2,6 +2,7 @@ export type Shortcut = {
   key: string
   shift?: boolean
   ctrl?: boolean
+  meta?: boolean
   alt?: boolean
 }
 
@@ -21,10 +22,25 @@ export const SHORTCUTS = {
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
+  const shortcutKey = shortcut.key.toLowerCase()
+  const eventKey = event.key.toLowerCase()
+  const slashShortcutPressed =
+    shortcutKey === '/' &&
+    (eventKey === '/' || eventKey === '?' || event.code === 'Slash')
+  const keyMatches = slashShortcutPressed || eventKey === shortcutKey
+  const ctrlMatches =
+    shortcut.ctrl === true ? event.ctrlKey || event.metaKey : !event.ctrlKey
+  const metaMatches =
+    shortcut.ctrl === true
+      ? true
+      : shortcut.meta === true
+        ? event.metaKey
+        : !event.metaKey
   return (
-    event.key.toLowerCase() === shortcut.key &&
+    keyMatches &&
     event.shiftKey === Boolean(shortcut.shift) &&
-    event.ctrlKey === Boolean(shortcut.ctrl) &&
+    ctrlMatches &&
+    metaMatches &&
     event.altKey === Boolean(shortcut.alt)
   )
 }
