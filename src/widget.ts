@@ -11,10 +11,11 @@ import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
 import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
-import logo from './img/logo.svg'
 import { WorldPosition } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+const LOGO_URL =
+  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 
 export enum BotStrategy {
   ALL = 'ALL',
@@ -84,7 +85,7 @@ export class Widget extends Base {
       $images: '.images',
       // $pumpkinHunt: '.pumpkin-hunt',
     })
-    this.$widgetLogo.src = logo
+    this.$widgetLogo.src = LOGO_URL
 
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
