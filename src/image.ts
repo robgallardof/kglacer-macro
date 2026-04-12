@@ -212,7 +212,7 @@ export class BotImage extends Base {
 
     this.registerEvent(this.$delete, 'click', this.destroy.bind(this))
     this.registerEvent(this.$openColors, 'click', () => {
-      this.$colorsDialog.showModal()
+      this.openColorPanel()
     })
     this.registerEvent(this.$closeColors, 'click', () => {
       this.$colorsDialog.close()
@@ -318,6 +318,10 @@ export class BotImage extends Base {
     removeFromArray(this.bot.images, this)
     this.bot.widget.update()
     save(this.bot)
+  }
+
+  public openColorPanel() {
+    this.$colorsDialog.showModal()
   }
 
   protected colorHex(realColor: number) {
@@ -692,7 +696,11 @@ export class BotImage extends Base {
         const total = width * height
         let x = Math.floor(width / 2)
         let y = Math.floor(height / 2)
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 24;
+          attempts++
+        ) {
           const key = `${x},${y}`
           if (!visited.has(key)) {
             visited.add(key)
@@ -705,6 +713,13 @@ export class BotImage extends Base {
             y = Math.floor(Math.random() * height)
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.CROSSHATCH: {
@@ -755,7 +770,11 @@ export class BotImage extends Base {
       case ImageStrategy.SCATTERED_LINES: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 14;
+          attempts++
+        ) {
           let x = Math.floor(Math.random() * width)
           let y = Math.floor(Math.random() * height)
           const angle = Math.random() * Math.PI * 2
@@ -773,6 +792,13 @@ export class BotImage extends Base {
             y += dy
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.CONTOUR_JITTER: {
@@ -837,7 +863,11 @@ export class BotImage extends Base {
       case ImageStrategy.CLUSTER_BURSTS: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 12;
+          attempts++
+        ) {
           const cx = Math.floor(Math.random() * width)
           const cy = Math.floor(Math.random() * height)
           const radius = 2 + Math.floor(Math.random() * 10)
@@ -851,6 +881,13 @@ export class BotImage extends Base {
               yield { x, y }
             }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.ORBITAL: {
@@ -885,7 +922,11 @@ export class BotImage extends Base {
       case ImageStrategy.FLOW_FIELD: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 18;
+          attempts++
+        ) {
           let x = Math.floor(Math.random() * width)
           let y = Math.floor(Math.random() * height)
           for (let step = 0; step < 120; step++) {
@@ -903,6 +944,13 @@ export class BotImage extends Base {
             y += Math.round(Math.sin(angle))
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.EDGE_IN: {

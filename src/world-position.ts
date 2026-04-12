@@ -30,7 +30,7 @@ export function addFavoriteLocation(position: Position) {
     longitude:
       (((position.x / WORLD_PIXEL_SIZE) * (2 * Math.PI) - Math.PI) * 180) /
       Math.PI,
-    name: 'WBOT_FAVORITE',
+    name: 'KGLACER_MACRO_FAVORITE',
   })
 }
 
