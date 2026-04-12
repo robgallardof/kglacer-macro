@@ -1,5 +1,12 @@
 import { wait } from '@softsky/utils'
 
+import {
+  applyTranslations,
+  availableLocales,
+  getLocale,
+  setLocale,
+  t,
+} from './i18n'
 import { BotImage, DrawTask } from './image'
 import { Pixels } from './pixels'
 import { loadSave } from './save'
@@ -49,6 +56,8 @@ export type Me = {
 
 const SAVE_VERSION = 2
 const BOT_LOG_PREFIX = '[KGM]'
+const ACCESS_KEY_STORAGE_KEY = 'kglacer-macro:access-ok'
+const ACCESS_SERIAL_B64 = 'S0dNLXlZUjhTMW81bEhVemVjS1RFMEhxRVB4OVFkcjgxaEVz'
 
 /**
  * Main class. Initializes everything.
@@ -130,6 +139,7 @@ export class KGlacerMacro {
 
     void this.widget.run('Initializing', async () => {
       this.log('Widget initialization flow started')
+      await this.ensureAccessKey()
       // Waiting for all of website to load
       await this.waitForElement('login', '.avatar.center-absolute.absolute')
       await this.waitForElement(
@@ -173,6 +183,64 @@ export class KGlacerMacro {
       this.widget.setDisabled('add-image', false)
       this.log('Initialization completed; controls enabled')
       // this.widget.setDisabled('pumpkin-hunt', false)
+    })
+  }
+
+  protected async ensureAccessKey() {
+    if (localStorage.getItem(ACCESS_KEY_STORAGE_KEY) === ACCESS_SERIAL_B64)
+      return
+    await new Promise<void>((resolve) => {
+      const $dialog = document.createElement('dialog')
+      $dialog.className = 'kgm-modal access-dialog'
+      $dialog.innerHTML = `<form method="dialog" class="access-form">
+  <div class="kgm-modal-head">
+    <strong data-i18n="accessTitle">Access key</strong>
+  </div>
+  <p data-i18n="accessHelp">Enter your serial key to continue.</p>
+  <label class="access-label">
+    <span data-i18n="accessInputLabel">Serial key</span>
+    <input class="access-input" type="password" required data-i18n-placeholder="accessInputPlaceholder" placeholder="KGM-********" />
+  </label>
+  <label class="access-label">
+    <span data-i18n="language">Language</span>
+    <select class="access-locale"></select>
+  </label>
+  <button type="submit" class="access-submit" data-i18n="accessContinue">Continue</button>
+  <small class="access-error" role="alert" aria-live="assertive"></small>
+</form>`
+      document.body.append($dialog)
+      applyTranslations($dialog)
+      const $input = $dialog.querySelector<HTMLInputElement>('.access-input')!
+      const $error = $dialog.querySelector<HTMLElement>('.access-error')!
+      const $locale =
+        $dialog.querySelector<HTMLSelectElement>('.access-locale')!
+      $locale.innerHTML = availableLocales()
+        .map(
+          (locale) =>
+            `<option value="${locale}" ${locale === getLocale() ? 'selected' : ''}>${locale.toUpperCase()}</option>`,
+        )
+        .join('')
+      $locale.addEventListener('change', () => {
+        setLocale($locale.value as 'en' | 'es')
+        applyTranslations($dialog)
+      })
+      $dialog.addEventListener('cancel', (event) => {
+        event.preventDefault()
+      })
+      $dialog.querySelector('form')!.addEventListener('submit', (event) => {
+        event.preventDefault()
+        const expectedSerial = atob(ACCESS_SERIAL_B64)
+        if ($input.value.trim() !== expectedSerial) {
+          $error.textContent = t('invalidAccessKey')
+          return
+        }
+        localStorage.setItem(ACCESS_KEY_STORAGE_KEY, ACCESS_SERIAL_B64)
+        $dialog.close()
+        $dialog.remove()
+        resolve()
+      })
+      $dialog.showModal()
+      $input.focus()
     })
   }
 
