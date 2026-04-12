@@ -229,24 +229,23 @@
   color: #a9d6ff;
 }
 
-.wwidget .shortcuts-dialog {
-  width: min(380px, 90vw);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #11182a;
-  color: var(--text);
-}
-
-.wwidget .shortcuts-dialog::backdrop {
-  background: rgb(0 0 0 / 45%);
-}
-
 .wwidget .shortcuts {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   justify-items: start;
+  width: calc(100% - 10px);
+  margin: 4px 5px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #151d30;
   text-align: left;
   white-space: normal;
+}
+
+.wwidget .shortcuts.shortcut-pulse {
+  border-color: rgb(109 123 255 / 75%);
+  box-shadow: 0 0 0 1px rgb(109 123 255 / 35%);
 }
 
 .wimage {
@@ -524,10 +523,12 @@
 .wimage .colors-dialog {
   width: min(560px, 92vw);
   max-height: min(85dvh, 680px);
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #0f1526;
   color: var(--text);
+  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
 }
 
 .wimage .colors-dialog::backdrop {
@@ -536,9 +537,20 @@
 
 .wimage .colors-dialog-head {
   display: flex;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+}
+
+.wimage .close-colors {
+  min-width: 72px;
+  padding: 6px 10px;
+  border: 1px solid #56608a;
+  border-radius: 8px;
+  background: #212c49;
+  color: #f0f4ff;
+  font-weight: 600;
 }
 
 .wimage .colors-dialog-help {
