@@ -64,7 +64,7 @@ const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
  * Main class. Initializes everything.
  * Used to interact with wplace
  * */
-export class KGlacerMacro {
+class KGlacerMacro {
   /** Colors that can be bought */
   public unavailableColors = new Set<number>()
 
