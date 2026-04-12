@@ -32,4 +32,14 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.draw)).toBe(true)
   })
+
+  test('matches shift+m minimize shortcut', () => {
+    const keyboardEvent = {
+      key: 'M',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.minimizeWidget)).toBe(true)
+  })
 })

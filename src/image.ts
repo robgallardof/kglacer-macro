@@ -2,7 +2,7 @@ import { removeFromArray } from '@softsky/utils'
 
 import { Base } from './base'
 import { KGlacerMacro } from './bot'
-import { colorToCSS } from './colors'
+import { COLORS_RGB, colorToCSS } from './colors'
 // @ts-ignore
 import { applyTranslations, t } from './i18n'
 import html from './image.html' with { type: 'text' }
@@ -81,6 +81,11 @@ export class BotImage extends Base {
   protected readonly $brightness!: HTMLInputElement
   protected readonly $canvas!: HTMLCanvasElement
   protected readonly $colors!: HTMLDivElement
+  protected readonly $colorsDialog!: HTMLDialogElement
+  protected readonly $colorsDialogList!: HTMLDivElement
+  protected readonly $colorSearch!: HTMLInputElement
+  protected readonly $openColors!: HTMLButtonElement
+  protected readonly $closeColors!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
@@ -124,6 +129,11 @@ export class BotImage extends Base {
     this.populateElementsWithSelector(this.element, {
       $brightness: '.brightness',
       $colors: '.colors',
+      $colorsDialog: '.colors-dialog',
+      $colorsDialogList: '.colors-dialog-list',
+      $colorSearch: '.color-search',
+      $openColors: '.open-colors',
+      $closeColors: '.close-colors',
       $delete: '.delete',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
@@ -201,6 +211,15 @@ export class BotImage extends Base {
     })
 
     this.registerEvent(this.$delete, 'click', this.destroy.bind(this))
+    this.registerEvent(this.$openColors, 'click', () => {
+      this.$colorsDialog.showModal()
+    })
+    this.registerEvent(this.$closeColors, 'click', () => {
+      this.$colorsDialog.close()
+    })
+    this.registerEvent(this.$colorSearch, 'input', () => {
+      this.updateColors()
+    })
 
     // Export
     this.registerEvent(this.$export, 'click', this.export.bind(this))
@@ -299,16 +318,46 @@ export class BotImage extends Base {
     save(this.bot)
   }
 
+  protected colorHex(realColor: number) {
+    const rgb = COLORS_RGB[realColor] ?? '0,0,0'
+    const [r = 0, g = 0, b = 0] = rgb
+      .split(',')
+      .map((value) => Number.parseInt(value, 10))
+    return `#${[r, g, b]
+      .map((value) => value.toString(16).padStart(2, '0'))
+      .join('')}`
+  }
+
+  protected colorKeywords(realColor: number) {
+    const rgb = COLORS_RGB[realColor] ?? '0,0,0'
+    const [r = 0, g = 0, b = 0] = rgb
+      .split(',')
+      .map((value) => Number.parseInt(value, 10))
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const delta = max - min
+    if (delta < 15) return ['gray', 'grey', 'gris', 'neutral', 'neutro']
+    if (r > g + 30 && r > b + 30) return ['red', 'rojo']
+    if (g > r + 30 && g > b + 30) return ['green', 'verde']
+    if (b > r + 30 && b > g + 30) return ['blue', 'azul']
+    if (r > 170 && g > 120 && b < 130) return ['orange', 'naranja']
+    if (r > 170 && g > 110 && b > 140) return ['pink', 'rosa']
+    if (r > 120 && g < 100 && b > 120) return ['purple', 'violet', 'morado']
+    if (r > 130 && g > 130 && b < 90) return ['yellow', 'amarillo']
+    return ['brown', 'cafe', 'marron']
+  }
+
   /** Update colors array */
   public updateColors() {
     this.$colors.innerHTML = ''
+    this.$colorsDialogList.innerHTML = ''
     const pixelsSum = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const itemWidth = 100 / this.pixels.colors.size
     const $track = document.createElement('div')
     $track.className = 'colors-track'
     $track.setAttribute('aria-label', t('overlayColors'))
-    const $legend = document.createElement('div')
-    $legend.className = 'colors-legend'
+    this.$colorsDialogList.setAttribute('aria-label', t('colorPanelResults'))
+    const searchValue = this.$colorSearch.value.trim().toLowerCase()
 
     // If not the synced with colors then rebuild order
     if (
@@ -334,6 +383,8 @@ export class BotImage extends Base {
       let dragging = false
       const isPremium = color.realColor !== color.color
       const width = (color.amount / pixelsSum) * 100
+      const hex = this.colorHex(color.realColor)
+      const keywords = this.colorKeywords(color.realColor)
       const toggleDisabled = () => {
         if (dragging) return
         drawColor.disabled = drawColor.disabled ? undefined : true
@@ -379,7 +430,7 @@ export class BotImage extends Base {
       $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
       $chip.innerHTML = `<span class="swatch"></span>
 <span class="meta">
-  <span class="coverage">${width.toFixed(1)}%</span>
+  <span class="coverage">${width.toFixed(1)}% · ${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
 </span>
 <span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
@@ -399,7 +450,9 @@ export class BotImage extends Base {
         })
         $chip.append($buy)
       }
-      $legend.append($chip)
+      const searchTokens = `${hex} ${keywords.join(' ')} ${color.realColor} ${COLORS_RGB[color.realColor]}`
+      if (!searchValue || searchTokens.toLowerCase().includes(searchValue))
+        this.$colorsDialogList.append($chip)
 
       // Drag functionality
       const startDrag = (startEvent: MouseEvent) => {
@@ -446,7 +499,7 @@ export class BotImage extends Base {
       $button.addEventListener('mousedown', startDrag)
       if (!isPremium) $button.addEventListener('click', toggleDisabled)
     }
-    this.$colors.append($track, $legend)
+    this.$colors.append($track)
   }
 
   /** Create iterator that generates positions based on strategy */

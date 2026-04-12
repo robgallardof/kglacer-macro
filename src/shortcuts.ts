@@ -7,6 +7,9 @@ export type Shortcut = {
 
 export const SHORTCUTS = {
   toggleWidget: { key: 'b', shift: true } satisfies Shortcut,
+  minimizeWidget: { key: 'm', shift: true } satisfies Shortcut,
+  showWidgetPanel: { key: 's', shift: true } satisfies Shortcut,
+  hideWidgetPanel: { key: 'h', shift: true } satisfies Shortcut,
   draw: { key: 'enter', shift: true } satisfies Shortcut,
   addImage: { key: 'i', shift: true } satisfies Shortcut,
 }

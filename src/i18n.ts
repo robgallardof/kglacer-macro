@@ -36,10 +36,14 @@ const MESSAGES = {
     eraseTransparent: 'Erase transparent pixels',
     drawColorsInOrder: 'Draw colors in order',
     keyboardShortcuts: 'Shortcuts',
-    shortcutsHelp: 'Shift+B toggle · Shift+Enter draw · Shift+I add image',
+    shortcutsHelp:
+      'Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image',
     language: 'Language',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
+    expandPanel: 'Expand panel',
+    panelHidden: 'Panel hidden',
+    restorePanel: 'Restore panel',
     reopenHelp: 'Use Shift+B or floating button to reopen',
     close: 'Close',
     overlayColors: 'Overlay colors',
@@ -47,6 +51,9 @@ const MESSAGES = {
     disabled: 'Disabled',
     premium: 'Premium',
     buy: 'Buy',
+    openColorPanel: 'Open color panel',
+    searchColors: 'Search by hex, English or Spanish',
+    colorPanelResults: 'Color panel results',
   },
   es: {
     widgetTitle: 'KGlacerMacro',
@@ -84,10 +91,13 @@ const MESSAGES = {
     drawColorsInOrder: 'Dibujar colores en orden',
     keyboardShortcuts: 'Atajos',
     shortcutsHelp:
-      'Shift+B mostrar/ocultar · Shift+Enter dibujar · Shift+I agregar imagen',
+      'Shift+B mostrar widget · Shift+M ocultar/mostrar panel · Shift+S mostrar panel · Shift+H ocultar panel · Shift+Enter dibujar · Shift+I agregar imagen',
     language: 'Idioma',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',
+    expandPanel: 'Expandir panel',
+    panelHidden: 'Panel oculto',
+    restorePanel: 'Restaurar panel',
     reopenHelp: 'Usa Shift+B o el botón flotante para reabrir',
     close: 'Cerrar',
     overlayColors: 'Colores del overlay',
@@ -95,6 +105,9 @@ const MESSAGES = {
     disabled: 'Desactivado',
     premium: 'Premium',
     buy: 'Comprar',
+    openColorPanel: 'Abrir panel de colores',
+    searchColors: 'Buscar por hexa, inglés o español',
+    colorPanelResults: 'Resultados del panel de color',
   },
 } as const
 
@@ -129,5 +142,13 @@ export function t(key: keyof (typeof MESSAGES)['en']) {
 export function applyTranslations(root: ParentNode) {
   for (const node of root.querySelectorAll<HTMLElement>('[data-i18n]')) {
     node.textContent = t(node.dataset.i18n as keyof (typeof MESSAGES)['en'])
+  }
+  for (const node of root.querySelectorAll<HTMLElement>(
+    '[data-i18n-placeholder]',
+  )) {
+    node.setAttribute(
+      'placeholder',
+      t(node.dataset.i18nPlaceholder as keyof (typeof MESSAGES)['en']),
+    )
   }
 }
