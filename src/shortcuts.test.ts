@@ -42,4 +42,24 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.minimizeWidget)).toBe(true)
   })
+
+  test('matches shift+/ show shortcuts shortcut', () => {
+    const keyboardEvent = {
+      key: '/',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.showShortcuts)).toBe(true)
+  })
+
+  test('matches shift+n next image shortcut', () => {
+    const keyboardEvent = {
+      key: 'N',
+      shiftKey: true,
+      ctrlKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.focusNextImage)).toBe(true)
+  })
 })

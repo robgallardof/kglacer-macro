@@ -12,6 +12,9 @@ export const SHORTCUTS = {
   hideWidgetPanel: { key: 'h', shift: true } satisfies Shortcut,
   draw: { key: 'enter', shift: true } satisfies Shortcut,
   addImage: { key: 'i', shift: true } satisfies Shortcut,
+  showShortcuts: { key: '/', shift: true } satisfies Shortcut,
+  focusNextImage: { key: 'n', shift: true } satisfies Shortcut,
+  focusPreviousImage: { key: 'p', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
