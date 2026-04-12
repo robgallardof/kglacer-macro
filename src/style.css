@@ -60,6 +60,27 @@
   gap: 8px;
 }
 
+.wwidget .minimized-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #161e31;
+  font-size: 12px;
+}
+
+.wwidget .minimized-bar button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #222c48;
+  color: var(--text);
+}
+
 .wwidget .widget-actions button {
   padding: 6px 8px;
   border: var(--border) 1px solid;
@@ -179,6 +200,7 @@
   top: 0;
   left: 0;
   z-index: 9;
+  container-type: normal;
 }
 
 .wimage canvas {
@@ -200,18 +222,22 @@
 
 .wimage .wform {
   position: absolute;
-  display: none;
-  width: 100%;
-  min-width: 240px;
+  top: 40px;
+  left: 0;
+  overflow: auto;
+  width: 320px;
+  max-height: min(70dvh, 520px);
   border: var(--border) 1px solid;
   border-radius: 10px;
   background-color: #151c2d;
   color: var(--text);
   box-shadow: 0 18px 36px rgb(2 6 23 / 45%);
+  transform-origin: top left;
 }
 
-.wimage:hover .wrapper .wform {
-  display: block;
+.wimage:hover .wrapper .wform,
+.wimage:hover .wtopbar {
+  opacity: 1;
 }
 
 .wtopbar button svg {
@@ -244,6 +270,12 @@
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.wwidget .wform {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 10px;
 }
 
 .wform button,
@@ -392,6 +424,44 @@
   gap: 6px;
 }
 
+.wimage .open-colors {
+  width: calc(100% - 10px);
+}
+
+.wimage .colors-dialog {
+  width: min(560px, 92vw);
+  max-height: min(85dvh, 680px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0f1526;
+  color: var(--text);
+}
+
+.wimage .colors-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.wimage .colors-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.wimage .color-search {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.wimage .colors-dialog-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  overflow: auto;
+  max-height: min(62dvh, 520px);
+  padding-right: 2px;
+}
+
 .wform .colors .color-chip {
   display: grid;
   grid-template-columns: 18px 1fr auto auto;
@@ -435,13 +505,19 @@
 }
 
 .wtopbar {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
+  width: 160px;
   margin-bottom: 4px;
+  opacity: 0.92;
 }
 
 .wtopbar button {
+  min-height: 36px;
   border: 1px solid var(--border);
   background: #182035;
   transition:
@@ -521,5 +597,9 @@
 
   .wwidget .images {
     max-height: 26dvh;
+  }
+
+  .wimage .wform {
+    width: min(320px, calc(100vw - 20px));
   }
 }

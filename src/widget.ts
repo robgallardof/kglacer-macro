@@ -3,7 +3,7 @@ import { promisifyEventSource, swap } from '@softsky/utils'
 import { Base } from './base'
 import { KGlacerMacro } from './bot'
 import { KGlacerMacroError, NoImageError } from './errors'
-import { applyTranslations, getLocale, setLocale } from './i18n'
+import { applyTranslations, getLocale, setLocale, t } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
 import { save } from './save'
@@ -46,7 +46,8 @@ export class Widget extends Base {
   protected readonly $closeShortcuts!: HTMLButtonElement
   protected readonly $shortcutsDialog!: HTMLDialogElement
   protected readonly $locale!: HTMLSelectElement
-  protected readonly $minimizedHelp!: HTMLDivElement
+  protected readonly $minimizedBar!: HTMLDivElement
+  protected readonly $restorePanel!: HTMLButtonElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
@@ -74,7 +75,8 @@ export class Widget extends Base {
       $closeShortcuts: '.close-shortcuts',
       $shortcutsDialog: '.shortcuts-dialog',
       $locale: '.locale',
-      $minimizedHelp: '.minimized-help',
+      $minimizedBar: '.minimized-bar',
+      $restorePanel: '.restore-panel',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
@@ -89,6 +91,9 @@ export class Widget extends Base {
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
     this.$minimize.addEventListener('click', () => {
       this.minimize()
+    })
+    this.$restorePanel.addEventListener('click', () => {
+      this.minimize(false)
     })
     this.$showShortcuts.addEventListener('click', () => {
       this.$shortcutsDialog.showModal()
@@ -148,8 +153,11 @@ export class Widget extends Base {
           const reader = new FileReader()
           reader.readAsDataURL(file)
           await promisifyEventSource(reader, ['load'], ['error'])
+          const optimizedDataURL = await this.compressImageBeforeLoad(
+            reader.result as string,
+          )
           const image = new Image()
-          image.src = reader.result as string
+          image.src = optimizedDataURL
           await promisifyEventSource(image, ['load'], ['error'])
           botImage = new BotImage(
             this.bot,
@@ -176,9 +184,29 @@ export class Widget extends Base {
     )
   }
 
+  protected async compressImageBeforeLoad(dataUrl: string) {
+    const image = new Image()
+    image.src = dataUrl
+    await promisifyEventSource(image, ['load'], ['error'])
+    const shouldCompress =
+      image.naturalWidth * image.naturalHeight > 3_000_000 ||
+      dataUrl.length > 3_000_000
+    if (!shouldCompress) return dataUrl
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    const context = canvas.getContext('2d')
+    if (!context) return dataUrl
+    context.drawImage(image, 0, 0)
+    return canvas.toDataURL('image/png')
+  }
+
   /** Update widget position and contents */
   public update() {
     this.$strategy.value = this.bot.strategy
+    this.$minimize.textContent = this.$settings.classList.contains('hidden')
+      ? t('expandPanel')
+      : t('minimize')
     // Progress
     let maxTasks = 0
     let totalTasks = 0
@@ -260,9 +288,14 @@ export class Widget extends Base {
   }
 
   /** Hides content */
-  protected minimize() {
-    const minimized = this.$settings.classList.toggle('hidden')
-    this.$minimizedHelp.classList[minimized ? 'remove' : 'add']('hidden')
+  protected minimize(force?: boolean) {
+    const next =
+      force === undefined
+        ? !this.$settings.classList.contains('hidden')
+        : !force
+    this.$settings.classList.toggle('hidden', next)
+    this.$minimizedBar.classList.toggle('hidden', !next)
+    this.$minimize.textContent = next ? t('expandPanel') : t('minimize')
   }
 
   protected handleKeyboard(event: KeyboardEvent) {
@@ -270,6 +303,21 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
       event.preventDefault()
       this.open = !this.open
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.minimizeWidget)) {
+      event.preventDefault()
+      this.minimize()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.showWidgetPanel)) {
+      event.preventDefault()
+      this.minimize(false)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
+      event.preventDefault()
+      this.minimize(true)
       return
     }
     if (

@@ -10,6 +10,10 @@
     <button class="minimize" data-i18n="minimize">Minimize panel</button>
   </div>
 </div>
+<div class="minimized-bar hidden">
+  <span data-i18n="panelHidden">Panel hidden</span>
+  <button class="restore-panel" data-i18n="restorePanel">Restore</button>
+</div>
 <div class="wform">
   <label><span data-i18n="language">Language</span>:&nbsp;<select class="locale">
     <option value="en">English</option>
@@ -26,17 +30,14 @@
   <div class="shortcuts">
     <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
     <span data-i18n="shortcutsHelp"
-      >Shift+B toggle · Shift+Enter draw · Shift+I add image</span
+      >Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</span
     >
   </div>
   <div class="images"></div>
   <button class="add-image" disabled data-i18n="addImage">Add image</button>
-  <div class="minimized-help hidden" data-i18n="reopenHelp">
-    Use Shift+B or floating button to reopen
-  </div>
 </div>
 <dialog class="shortcuts-dialog">
   <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-  <p data-i18n="shortcutsHelp">Shift+B toggle · Shift+Enter draw · Shift+I add image</p>
+  <p data-i18n="shortcutsHelp">Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</p>
   <button class="close-shortcuts" data-i18n="close">Close</button>
 </dialog>
