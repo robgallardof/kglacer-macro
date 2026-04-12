@@ -2,7 +2,7 @@ import { promisifyEventSource, swap } from '@softsky/utils'
 
 import { Base } from './base'
 import { WPlaceBot } from './bot'
-import { NoImageError, WPlaceBotError } from './errors'
+import { KGlacerMacroError, NoImageError } from './errors'
 import { applyTranslations } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
@@ -89,10 +89,12 @@ export class Widget extends Base {
 
     this.update()
     this.open = true
+    console.log('[KGM][Widget] Widget mounted and opened')
   }
 
   /** Add image handler */
   public addImage() {
+    console.log('[KGM][Widget] Add image flow started')
     this.setDisabled('add-image', true)
     return this.run(
       'Adding image',
@@ -105,6 +107,11 @@ export class Widget extends Base {
         await promisifyEventSource(input, ['change'], ['cancel', 'error'])
         const file = input.files?.[0]
         if (!file) throw new NoImageError(this.bot)
+        console.log('[KGM][Widget] File selected', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        })
         let botImage
         if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
           botImage = await BotImage.fromJSON(
@@ -128,9 +135,13 @@ export class Widget extends Base {
           )
         }
         this.bot.images.push(botImage)
+        console.log('[KGM][Widget] Image instance added', {
+          images: this.bot.images.length,
+        })
         await this.bot.readMap()
         botImage.updateTasks()
         save(this.bot, true)
+        console.log('[KGM][Widget] Image persisted, reloading page')
         document.location.reload()
       },
       () => {
@@ -202,17 +213,20 @@ export class Widget extends Base {
     fin?: () => unknown,
     prefix = '...',
   ): Promise<T> {
+    console.log('[KGM][Widget] Task started', { status })
     const originalStatus = this.status
     this.status = `${prefix} ${status}`
     try {
       const result = await run()
       this.status = originalStatus
+      console.log('[KGM][Widget] Task completed', { status })
       return result
     } catch (error) {
-      if (!(error instanceof WPlaceBotError)) {
+      if (!(error instanceof KGlacerMacroError)) {
         console.error(error)
         this.status = `Error: ${status}`
       }
+      console.error('[KGM][Widget] Task failed', { status, error })
       throw error
     } finally {
       await fin?.()
