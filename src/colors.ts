@@ -245,5 +245,11 @@ export const COLORS_RGB = [
 export function colorToCSS(colorId: number) {
   if (colorId === 0) return 'transparent'
   const color = COLORS[colorId]!
-  return `oklab(${color[0] * 100}% ${color[1]} ${color[2]})`
+  const oklabColor = `oklab(${color[0] * 100}% ${color[1]} ${color[2]})`
+  if (typeof CSS !== 'undefined' && CSS.supports('color', oklabColor))
+    return oklabColor
+  const [r = 0, g = 0, b = 0] = (COLORS_RGB[colorId] ?? '0,0,0')
+    .split(',')
+    .map((value) => Number.parseInt(value, 10))
+  return `rgb(${r} ${g} ${b})`
 }

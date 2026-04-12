@@ -8,6 +8,7 @@ describe('matchesShortcut', () => {
       key: 'B',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleWidget)).toBe(true)
@@ -18,6 +19,7 @@ describe('matchesShortcut', () => {
       key: 'Enter',
       shiftKey: false,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.draw)).toBe(false)
@@ -28,6 +30,7 @@ describe('matchesShortcut', () => {
       key: 'Enter',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.draw)).toBe(true)
@@ -38,6 +41,7 @@ describe('matchesShortcut', () => {
       key: 'M',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.minimizeWidget)).toBe(true)
@@ -48,6 +52,19 @@ describe('matchesShortcut', () => {
       key: '/',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.showShortcuts)).toBe(true)
+  })
+
+  test('matches shift+? show shortcuts on mac layout', () => {
+    const keyboardEvent = {
+      key: '?',
+      code: 'Slash',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.showShortcuts)).toBe(true)
@@ -58,6 +75,7 @@ describe('matchesShortcut', () => {
       key: 'N',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.focusNextImage)).toBe(true)
@@ -68,6 +86,7 @@ describe('matchesShortcut', () => {
       key: 'O',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.openColorPanel)).toBe(true)
@@ -78,6 +97,7 @@ describe('matchesShortcut', () => {
       key: 'L',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleImageLock)).toBe(true)
@@ -88,6 +108,7 @@ describe('matchesShortcut', () => {
       key: 'V',
       shiftKey: true,
       ctrlKey: false,
+      metaKey: false,
       altKey: false,
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleOverlay)).toBe(true)

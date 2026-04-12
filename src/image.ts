@@ -131,6 +131,7 @@ export class BotImage extends Base {
     HTMLCanvasElement,
     number
   >()
+  protected readonly previewAnimationHandles = new Set<number>()
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -428,8 +429,15 @@ export class BotImage extends Base {
 
   protected closeDialog(dialog: HTMLDialogElement) {
     if (!dialog.open) return
+    if (dialog === this.$previewDialog) this.stopPreviewAnimations()
     if (typeof dialog.requestClose === 'function') dialog.requestClose()
     else dialog.close()
+  }
+
+  protected stopPreviewAnimations() {
+    for (const handle of this.previewAnimationHandles)
+      cancelAnimationFrame(handle)
+    this.previewAnimationHandles.clear()
   }
 
   protected startColorDialogDrag(event: PointerEvent) {
@@ -479,6 +487,7 @@ export class BotImage extends Base {
   }
 
   protected renderStrategyPreviewSamples() {
+    this.stopPreviewAnimations()
     const selected = this.$strategy.value as ImageStrategy
     const uniqueSamples = (
       Object.values(ImageStrategy) as ImageStrategy[]
@@ -596,7 +605,18 @@ export class BotImage extends Base {
     const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
     const cell = canvas.width / this.pixels.width
     const activeAnimation = this.previewAnimations.get(canvas)
-    if (activeAnimation) cancelAnimationFrame(activeAnimation)
+    if (activeAnimation) {
+      cancelAnimationFrame(activeAnimation)
+      this.previewAnimationHandles.delete(activeAnimation)
+    }
+    const schedule = (callback: FrameRequestCallback) => {
+      const handle = requestAnimationFrame((time) => {
+        this.previewAnimationHandles.delete(handle)
+        callback(time)
+      })
+      this.previewAnimationHandles.add(handle)
+      return handle
+    }
     const drawFrame = (progressCount: number) => {
       context.fillStyle = '#0f1526'
       context.fillRect(0, 0, canvas.width, canvas.height)
@@ -617,21 +637,35 @@ export class BotImage extends Base {
         )
       }
     }
-    const start = performance.now()
-    const duration = Math.min(3800, Math.max(900, filtered.length * 8))
-    const animate = (now: number) => {
+    const duration = Math.min(5200, Math.max(1800, filtered.length * 14))
+    const holdDuration = 520
+    const animate = (start: number, now: number) => {
+      if (!this.$previewDialog.open) return
       const elapsed = now - start
       const ratio = Math.min(1, elapsed / duration)
       drawFrame(Math.floor(filtered.length * ratio))
       const animationId =
         ratio >= 1
-          ? requestAnimationFrame(() => {
-              drawFrame(filtered.length)
+          ? schedule((time) => {
+              if (time - now < holdDuration) {
+                const next = schedule((tick) => {
+                  animate(start, tick)
+                })
+                this.previewAnimations.set(canvas, next)
+                return
+              }
+              const restart = schedule((restartAt) => {
+                animate(restartAt, restartAt)
+              })
+              this.previewAnimations.set(canvas, restart)
             })
-          : requestAnimationFrame(animate)
+          : schedule((time) => {
+              animate(start, time)
+            })
       this.previewAnimations.set(canvas, animationId)
     }
-    animate(start)
+    const start = performance.now()
+    animate(start, start)
   }
 
   protected paintLogoGhost(
