@@ -39,6 +39,16 @@ export enum ImageStrategy {
   HUMAN_DRUNK_WALK = 'HUMAN_DRUNK_WALK',
   HUMAN_NOISE_CLOUD = 'HUMAN_NOISE_CLOUD',
   HUMAN_PATCH_JUMP = 'HUMAN_PATCH_JUMP',
+  HUMAN_HESITANT_LINES = 'HUMAN_HESITANT_LINES',
+  HUMAN_OVERLAP_SWEEPS = 'HUMAN_OVERLAP_SWEEPS',
+  HUMAN_WOBBLE_DRIFT = 'HUMAN_WOBBLE_DRIFT',
+  HUMAN_GAP_RECOVERY = 'HUMAN_GAP_RECOVERY',
+  HUMAN_STAIRCASE = 'HUMAN_STAIRCASE',
+  HUMAN_EDGE_HUGGER = 'HUMAN_EDGE_HUGGER',
+  HUMAN_BLOBS = 'HUMAN_BLOBS',
+  HUMAN_BACKTRACK = 'HUMAN_BACKTRACK',
+  HUMAN_SHAKY_DIAGONAL = 'HUMAN_SHAKY_DIAGONAL',
+  HUMAN_LATE_FIXES = 'HUMAN_LATE_FIXES',
   ZIGZAG = 'ZIGZAG',
   BRUSH_STROKES = 'BRUSH_STROKES',
   DIAGONAL_BRUSH = 'DIAGONAL_BRUSH',
@@ -194,6 +204,7 @@ export class BotImage extends Base {
     // Strategy
     this.registerEvent(this.$strategy, 'change', () => {
       this.strategy = this.$strategy.value as ImageStrategy
+      if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
       save(this.bot)
     })
 
@@ -492,29 +503,19 @@ export class BotImage extends Base {
     this.stopPreviewAnimations()
     this.invalidatePreviewCacheIfNeeded()
     const selected = this.$strategy.value as ImageStrategy
-    const uniqueSamples = (
-      Object.values(ImageStrategy) as ImageStrategy[]
-    ).sort((a, b) => {
-      if (a === selected) return -1
-      if (b === selected) return 1
-      return 0
-    })
     this.$previewDialogList.innerHTML = ''
     const fragment = document.createDocumentFragment()
-    for (let index = 0; index < uniqueSamples.length; index++) {
-      const strategy = uniqueSamples[index]!
-      const $card = document.createElement('article')
-      $card.className = 'preview-card'
-      const $title = document.createElement('strong')
-      $title.textContent = this.getStrategyLabel(strategy)
-      const $canvas = document.createElement('canvas')
-      $canvas.className = 'preview-canvas'
-      $canvas.width = 156
-      $canvas.height = 156
-      this.paintStrategyPreview($canvas, strategy)
-      $card.append($title, $canvas)
-      fragment.append($card)
-    }
+    const $card = document.createElement('article')
+    $card.className = 'preview-card'
+    const $title = document.createElement('strong')
+    $title.textContent = this.getStrategyLabel(selected)
+    const $canvas = document.createElement('canvas')
+    $canvas.className = 'preview-canvas'
+    $canvas.width = 156
+    $canvas.height = 156
+    this.paintStrategyPreview($canvas, selected)
+    $card.append($title, $canvas)
+    fragment.append($card)
     this.$previewDialogList.append(fragment)
   }
 
@@ -555,6 +556,26 @@ export class BotImage extends Base {
         return t('humanNoiseCloud')
       case ImageStrategy.HUMAN_PATCH_JUMP:
         return t('humanPatchJump')
+      case ImageStrategy.HUMAN_HESITANT_LINES:
+        return t('humanHesitantLines')
+      case ImageStrategy.HUMAN_OVERLAP_SWEEPS:
+        return t('humanOverlapSweeps')
+      case ImageStrategy.HUMAN_WOBBLE_DRIFT:
+        return t('humanWobbleDrift')
+      case ImageStrategy.HUMAN_GAP_RECOVERY:
+        return t('humanGapRecovery')
+      case ImageStrategy.HUMAN_STAIRCASE:
+        return t('humanStaircase')
+      case ImageStrategy.HUMAN_EDGE_HUGGER:
+        return t('humanEdgeHugger')
+      case ImageStrategy.HUMAN_BLOBS:
+        return t('humanBlobs')
+      case ImageStrategy.HUMAN_BACKTRACK:
+        return t('humanBacktrack')
+      case ImageStrategy.HUMAN_SHAKY_DIAGONAL:
+        return t('humanShakyDiagonal')
+      case ImageStrategy.HUMAN_LATE_FIXES:
+        return t('humanLateFixes')
       case ImageStrategy.ZIGZAG:
         return t('zigzag')
       case ImageStrategy.BRUSH_STROKES:
@@ -1312,6 +1333,248 @@ export class BotImage extends Base {
             if (emitted.has(key)) continue
             yield { x, y }
           }
+        break
+      }
+      case ImageStrategy.HUMAN_HESITANT_LINES: {
+        const emitted = new Set<string>()
+        for (let y = 0; y < height; y++) {
+          const fromLeft = y % 2 === 0
+          for (let step = 0; step < width; step++) {
+            const x = fromLeft ? step : width - 1 - step
+            const key = `${x},${y}`
+            if (!emitted.has(key)) {
+              emitted.add(key)
+              yield { x, y }
+            }
+            if (Math.random() > 0.7) {
+              const retryX = Math.max(
+                0,
+                Math.min(width - 1, x + (Math.random() > 0.5 ? 1 : -1)),
+              )
+              const retryY = Math.max(
+                0,
+                Math.min(height - 1, y + (Math.random() > 0.65 ? 1 : 0)),
+              )
+              const retryKey = `${retryX},${retryY}`
+              if (!emitted.has(retryKey)) {
+                emitted.add(retryKey)
+                yield { x: retryX, y: retryY }
+              }
+            }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (emitted.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_OVERLAP_SWEEPS: {
+        const points: { point: Position; score: number }[] = []
+        const sweepOffset = Math.random() * Math.PI * 2
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const wave = Math.sin((x + y) * 0.42 + sweepOffset) * 2.2
+            const overlap = Math.cos((x - y) * 0.3 + sweepOffset) * 1.4
+            points.push({
+              point: { x, y },
+              score: y + wave + overlap + (Math.random() - 0.5) * 3.4,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_WOBBLE_DRIFT: {
+        const points: { point: Position; score: number }[] = []
+        const cx = width / 2
+        const cy = height / 2
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const drift = Math.hypot(x - cx, y - cy) * 0.25
+            const wobble =
+              Math.sin((x + 1) * 0.9) * 1.8 +
+              Math.cos((y + 1) * 1.1) * 1.8 +
+              Math.sin((x + y) * 0.35) * 1.4
+            points.push({
+              point: { x, y },
+              score: drift + wobble + (Math.random() - 0.5) * 2.8,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_GAP_RECOVERY: {
+        const emitted = new Set<string>()
+        const skipped: Position[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            if (Math.random() > 0.87) {
+              skipped.push({ x, y })
+              continue
+            }
+            emitted.add(`${x},${y}`)
+            yield { x, y }
+          }
+        skipped.sort(
+          (a, b) =>
+            Math.hypot(a.x - width / 2, a.y - height / 2) -
+            Math.hypot(b.x - width / 2, b.y - height / 2),
+        )
+        for (const point of skipped) {
+          const key = `${point.x},${point.y}`
+          if (emitted.has(key)) continue
+          emitted.add(key)
+          yield point
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_STAIRCASE: {
+        const emitted = new Set<string>()
+        const diagonals = width + height - 1
+        for (let diagonal = 0; diagonal < diagonals; diagonal++) {
+          const startY = Math.max(0, diagonal - width + 1)
+          const endY = Math.min(height - 1, diagonal)
+          for (let y = startY; y <= endY; y++) {
+            const x = diagonal - y
+            const steps: Position[] = [
+              { x, y },
+              { x: x + (Math.random() > 0.5 ? 1 : -1), y },
+              { x, y: y + (Math.random() > 0.5 ? 1 : -1) },
+            ]
+            for (const point of steps) {
+              if (
+                point.x < 0 ||
+                point.x >= width ||
+                point.y < 0 ||
+                point.y >= height
+              )
+                continue
+              const key = `${point.x},${point.y}`
+              if (emitted.has(key)) continue
+              emitted.add(key)
+              yield point
+            }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (emitted.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_EDGE_HUGGER: {
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const edgeDistance = Math.min(x, y, width - 1 - x, height - 1 - y)
+            points.push({
+              point: { x, y },
+              score: edgeDistance * 3.5 + (Math.random() - 0.5) * 5.5,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_BLOBS: {
+        const emitted = new Set<string>()
+        const total = width * height
+        while (emitted.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const radius = 1 + Math.floor(Math.random() * 4)
+          for (let y = cy - radius; y <= cy + radius; y++)
+            for (let x = cx - radius; x <= cx + radius; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              const angle = Math.atan2(y - cy, x - cx)
+              const noisyRadius =
+                radius + Math.sin(angle * 3 + Math.random()) * 0.8
+              if (Math.hypot(x - cx, y - cy) > noisyRadius) continue
+              const key = `${x},${y}`
+              if (emitted.has(key)) continue
+              emitted.add(key)
+              yield { x, y }
+            }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_BACKTRACK: {
+        const emitted = new Set<string>()
+        const points: Position[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) points.push({ x, y })
+        points.sort(
+          (a, b) =>
+            a.y - b.y + (Math.random() - 0.5) * 2.2 + (a.x - b.x) * 0.04,
+        )
+        for (let index = 0; index < points.length; index++) {
+          const point = points[index]!
+          const key = `${point.x},${point.y}`
+          if (emitted.has(key)) continue
+          emitted.add(key)
+          yield point
+          if (index > 1 && Math.random() > 0.74) {
+            const previous = points[index - 1]!
+            const previousKey = `${previous.x},${previous.y}`
+            if (!emitted.has(previousKey)) {
+              emitted.add(previousKey)
+              yield previous
+            }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (emitted.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_SHAKY_DIAGONAL: {
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const diagonalBias = Math.abs(x - y) * 0.6
+            const shake =
+              Math.sin(x * 1.4 + y * 0.8) * 1.8 +
+              Math.cos(y * 1.1 + x * 0.5) * 1.5
+            points.push({
+              point: { x, y },
+              score: diagonalBias + shake + (Math.random() - 0.5) * 3.2,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_LATE_FIXES: {
+        const points: Position[] = []
+        const lateFixes: Position[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            if (Math.random() > 0.9) lateFixes.push({ x, y })
+            else points.push({ x, y })
+          }
+        points.sort(
+          (a, b) =>
+            a.y -
+            b.y +
+            (Math.random() - 0.5) * 1.5 +
+            (Math.random() > 0.85 ? a.x - b.x : 0),
+        )
+        lateFixes.sort(
+          (a, b) =>
+            Math.hypot(b.x - width / 2, b.y - height / 2) -
+            Math.hypot(a.x - width / 2, a.y - height / 2),
+        )
+        yield* points
+        yield* lateFixes
         break
       }
       case ImageStrategy.DIAGONAL_BRUSH: {
