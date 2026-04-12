@@ -86,6 +86,7 @@ export class KGlacerMacro {
   protected imageSyncFrames = 0
 
   protected imageSyncRequested = false
+  protected overlaySyncAbortController = new AbortController()
 
   protected log(message: string, payload?: unknown) {
     if (payload === undefined) console.log(`${BOT_LOG_PREFIX} ${message}`)
@@ -626,16 +627,28 @@ export class KGlacerMacro {
   }
 
   protected attachRealtimeOverlaySync($canvasContainer: Element) {
+    this.overlaySyncAbortController.abort()
+    this.overlaySyncAbortController = new AbortController()
+    const { signal } = this.overlaySyncAbortController
     const boostSync = () => {
       this.requestImageSync(20)
     }
     const lightSync = () => {
       this.requestImageSync(2)
     }
-    $canvasContainer.addEventListener('wheel', boostSync, { passive: true })
-    $canvasContainer.addEventListener('mousemove', lightSync, { passive: true })
-    $canvasContainer.addEventListener('touchmove', boostSync, { passive: true })
-    globalThis.addEventListener('scroll', boostSync, { passive: true })
+    $canvasContainer.addEventListener('wheel', boostSync, {
+      passive: true,
+      signal,
+    })
+    $canvasContainer.addEventListener('mousemove', lightSync, {
+      passive: true,
+      signal,
+    })
+    $canvasContainer.addEventListener('touchmove', boostSync, {
+      passive: true,
+      signal,
+    })
+    globalThis.addEventListener('scroll', boostSync, { passive: true, signal })
   }
 
   protected requestImageSync(frames: number) {
