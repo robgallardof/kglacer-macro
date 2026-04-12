@@ -10,16 +10,37 @@ export type PixelColorStat = {
 }
 
 export class Pixels {
+  protected static createEmptyImageDataURL(size = 1000) {
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    return canvas.toDataURL('image/png')
+  }
+
   public static async fromJSON(
     bot: KGlacerMacro,
     data: ReturnType<Pixels['toJSON']>,
   ) {
+    const resolveImageSource = async () => {
+      if (!data.url.startsWith('http')) return data.url
+      try {
+        const response = await fetch(data.url, { cache: 'no-store' })
+        const contentType = response.headers.get('content-type') ?? ''
+        if (!response.ok || !contentType.startsWith('image/'))
+          throw new Error(
+            `Unable to load image: ${response.status} ${response.statusText}`,
+          )
+        return URL.createObjectURL(await response.blob())
+      } catch (error) {
+        console.warn('[KGM][Pixels] Falling back to empty image', {
+          url: data.url,
+          error,
+        })
+        return Pixels.createEmptyImageDataURL()
+      }
+    }
     const image = new Image()
-    image.src = data.url.startsWith('http')
-      ? await fetch(data.url, { cache: 'no-store' })
-          .then((x) => x.blob())
-          .then((X) => URL.createObjectURL(X))
-      : data.url
+    image.src = await resolveImageSource()
     await promisifyEventSource(image, ['load'], ['error'])
     return new Pixels(bot, image, data.width, data.brightness, data.exactColor)
   }

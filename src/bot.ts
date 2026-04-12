@@ -1,6 +1,7 @@
 import { wait } from '@softsky/utils'
 
 import { BotImage, DrawTask } from './image'
+import { applyTranslations, getLocale, setLocale } from './i18n'
 import { Pixels } from './pixels'
 import { loadSave } from './save'
 // @ts-ignore
@@ -49,6 +50,10 @@ export type Me = {
 
 const SAVE_VERSION = 2
 const BOT_LOG_PREFIX = '[KGM]'
+const ACCESS_GRANTED_STORAGE_KEY = 'kglacer-macro:access-granted'
+const ACCESS_MODAL_LOCALE_STORAGE_KEY = 'kglacer-macro:access-modal-locale'
+
+let cachedAccessGranted: boolean | null = null
 
 /**
  * Main class. Initializes everything.
@@ -190,18 +195,65 @@ export class KGlacerMacro {
   }
 
   protected async requestAccess() {
+    if (cachedAccessGranted === true) return true
+    const storageGranted =
+      localStorage.getItem(ACCESS_GRANTED_STORAGE_KEY) === 'true'
+    if (storageGranted) {
+      cachedAccessGranted = true
+      return true
+    }
+
     const expectedHash =
       '48583a634c2513c2' + 'd9d6ffa6107d70b1' + 'a5a46cfb515c910b120b1c5f550bcbc2'
+    const initialLocale = (
+      localStorage.getItem(ACCESS_MODAL_LOCALE_STORAGE_KEY) ??
+      getLocale()
+    ) as 'en' | 'es'
     const dialog = document.createElement('dialog')
+    dialog.style.cssText =
+      'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;padding:0;border:none;background:transparent;max-width:95vw;'
     dialog.innerHTML = `<form method="dialog" style="min-width:320px;padding:18px;border:none;border-radius:12px;background:#0f172a;color:#e2e8f0;font:14px/1.4 system-ui,Segoe UI,sans-serif;">
-      <h3 style="margin:0 0 10px 0;">KGM Access</h3>
-      <p style="margin:0 0 10px 0;opacity:.9;">Enter access key to enable controllers.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+        <h3 id="kgm-access-title" style="margin:0;">KGM Access</h3>
+        <select id="kgm-access-locale" style="padding:6px 8px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#f8fafc;">
+          <option value="en">EN</option>
+          <option value="es">ES</option>
+        </select>
+      </div>
+      <p id="kgm-access-desc" style="margin:0 0 10px 0;opacity:.9;">Enter access key to enable controllers.</p>
       <input id="kgm-access-input" type="password" autocomplete="off" spellcheck="false" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#f8fafc;" />
       <menu style="display:flex;justify-content:flex-end;margin:12px 0 0 0;padding:0;">
-        <button value="submit" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;">Continue</button>
+        <button id="kgm-access-submit" value="submit" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;">Continue</button>
       </menu>
     </form>`
     document.body.append(dialog)
+    const $locale = dialog.querySelector<HTMLSelectElement>('#kgm-access-locale')
+    const $title = dialog.querySelector<HTMLHeadingElement>('#kgm-access-title')
+    const $desc = dialog.querySelector<HTMLParagraphElement>('#kgm-access-desc')
+    const $input = dialog.querySelector<HTMLInputElement>('#kgm-access-input')
+    const $submit =
+      dialog.querySelector<HTMLButtonElement>('#kgm-access-submit')
+    const applyModalLocale = (locale: 'en' | 'es') => {
+      if ($locale) $locale.value = locale
+      if ($title) $title.textContent = locale === 'es' ? 'Acceso KGM' : 'KGM Access'
+      if ($desc)
+        $desc.textContent =
+          locale === 'es'
+            ? 'Ingresa la key de acceso para habilitar los controles.'
+            : 'Enter access key to enable controllers.'
+      if ($input)
+        $input.placeholder =
+          locale === 'es' ? 'Escribe tu key aquí' : 'Type your access key'
+      if ($submit) $submit.textContent = locale === 'es' ? 'Continuar' : 'Continue'
+      setLocale(locale)
+      localStorage.setItem(ACCESS_MODAL_LOCALE_STORAGE_KEY, locale)
+      applyTranslations(this.widget.element)
+    }
+    applyModalLocale(initialLocale)
+    $locale?.addEventListener('change', () => {
+      const locale = ($locale.value === 'es' ? 'es' : 'en') as 'en' | 'es'
+      applyModalLocale(locale)
+    })
     dialog.showModal()
     const result = await new Promise<boolean>((resolve) => {
       dialog.addEventListener(
@@ -221,6 +273,10 @@ export class KGlacerMacro {
         { once: true },
       )
     })
+    if (result) {
+      cachedAccessGranted = true
+      localStorage.setItem(ACCESS_GRANTED_STORAGE_KEY, 'true')
+    }
     return result
   }
 
