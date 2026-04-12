@@ -161,10 +161,10 @@ export class Widget extends Base {
           await promisifyEventSource(image, ['load'], ['error'])
           botImage = new BotImage(
             this.bot,
-            WorldPosition.fromScreenPosition(this.bot, {
-              x: 256,
-              y: 32,
-            }),
+            WorldPosition.fromScreenPosition(
+              this.bot,
+              this.defaultImageScreenPosition(),
+            ),
             new Pixels(this.bot, image),
           )
         }
@@ -182,6 +182,14 @@ export class Widget extends Base {
         this.setDisabled('add-image', false)
       },
     )
+  }
+
+  protected defaultImageScreenPosition() {
+    const widgetWidth = Math.round(this.element.getBoundingClientRect().width)
+    return {
+      x: Math.max(256, widgetWidth),
+      y: 32,
+    }
   }
 
   protected async compressImageBeforeLoad(dataUrl: string) {

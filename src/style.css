@@ -462,7 +462,7 @@
   padding-right: 2px;
 }
 
-.wform .colors .color-chip {
+.wimage .color-chip {
   display: grid;
   grid-template-columns: 18px 1fr auto auto;
   gap: 6px;
@@ -476,11 +476,11 @@
   font-size: 11px;
 }
 
-.wform .colors .color-chip.disabled {
+.wimage .color-chip.disabled {
   opacity: 0.65;
 }
 
-.wform .colors .color-chip .swatch {
+.wimage .color-chip .swatch {
   width: 14px;
   height: 14px;
   border: 1px solid rgb(255 255 255 / 15%);
@@ -488,17 +488,17 @@
   background: var(--swatch-color);
 }
 
-.wform .colors .color-chip .meta {
+.wimage .color-chip .meta {
   display: grid;
   gap: 2px;
   justify-items: start;
 }
 
-.wform .colors .color-chip .premium.on {
+.wimage .color-chip .premium.on {
   color: #ffd166;
 }
 
-.wform .colors .color-chip .buy-chip {
+.wimage .color-chip .buy-chip {
   padding: 3px 6px;
   border-radius: 6px;
   font-size: 10px;
