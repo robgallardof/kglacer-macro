@@ -4,15 +4,14 @@
   </svg>
 </button>
 <div class="title">
-  <span data-i18n="widgetTitle">KGlacerMacro</span>
+  <img
+    class="widget-logo"
+    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 48'%3E%3Crect width='180' height='48' rx='12' fill='%23141d33'/%3E%3Cg fill='none' stroke='%238ea2ff' stroke-width='2'%3E%3Cpath d='M24 14v20M24 24h11M36 24l8-10M36 24l8 10'/%3E%3Cpath d='M64 14v20M64 14h12M64 24h10M64 34h12'/%3E%3Cpath d='M90 14v20l9-7 9 7V14'/%3E%3C/g%3E%3Ctext x='116' y='30' fill='%23dfe7ff' font-family='Poppins,sans-serif' font-size='12' font-weight='700'%3EMACRO%3C/text%3E%3C/svg%3E"
+    alt="KGlacer Macro logo"
+  />
   <div class="widget-actions">
-    <button class="show-shortcuts" data-i18n="showShortcuts">Show shortcuts</button>
-    <button class="minimize" data-i18n="minimize">Minimize panel</button>
+    <button class="toggle-overlay" data-i18n="toggleOverlay">Hide/show overlays</button>
   </div>
-</div>
-<div class="minimized-bar hidden">
-  <span data-i18n="panelHidden">Panel hidden</span>
-  <button class="restore-panel" data-i18n="restorePanel">Restore</button>
 </div>
 <div class="wform">
   <label><span data-i18n="language">Language</span>:&nbsp;<select class="locale">
@@ -22,22 +21,17 @@
   <div class="wprogress"><div></div><span></span></div>
   <div class="wp wstatus"></div>
   <button class="draw" disabled data-i18n="draw">Draw</button>
+  <div class="shortcuts">
+    <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
+    <span data-i18n="shortcutsHelp"
+      >Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image</span
+    >
+  </div>
   <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
     <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
     <option value="ALL" data-i18n="all">All</option>
     <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
   </select></label>
-  <div class="shortcuts">
-    <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-    <span data-i18n="shortcutsHelp"
-      >Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</span
-    >
-  </div>
   <div class="images"></div>
   <button class="add-image" disabled data-i18n="addImage">Add image</button>
 </div>
-<dialog class="shortcuts-dialog">
-  <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-  <p data-i18n="shortcutsHelp">Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image</p>
-  <button class="close-shortcuts" data-i18n="close">Close</button>
-</dialog>

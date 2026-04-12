@@ -1,4 +1,5 @@
-const LOCALE_STORAGE_KEY = 'kglacermacro:locale'
+const LOCALE_STORAGE_KEY = 'kglacer-macro:locale'
+const LEGACY_LOCALE_STORAGE_KEYS = ['kglacermacro:locale']
 
 const MESSAGES = {
   en: {
@@ -13,6 +14,18 @@ const MESSAGES = {
     brightness: 'Brightness',
     random: 'Random',
     humanized: 'Humanized',
+    humanSoftDither: 'Human soft dither',
+    humanPatchy: 'Human patchy',
+    humanSweepArcs: 'Human sweep arcs',
+    humanMicroCorrections: 'Human micro corrections',
+    humanJitterFill: 'Human jitter fill',
+    humanCornerBias: 'Human corner bias',
+    humanLongStrokes: 'Human long strokes',
+    humanTapClusters: 'Human tap clusters',
+    humanMessySpiral: 'Human messy spiral',
+    humanDrunkWalk: 'Human drunk walk',
+    humanNoiseCloud: 'Human noise cloud',
+    humanPatchJump: 'Human patch jump',
     zigzag: 'Zigzag',
     brushStrokes: 'Brush strokes',
     diagonalBrush: 'Diagonal brush',
@@ -37,7 +50,7 @@ const MESSAGES = {
     drawColorsInOrder: 'Draw colors in order',
     keyboardShortcuts: 'Shortcuts',
     shortcutsHelp:
-      'Shift+B toggle widget · Shift+M hide/show panel · Shift+S show panel · Shift+H hide panel · Shift+Enter draw · Shift+I add image',
+      'Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image · Shift+/ focus shortcuts · Shift+N next image · Shift+P previous image · Shift+O color panel (active image) · Shift+L lock/unlock active image',
     language: 'Language',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
@@ -54,6 +67,13 @@ const MESSAGES = {
     openColorPanel: 'Open color panel',
     searchColors: 'Search by hex, English or Spanish',
     colorPanelResults: 'Color panel results',
+    colorPanelHelp:
+      'Turn colors on/off with a click. Drag blocks in the strip or cards in this panel to set which color paints first.',
+    colorPanelOrderHint: 'Color #1 is painted first.',
+    exportImage: 'Export image settings',
+    lockImage: 'Lock/unlock image',
+    deleteImage: 'Delete image',
+    toggleOverlay: 'Hide/show overlays',
   },
   es: {
     widgetTitle: 'KGlacerMacro',
@@ -67,6 +87,18 @@ const MESSAGES = {
     brightness: 'Brillo',
     random: 'Aleatorio',
     humanized: 'Humanizado',
+    humanSoftDither: 'Difuminado humano suave',
+    humanPatchy: 'Parches humanos',
+    humanSweepArcs: 'Barridos humanos en arco',
+    humanMicroCorrections: 'Micro correcciones humanas',
+    humanJitterFill: 'Relleno humano con jitter',
+    humanCornerBias: 'Sesgo humano por esquina',
+    humanLongStrokes: 'Trazos humanos largos',
+    humanTapClusters: 'Toques humanos por grupos',
+    humanMessySpiral: 'Espiral humana irregular',
+    humanDrunkWalk: 'Caminata humana errática',
+    humanNoiseCloud: 'Nube humana de ruido',
+    humanPatchJump: 'Saltos humanos por parches',
     zigzag: 'Zigzag',
     brushStrokes: 'Pinceladas',
     diagonalBrush: 'Pincel diagonal',
@@ -91,7 +123,7 @@ const MESSAGES = {
     drawColorsInOrder: 'Dibujar colores en orden',
     keyboardShortcuts: 'Atajos',
     shortcutsHelp:
-      'Shift+B mostrar widget · Shift+M ocultar/mostrar panel · Shift+S mostrar panel · Shift+H ocultar panel · Shift+Enter dibujar · Shift+I agregar imagen',
+      'Shift+B mostrar widget · Shift+V ocultar/mostrar overlays · Shift+Enter dibujar · Shift+I agregar imagen · Shift+/ enfocar atajos · Shift+N siguiente imagen · Shift+P imagen anterior · Shift+O panel de colores (imagen activa) · Shift+L bloquear/desbloquear imagen activa',
     language: 'Idioma',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',
@@ -108,6 +140,13 @@ const MESSAGES = {
     openColorPanel: 'Abrir panel de colores',
     searchColors: 'Buscar por hexa, inglés o español',
     colorPanelResults: 'Resultados del panel de color',
+    colorPanelHelp:
+      'Activa o desactiva colores con un clic. Arrastra bloques en la barra o tarjetas en este panel para definir qué color se pinta primero.',
+    colorPanelOrderHint: 'El color #1 se pinta primero.',
+    exportImage: 'Exportar configuración de imagen',
+    lockImage: 'Bloquear/desbloquear imagen',
+    deleteImage: 'Eliminar imagen',
+    toggleOverlay: 'Ocultar/mostrar overlays',
   },
 } as const
 
@@ -123,6 +162,14 @@ export function getLocale(): Locale {
     | null
     | undefined
   if (savedLocale && savedLocale in MESSAGES) return savedLocale
+  for (let index = 0; index < LEGACY_LOCALE_STORAGE_KEYS.length; index++) {
+    const legacyLocale = localStorage.getItem(
+      LEGACY_LOCALE_STORAGE_KEYS[index]!,
+    ) as Locale | null
+    if (!legacyLocale || !(legacyLocale in MESSAGES)) continue
+    localStorage.setItem(LOCALE_STORAGE_KEY, legacyLocale)
+    return legacyLocale
+  }
   return getNavigatorLocale()
 }
 
@@ -142,6 +189,20 @@ export function t(key: keyof (typeof MESSAGES)['en']) {
 export function applyTranslations(root: ParentNode) {
   for (const node of root.querySelectorAll<HTMLElement>('[data-i18n]')) {
     node.textContent = t(node.dataset.i18n as keyof (typeof MESSAGES)['en'])
+  }
+  for (const node of root.querySelectorAll<HTMLElement>('[data-i18n-title]')) {
+    node.setAttribute(
+      'title',
+      t(node.dataset.i18nTitle as keyof (typeof MESSAGES)['en']),
+    )
+  }
+  for (const node of root.querySelectorAll<HTMLElement>(
+    '[data-i18n-aria-label]',
+  )) {
+    node.setAttribute(
+      'aria-label',
+      t(node.dataset.i18nAriaLabel as keyof (typeof MESSAGES)['en']),
+    )
   }
   for (const node of root.querySelectorAll<HTMLElement>(
     '[data-i18n-placeholder]',

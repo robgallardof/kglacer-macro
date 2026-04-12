@@ -83,10 +83,6 @@ export class KGlacerMacro {
   /** Last color drawn */
   protected lastColor?: number
 
-  protected imageSyncFrames = 0
-
-  protected imageSyncRequested = false
-
   protected log(message: string, payload?: unknown) {
     if (payload === undefined) console.log(`${BOT_LOG_PREFIX} ${message}`)
     else console.log(`${BOT_LOG_PREFIX} ${message}`, payload)
@@ -151,32 +147,13 @@ export class KGlacerMacro {
             this.updateStars()
             break
           }
-        this.requestImageSync(2)
+        this.updateImages()
       }).observe($canvasContainer, {
         attributes: true,
         childList: true,
         subtree: true,
       })
-      globalThis.addEventListener(
-        'resize',
-        () => {
-          this.requestImageSync(6)
-        },
-        {
-          passive: true,
-        },
-      )
-      document.addEventListener(
-        'visibilitychange',
-        () => {
-          this.requestImageSync(6)
-        },
-        {
-          passive: true,
-        },
-      )
       this.updateStars()
-      this.attachRealtimeOverlaySync($canvasContainer)
       this.log('Stars updated after boot', { stars: this.$stars.length })
       await wait(500) // Sometimes wplace UI becomes bugged if interacted too early
       await this.updateColors()
@@ -625,35 +602,6 @@ export class KGlacerMacro {
     }
   }
 
-  protected attachRealtimeOverlaySync($canvasContainer: Element) {
-    const boostSync = () => {
-      this.requestImageSync(20)
-    }
-    const lightSync = () => {
-      this.requestImageSync(2)
-    }
-    $canvasContainer.addEventListener('wheel', boostSync, { passive: true })
-    $canvasContainer.addEventListener('mousemove', lightSync, { passive: true })
-    $canvasContainer.addEventListener('touchmove', boostSync, { passive: true })
-    globalThis.addEventListener('scroll', boostSync, { passive: true })
-  }
-
-  protected requestImageSync(frames: number) {
-    this.imageSyncFrames = Math.max(this.imageSyncFrames, frames)
-    if (this.imageSyncRequested) return
-    this.imageSyncRequested = true
-    const run = () => {
-      this.updateImages()
-      this.imageSyncFrames--
-      if (this.imageSyncFrames > 0) {
-        requestAnimationFrame(run)
-        return
-      }
-      this.imageSyncRequested = false
-    }
-    requestAnimationFrame(run)
-  }
-
   /** Update tasks of all images */
   protected updateTasks() {
     for (let index = 0; index < this.images.length; index++)
@@ -668,9 +616,11 @@ export class KGlacerMacro {
 }
 
 declare global {
+  var kglacerMacro: KGlacerMacro
   var kgm: KGlacerMacro
   var wbot: KGlacerMacro
 }
 
-globalThis.kgm = new KGlacerMacro()
-globalThis.wbot = globalThis.kgm
+globalThis.kglacerMacro = new KGlacerMacro()
+globalThis.kgm = globalThis.kglacerMacro
+globalThis.wbot = globalThis.kglacerMacro

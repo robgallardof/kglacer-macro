@@ -13,6 +13,8 @@ import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition } from './world-position'
 
+const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+
 export enum BotStrategy {
   ALL = 'ALL',
   PERCENTAGE = 'PERCENTAGE',
@@ -41,21 +43,18 @@ export class Widget extends Base {
 
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
-  protected readonly $minimize!: HTMLButtonElement
-  protected readonly $showShortcuts!: HTMLButtonElement
-  protected readonly $closeShortcuts!: HTMLButtonElement
-  protected readonly $shortcutsDialog!: HTMLDialogElement
+  protected readonly $shortcuts!: HTMLDivElement
   protected readonly $locale!: HTMLSelectElement
-  protected readonly $minimizedBar!: HTMLDivElement
-  protected readonly $restorePanel!: HTMLButtonElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
+  protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
   protected readonly $wopenButton!: HTMLButtonElement
+  protected activeImageIndex = -1
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -70,16 +69,12 @@ export class Widget extends Base {
       $wopenButton: '.wopen-button',
       $settings: '.wform',
       $status: '.wstatus',
-      $minimize: '.minimize',
-      $showShortcuts: '.show-shortcuts',
-      $closeShortcuts: '.close-shortcuts',
-      $shortcutsDialog: '.shortcuts-dialog',
+      $shortcuts: '.shortcuts',
       $locale: '.locale',
-      $minimizedBar: '.minimized-bar',
-      $restorePanel: '.restore-panel',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
+      $toggleOverlay: '.toggle-overlay',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
@@ -89,21 +84,12 @@ export class Widget extends Base {
 
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
-    this.$minimize.addEventListener('click', () => {
-      this.minimize()
-    })
-    this.$restorePanel.addEventListener('click', () => {
-      this.minimize(false)
-    })
-    this.$showShortcuts.addEventListener('click', () => {
-      this.$shortcutsDialog.showModal()
-    })
-    this.$closeShortcuts.addEventListener('click', () => {
-      this.$shortcutsDialog.close()
-    })
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
+    this.$toggleOverlay.addEventListener('click', () => {
+      this.toggleOverlay()
+    })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
@@ -112,13 +98,15 @@ export class Widget extends Base {
       setLocale(this.$locale.value as 'en' | 'es')
       applyTranslations(this.element)
       for (let index = 0; index < this.bot.images.length; index++)
-        this.bot.images[index]!.updateColors()
+        this.bot.images[index]!.applyLocale()
+      this.refreshOverlayToggleText()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
     })
 
     this.update()
+    this.syncOverlayVisibilityFromStorage()
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
   }
@@ -161,10 +149,10 @@ export class Widget extends Base {
           await promisifyEventSource(image, ['load'], ['error'])
           botImage = new BotImage(
             this.bot,
-            WorldPosition.fromScreenPosition(this.bot, {
-              x: 256,
-              y: 32,
-            }),
+            WorldPosition.fromScreenPosition(
+              this.bot,
+              this.defaultImageScreenPosition(),
+            ),
             new Pixels(this.bot, image),
           )
         }
@@ -182,6 +170,14 @@ export class Widget extends Base {
         this.setDisabled('add-image', false)
       },
     )
+  }
+
+  protected defaultImageScreenPosition() {
+    const widgetWidth = Math.round(this.element.getBoundingClientRect().width)
+    return {
+      x: Math.max(256, widgetWidth),
+      y: 32,
+    }
   }
 
   protected async compressImageBeforeLoad(dataUrl: string) {
@@ -204,9 +200,6 @@ export class Widget extends Base {
   /** Update widget position and contents */
   public update() {
     this.$strategy.value = this.bot.strategy
-    this.$minimize.textContent = this.$settings.classList.contains('hidden')
-      ? t('expandPanel')
-      : t('minimize')
     // Progress
     let maxTasks = 0
     let totalTasks = 0
@@ -228,13 +221,25 @@ export class Widget extends Base {
       const $image = document.createElement('div')
       fragment.append($image)
       $image.className = 'image'
-      $image.innerHTML = `<img src="${image.pixels.image.src}">
-  <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
-  <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>`
+      $image.innerHTML = `<button class="preview" title="Focus image">
+  <img src="${image.pixels.image.src}" alt="Image preview">
+</button>
+  <div class="image-controls">
+    <button class="settings" title="Color settings">⚙</button>
+    <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
+    <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>
+  </div>`
       $image
-        .querySelector<HTMLButtonElement>('img')!
+        .querySelector<HTMLButtonElement>('.preview')!
         .addEventListener('click', () => {
+          this.activeImageIndex = index
           image.position.scrollScreenTo()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.settings')!
+        .addEventListener('click', () => {
+          this.activeImageIndex = index
+          image.openColorPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!
@@ -252,6 +257,28 @@ export class Widget extends Base {
         })
     }
     this.$images.append(fragment)
+  }
+
+  protected syncOverlayVisibilityFromStorage() {
+    const hidden =
+      localStorage.getItem(OVERLAY_VISIBILITY_STORAGE_KEY) === 'true'
+    document.body.classList.toggle('overlay-hidden', hidden)
+    this.refreshOverlayToggleText()
+  }
+
+  protected toggleOverlay(force?: boolean) {
+    const next = force ?? !document.body.classList.contains('overlay-hidden')
+    document.body.classList.toggle('overlay-hidden', next)
+    localStorage.setItem(OVERLAY_VISIBILITY_STORAGE_KEY, String(next))
+    this.refreshOverlayToggleText()
+  }
+
+  protected refreshOverlayToggleText() {
+    this.$toggleOverlay.textContent = document.body.classList.contains(
+      'overlay-hidden',
+    )
+      ? `${t('toggleOverlay')} (${t('disabled')})`
+      : `${t('toggleOverlay')} (${t('enabled')})`
   }
 
   /** Disable/enable element by class name */
@@ -287,17 +314,6 @@ export class Widget extends Base {
     }
   }
 
-  /** Hides content */
-  protected minimize(force?: boolean) {
-    const next =
-      force === undefined
-        ? !this.$settings.classList.contains('hidden')
-        : !force
-    this.$settings.classList.toggle('hidden', next)
-    this.$minimizedBar.classList.toggle('hidden', !next)
-    this.$minimize.textContent = next ? t('expandPanel') : t('minimize')
-  }
-
   protected handleKeyboard(event: KeyboardEvent) {
     if (isEditableTarget(event.target)) return
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
@@ -305,19 +321,41 @@ export class Widget extends Base {
       this.open = !this.open
       return
     }
-    if (matchesShortcut(event, SHORTCUTS.minimizeWidget)) {
+    if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
       event.preventDefault()
-      this.minimize()
+      this.$shortcuts.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+      this.$shortcuts.classList.remove('shortcut-pulse')
+      requestAnimationFrame(() => {
+        this.$shortcuts.classList.add('shortcut-pulse')
+      })
       return
     }
-    if (matchesShortcut(event, SHORTCUTS.showWidgetPanel)) {
+    if (matchesShortcut(event, SHORTCUTS.toggleOverlay)) {
       event.preventDefault()
-      this.minimize(false)
+      this.toggleOverlay()
       return
     }
-    if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
+    if (matchesShortcut(event, SHORTCUTS.focusNextImage)) {
       event.preventDefault()
-      this.minimize(true)
+      this.focusImageByStep(1)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.focusPreviousImage)) {
+      event.preventDefault()
+      this.focusImageByStep(-1)
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openColorPanel)) {
+      event.preventDefault()
+      this.openColorPanelForActiveImage()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.toggleImageLock)) {
+      event.preventDefault()
+      this.toggleLockForActiveImage()
       return
     }
     if (
@@ -332,6 +370,44 @@ export class Widget extends Base {
       event.preventDefault()
       void this.bot.draw()
     }
+  }
+
+  protected focusImageByStep(step: 1 | -1) {
+    if (!this.bot.images.length) return
+    if (
+      this.activeImageIndex < 0 ||
+      this.activeImageIndex >= this.bot.images.length
+    )
+      this.activeImageIndex = step > 0 ? 0 : this.bot.images.length - 1
+    else
+      this.activeImageIndex =
+        (this.activeImageIndex + step + this.bot.images.length) %
+        this.bot.images.length
+    this.bot.images[this.activeImageIndex]!.position.scrollScreenTo()
+  }
+
+  protected getActiveImage() {
+    if (!this.bot.images.length) return
+    if (
+      this.activeImageIndex < 0 ||
+      this.activeImageIndex >= this.bot.images.length
+    )
+      this.activeImageIndex = 0
+    return this.bot.images[this.activeImageIndex]
+  }
+
+  protected openColorPanelForActiveImage() {
+    const image = this.getActiveImage()
+    if (!image) return
+    image.openColorPanel()
+  }
+
+  protected toggleLockForActiveImage() {
+    const image = this.getActiveImage()
+    if (!image) return
+    image.lock = !image.lock
+    image.update()
+    save(this.bot)
   }
 
   // protected async pumpkinHunt() {

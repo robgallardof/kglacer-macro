@@ -24,6 +24,18 @@ export type ImageColorSetting = {
 export enum ImageStrategy {
   RANDOM = 'RANDOM',
   HUMANIZED = 'HUMANIZED',
+  HUMAN_SOFT_DITHER = 'HUMAN_SOFT_DITHER',
+  HUMAN_PATCHY = 'HUMAN_PATCHY',
+  HUMAN_SWEEP_ARCS = 'HUMAN_SWEEP_ARCS',
+  HUMAN_MICRO_CORRECTIONS = 'HUMAN_MICRO_CORRECTIONS',
+  HUMAN_JITTER_FILL = 'HUMAN_JITTER_FILL',
+  HUMAN_CORNER_BIAS = 'HUMAN_CORNER_BIAS',
+  HUMAN_LONG_STROKES = 'HUMAN_LONG_STROKES',
+  HUMAN_TAP_CLUSTERS = 'HUMAN_TAP_CLUSTERS',
+  HUMAN_MESSY_SPIRAL = 'HUMAN_MESSY_SPIRAL',
+  HUMAN_DRUNK_WALK = 'HUMAN_DRUNK_WALK',
+  HUMAN_NOISE_CLOUD = 'HUMAN_NOISE_CLOUD',
+  HUMAN_PATCH_JUMP = 'HUMAN_PATCH_JUMP',
   ZIGZAG = 'ZIGZAG',
   BRUSH_STROKES = 'BRUSH_STROKES',
   DIAGONAL_BRUSH = 'DIAGONAL_BRUSH',
@@ -212,10 +224,13 @@ export class BotImage extends Base {
 
     this.registerEvent(this.$delete, 'click', this.destroy.bind(this))
     this.registerEvent(this.$openColors, 'click', () => {
-      this.$colorsDialog.showModal()
+      this.openColorPanel()
     })
     this.registerEvent(this.$closeColors, 'click', () => {
       this.$colorsDialog.close()
+    })
+    this.registerEvent(this.$colorsDialog, 'click', (event: MouseEvent) => {
+      if (event.target === this.$colorsDialog) this.$colorsDialog.close()
     })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
@@ -288,9 +303,11 @@ export class BotImage extends Base {
   /** Update image (NOT PIXELS) */
   public update() {
     const { x, y } = this.position.toScreenPosition()
-    this.element.style.transform = `translate(${x}px, ${y}px)`
-    this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`
-    this.element.style.height = `${this.position.pixelSize * this.pixels.height}px`
+    const width = Math.round(this.position.pixelSize * this.pixels.width)
+    const height = Math.round(this.position.pixelSize * this.pixels.height)
+    this.element.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
+    this.element.style.width = `${width}px`
+    this.element.style.height = `${height}px`
     this.$canvas.style.opacity = `${this.opacity}%`
     this.element.classList.remove('hidden')
 
@@ -316,6 +333,28 @@ export class BotImage extends Base {
     removeFromArray(this.bot.images, this)
     this.bot.widget.update()
     save(this.bot)
+  }
+
+  public openColorPanel() {
+    if (this.$colorsDialog.open) {
+      this.$colorSearch.focus()
+      return
+    }
+    const width = 560
+    const maxWidth = Math.min(width, window.innerWidth - 16)
+    const estimatedHeight = Math.min(680, window.innerHeight - 16)
+    const left = Math.max(8, (window.innerWidth - maxWidth) / 2)
+    const top = Math.max(8, (window.innerHeight - estimatedHeight) / 2)
+    this.$colorsDialog.style.margin = '0'
+    this.$colorsDialog.style.position = 'fixed'
+    this.$colorsDialog.style.left = `${Math.round(left)}px`
+    this.$colorsDialog.style.top = `${Math.round(top)}px`
+    this.$colorsDialog.show()
+  }
+
+  public applyLocale() {
+    applyTranslations(this.element)
+    this.updateColors()
   }
 
   protected colorHex(realColor: number) {
@@ -381,6 +420,7 @@ export class BotImage extends Base {
       const drawColor = this.colors[index]!
       const color = this.pixels.colors.get(drawColor.realColor)!
       let dragging = false
+      let draggingChip = false
       const isPremium = color.realColor !== color.color
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
@@ -396,7 +436,12 @@ export class BotImage extends Base {
         save(this.bot)
       }
       const $button = document.createElement('button')
+      $button.setAttribute(
+        'aria-label',
+        `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
+      )
       $button.title = `${width.toFixed(1)}%`
+      $button.innerHTML = `<span class="order-index">#${index + 1}</span>`
       if (drawColor.disabled) $button.classList.add('color-disabled')
       if (!isPremium) $button.style.background = colorToCSS(color.realColor)
       else {
@@ -428,7 +473,10 @@ export class BotImage extends Base {
 
       const $chip = document.createElement('button')
       $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
-      $chip.innerHTML = `<span class="swatch"></span>
+      $chip.draggable = true
+      $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
+<span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
+<span class="swatch"></span>
 <span class="meta">
   <span class="coverage">${width.toFixed(1)}% · ${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
@@ -438,7 +486,40 @@ export class BotImage extends Base {
         .querySelector<HTMLElement>('.swatch')!
         .style.setProperty('--swatch-color', colorToCSS(color.realColor))
       $chip.addEventListener('click', () => {
+        if (draggingChip) {
+          draggingChip = false
+          return
+        }
         toggleDisabled()
+      })
+      $chip.addEventListener('dragstart', (event) => {
+        draggingChip = true
+        $chip.classList.add('dragging')
+        event.dataTransfer?.setData('text/plain', String(index))
+        event.dataTransfer!.effectAllowed = 'move'
+      })
+      $chip.addEventListener('dragend', () => {
+        $chip.classList.remove('dragging')
+      })
+      $chip.addEventListener('dragover', (event) => {
+        event.preventDefault()
+        $chip.classList.add('drag-target')
+      })
+      $chip.addEventListener('dragleave', () => {
+        $chip.classList.remove('drag-target')
+      })
+      $chip.addEventListener('drop', (event) => {
+        event.preventDefault()
+        $chip.classList.remove('drag-target')
+        const source = Number.parseInt(
+          event.dataTransfer?.getData('text/plain') ?? '-1',
+          10,
+        )
+        if (source < 0 || source === index || source >= this.colors.length)
+          return
+        this.colors.splice(index, 0, ...this.colors.splice(source, 1))
+        save(this.bot)
+        this.updateColors()
       })
       if (isPremium) {
         const $buy = document.createElement('button')
@@ -571,6 +652,337 @@ export class BotImage extends Base {
         }
         break
       }
+      case ImageStrategy.HUMAN_SOFT_DITHER: {
+        const visited = new Set<string>()
+        for (let y = 0; y < height; y++) {
+          const jitter = Math.floor(Math.random() * 3) - 1
+          const odd = (y + jitter) % 2 === 0
+          if (odd)
+            for (let x = 0; x < width; x += 2) {
+              visited.add(`${x},${y}`)
+              yield { x, y }
+            }
+          else
+            for (let x = 1; x < width; x += 2) {
+              visited.add(`${x},${y}`)
+              yield { x, y }
+            }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_PATCHY: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const radius = 1 + Math.floor(Math.random() * 5)
+          for (let y = cy - radius; y <= cy + radius; y++)
+            for (let x = cx - radius; x <= cx + radius; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              if (Math.hypot(x - cx, y - cy) > radius + Math.random() * 1.2)
+                continue
+              const key = `${x},${y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield { x, y }
+            }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_SWEEP_ARCS: {
+        const visited = new Set<string>()
+        const cx = (width - 1) / 2
+        const cy = (height - 1) / 2
+        const radiusLimit = Math.hypot(cx, cy)
+        for (let pass = 0; pass < 4; pass++) {
+          const start = Math.random() * Math.PI * 2
+          for (let r = 0; r <= radiusLimit; r += 0.35) {
+            const sweep = Math.PI / 2 + Math.random() * (Math.PI / 1.5)
+            const steps = Math.max(10, Math.floor(r * 8))
+            for (let step = 0; step < steps; step++) {
+              const theta = start + (sweep * step) / steps + Math.sin(r) * 0.08
+              const x = Math.round(cx + Math.cos(theta) * r)
+              const y = Math.round(cy + Math.sin(theta) * r)
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              const key = `${x},${y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield { x, y }
+            }
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_MICRO_CORRECTIONS: {
+        const visited = new Set<string>()
+        for (let y = 0; y < height; y++) {
+          const direction = y % 2 === 0 ? 1 : -1
+          let x = direction > 0 ? 0 : width - 1
+          for (let step = 0; step < width; step++) {
+            const jitterX = x + (Math.random() > 0.82 ? direction : 0)
+            const jitterY = y + (Math.random() > 0.9 ? 1 : 0)
+            for (const point of [
+              { x, y },
+              { x: jitterX, y },
+              { x, y: jitterY },
+            ]) {
+              if (
+                point.x < 0 ||
+                point.x >= width ||
+                point.y < 0 ||
+                point.y >= height
+              )
+                continue
+              const key = `${point.x},${point.y}`
+              if (visited.has(key)) continue
+              visited.add(key)
+              yield point
+            }
+            x += direction
+          }
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_JITTER_FILL: {
+        const points: Position[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) points.push({ x, y })
+        points.sort((a, b) => {
+          const ay = a.y + (Math.random() - 0.5) * 1.8
+          const by = b.y + (Math.random() - 0.5) * 1.8
+          if (ay !== by) return ay - by
+          return (
+            a.x + (Math.random() - 0.5) * 2 - (b.x + (Math.random() - 0.5) * 2)
+          )
+        })
+        yield* points
+        break
+      }
+      case ImageStrategy.HUMAN_CORNER_BIAS: {
+        const corners: Position[] = [
+          { x: 0, y: 0 },
+          { x: width - 1, y: 0 },
+          { x: 0, y: height - 1 },
+          { x: width - 1, y: height - 1 },
+        ]
+        const corner = corners[Math.floor(Math.random() * corners.length)]!
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const distance = Math.hypot(x - corner.x, y - corner.y)
+            const score = distance + Math.random() * 3.5
+            points.push({ point: { x, y }, score })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_LONG_STROKES: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          let x = Math.floor(Math.random() * width)
+          let y = Math.floor(Math.random() * height)
+          const angle = Math.random() * Math.PI * 2
+          const dx = Math.sign(Math.cos(angle))
+          const dy = Math.sign(Math.sin(angle))
+          const length = 10 + Math.floor(Math.random() * 40)
+          for (let step = 0; step < length; step++) {
+            if (x < 0 || x >= width || y < 0 || y >= height) break
+            const key = `${x},${y}`
+            if (!visited.has(key)) {
+              visited.add(key)
+              yield { x, y }
+            }
+            if (Math.random() > 0.78) {
+              x += dy
+              y += dx
+            } else {
+              x += dx
+              y += dy
+            }
+          }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_TAP_CLUSTERS: {
+        const visited = new Set<string>()
+        const total = width * height
+        while (visited.size < total) {
+          const cx = Math.floor(Math.random() * width)
+          const cy = Math.floor(Math.random() * height)
+          const taps = 3 + Math.floor(Math.random() * 10)
+          for (let tap = 0; tap < taps; tap++) {
+            const x = Math.round(cx + (Math.random() - 0.5) * 6)
+            const y = Math.round(cy + (Math.random() - 0.5) * 6)
+            if (x < 0 || x >= width || y < 0 || y >= height) continue
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
+        }
+        break
+      }
+      case ImageStrategy.HUMAN_MESSY_SPIRAL: {
+        const visited = new Set<string>()
+        const cx = (width - 1) / 2
+        const cy = (height - 1) / 2
+        const maxRadius = Math.hypot(cx, cy) + 2
+        for (let step = 0; visited.size < width * height; step++) {
+          const t = step / 3
+          const radius = Math.min(maxRadius, t * 0.18)
+          const theta = t * 0.29 + Math.sin(t * 0.13) * 0.8
+          const x = Math.round(
+            cx + Math.cos(theta) * radius + Math.sin(t) * 0.7,
+          )
+          const y = Math.round(
+            cy + Math.sin(theta) * radius + Math.cos(t) * 0.7,
+          )
+          if (x < 0 || x >= width || y < 0 || y >= height) {
+            if (step > width * height * 18) break
+            continue
+          }
+          const key = `${x},${y}`
+          if (visited.has(key)) {
+            if (Math.random() > 0.9) continue
+          } else {
+            visited.add(key)
+            yield { x, y }
+          }
+          if (step > width * height * 18) break
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_DRUNK_WALK: {
+        const visited = new Set<string>()
+        let x = Math.floor(Math.random() * width)
+        let y = Math.floor(Math.random() * height)
+        const directions: Position[] = [
+          { x: -1, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: -1 },
+          { x: 0, y: 1 },
+          { x: -1, y: -1 },
+          { x: 1, y: -1 },
+          { x: -1, y: 1 },
+          { x: 1, y: 1 },
+        ]
+        while (visited.size < width * height) {
+          const key = `${x},${y}`
+          if (!visited.has(key)) {
+            visited.add(key)
+            yield { x, y }
+          }
+          const options: Position[] = []
+          for (const direction of directions) {
+            const nx = x + direction.x
+            const ny = y + direction.y
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+            options.push({ x: nx, y: ny })
+          }
+          if (!options.length) break
+          const unvisited = options.filter((point) => {
+            return !visited.has(`${point.x},${point.y}`)
+          })
+          if (unvisited.length && Math.random() > 0.2) {
+            const next =
+              unvisited[Math.floor(Math.random() * unvisited.length)]!
+            x = next.x
+            y = next.y
+            continue
+          }
+          const next = options[Math.floor(Math.random() * options.length)]!
+          x = next.x
+          y = next.y
+        }
+        for (let yy = 0; yy < height; yy++)
+          for (let xx = 0; xx < width; xx++) {
+            const key = `${xx},${yy}`
+            if (visited.has(key)) continue
+            yield { x: xx, y: yy }
+          }
+        break
+      }
+      case ImageStrategy.HUMAN_NOISE_CLOUD: {
+        const points: { point: Position; score: number }[] = []
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const wave =
+              Math.sin((x + 1) * 0.93 + Math.random() * 0.8) +
+              Math.cos((y + 1) * 1.17 + Math.random() * 0.8)
+            const jitter = (Math.random() - 0.5) * 2.6
+            const centerBias = Math.hypot(x - width / 2, y - height / 2) * 0.08
+            points.push({
+              point: { x, y },
+              score: wave + jitter + centerBias,
+            })
+          }
+        points.sort((a, b) => a.score - b.score)
+        for (const item of points) yield item.point
+        break
+      }
+      case ImageStrategy.HUMAN_PATCH_JUMP: {
+        const emitted = new Set<string>()
+        const centers: Position[] = []
+        for (let index = 0; index < Math.max(6, (width * height) / 18); index++)
+          centers.push({
+            x: Math.floor(Math.random() * width),
+            y: Math.floor(Math.random() * height),
+          })
+        while (emitted.size < width * height) {
+          const center = centers[Math.floor(Math.random() * centers.length)]!
+          const rx = 1 + Math.floor(Math.random() * 3)
+          const ry = 1 + Math.floor(Math.random() * 3)
+          for (let y = center.y - ry; y <= center.y + ry; y++)
+            for (let x = center.x - rx; x <= center.x + rx; x++) {
+              if (x < 0 || x >= width || y < 0 || y >= height) continue
+              if (Math.random() > 0.86) continue
+              const key = `${x},${y}`
+              if (emitted.has(key)) continue
+              emitted.add(key)
+              yield { x, y }
+            }
+          if (Math.random() > 0.72 && centers.length < (width * height) / 2)
+            centers.push({
+              x: Math.floor(Math.random() * width),
+              y: Math.floor(Math.random() * height),
+            })
+          if (emitted.size > width * height * 0.92) break
+        }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (emitted.has(key)) continue
+            yield { x, y }
+          }
+        break
+      }
       case ImageStrategy.DIAGONAL_BRUSH: {
         for (let diagonal = 0; diagonal < width + height - 1; diagonal++) {
           const reverse = diagonal % 2 === 0
@@ -690,7 +1102,11 @@ export class BotImage extends Base {
         const total = width * height
         let x = Math.floor(width / 2)
         let y = Math.floor(height / 2)
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 24;
+          attempts++
+        ) {
           const key = `${x},${y}`
           if (!visited.has(key)) {
             visited.add(key)
@@ -703,6 +1119,13 @@ export class BotImage extends Base {
             y = Math.floor(Math.random() * height)
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.CROSSHATCH: {
@@ -753,7 +1176,11 @@ export class BotImage extends Base {
       case ImageStrategy.SCATTERED_LINES: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 14;
+          attempts++
+        ) {
           let x = Math.floor(Math.random() * width)
           let y = Math.floor(Math.random() * height)
           const angle = Math.random() * Math.PI * 2
@@ -771,6 +1198,13 @@ export class BotImage extends Base {
             y += dy
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.CONTOUR_JITTER: {
@@ -835,7 +1269,11 @@ export class BotImage extends Base {
       case ImageStrategy.CLUSTER_BURSTS: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 12;
+          attempts++
+        ) {
           const cx = Math.floor(Math.random() * width)
           const cy = Math.floor(Math.random() * height)
           const radius = 2 + Math.floor(Math.random() * 10)
@@ -849,6 +1287,13 @@ export class BotImage extends Base {
               yield { x, y }
             }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.ORBITAL: {
@@ -883,7 +1328,11 @@ export class BotImage extends Base {
       case ImageStrategy.FLOW_FIELD: {
         const visited = new Set<string>()
         const total = width * height
-        while (visited.size < total) {
+        for (
+          let attempts = 0;
+          visited.size < total && attempts < total * 18;
+          attempts++
+        ) {
           let x = Math.floor(Math.random() * width)
           let y = Math.floor(Math.random() * height)
           for (let step = 0; step < 120; step++) {
@@ -901,6 +1350,13 @@ export class BotImage extends Base {
             y += Math.round(Math.sin(angle))
           }
         }
+        for (let y = 0; y < height; y++)
+          for (let x = 0; x < width; x++) {
+            const key = `${x},${y}`
+            if (visited.has(key)) continue
+            visited.add(key)
+            yield { x, y }
+          }
         break
       }
       case ImageStrategy.EDGE_IN: {
@@ -934,6 +1390,9 @@ export class BotImage extends Base {
   }
 
   protected moveStart(event: MouseEvent) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
     if (!this.lock)
       this.moveInfo = {
         globalX: this.position.globalX,
@@ -949,6 +1408,7 @@ export class BotImage extends Base {
       this.position.updateAnchor()
       this.pixels.update()
       this.updateColors()
+      save(this.bot)
     }
   }
 
@@ -979,6 +1439,9 @@ export class BotImage extends Base {
 
   /** Resize start */
   protected resizeStart(event: MouseEvent) {
+    if (this.lock || event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
     this.moveInfo = {
       clientX: event.clientX,
       clientY: event.clientY,

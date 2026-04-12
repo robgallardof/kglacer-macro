@@ -10,8 +10,14 @@ export const SHORTCUTS = {
   minimizeWidget: { key: 'm', shift: true } satisfies Shortcut,
   showWidgetPanel: { key: 's', shift: true } satisfies Shortcut,
   hideWidgetPanel: { key: 'h', shift: true } satisfies Shortcut,
+  toggleOverlay: { key: 'v', shift: true } satisfies Shortcut,
   draw: { key: 'enter', shift: true } satisfies Shortcut,
   addImage: { key: 'i', shift: true } satisfies Shortcut,
+  showShortcuts: { key: '/', shift: true } satisfies Shortcut,
+  focusNextImage: { key: 'n', shift: true } satisfies Shortcut,
+  focusPreviousImage: { key: 'p', shift: true } satisfies Shortcut,
+  openColorPanel: { key: 'o', shift: true } satisfies Shortcut,
+  toggleImageLock: { key: 'l', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
