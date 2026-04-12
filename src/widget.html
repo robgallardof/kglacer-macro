@@ -1,15 +1,24 @@
-<button class="wopen-button"><div>></div></button>
-<div class="title">WPlace-bot</div>
+<button class="wopen-button" aria-label="Toggle widget">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 7h16M4 12h16M4 17h16"/>
+  </svg>
+</button>
+<div class="title" data-i18n="widgetTitle">KG Lacer Macro</div>
 <div class="wform">
   <div class="wprogress"><div></div><span></span></div>
   <div class="wp wstatus"></div>
-  <button class="draw" disabled>Draw</button>
-  <label>Strategy:&nbsp;<select class="strategy">
-    <option value="SEQUENTIAL" selected>Sequential</option>
-    <option value="ALL">All</option>
-    <option value="PERCENTAGE">Percentage</option>
+  <button class="draw" disabled data-i18n="draw">Draw</button>
+  <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
+    <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
+    <option value="ALL" data-i18n="all">All</option>
+    <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
   </select></label>
+  <div class="shortcuts">
+    <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
+    <span data-i18n="shortcutsHelp"
+      >Shift+B toggle · Shift+Enter draw · Shift+I add image</span
+    >
+  </div>
   <div class="images"></div>
-  <!-- <button class="pumpkin-hunt" disabled>Pumpkin Hunt!</button> -->
-  <button class="add-image" disabled>Add image</button>
+  <button class="add-image" disabled data-i18n="addImage">Add image</button>
 </div>
