@@ -14,6 +14,8 @@ import html from './widget.html' with { type: 'text' }
 import { WorldPosition } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+const ACCESS_KEY_STORAGE = 'kglacer-macro:access-ok'
+const ACCESS_KEY_HASH = 'S0dNLXlZUjhTMW81bEhVemVjS1RFMEhxRVB4OVFkcjgxaEVz'
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 
@@ -58,11 +60,17 @@ export class Widget extends Base {
   protected readonly $wopenButton!: HTMLButtonElement
   protected readonly $widgetLogo!: HTMLImageElement
   protected activeImageIndex = -1
+  protected isUnlocked = false
+  protected unlockPromise: Promise<void>
+  protected resolveUnlock!: () => void
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
   public constructor(protected bot: KGlacerMacro) {
     super()
+    this.unlockPromise = new Promise((resolve) => {
+      this.resolveUnlock = resolve
+    })
     this.element.classList.add('wwidget')
     this.element.innerHTML = html as unknown as string
     applyTranslations(this.element)
@@ -112,8 +120,52 @@ export class Widget extends Base {
 
     this.update()
     this.syncOverlayVisibilityFromStorage()
-    this.open = true
+    this.initializeAccessGate()
     console.log('[KGM][Widget] Widget mounted and opened')
+  }
+
+  protected initializeAccessGate() {
+    if (sessionStorage.getItem(ACCESS_KEY_STORAGE) === 'true') {
+      this.isUnlocked = true
+      this.open = true
+      this.resolveUnlock()
+      return
+    }
+    this.element.style.display = 'none'
+    const $overlay = document.createElement('div')
+    $overlay.className = 'kgm-auth-overlay'
+    $overlay.innerHTML = `<div class="kgm-auth-modal">
+  <h2>KGM Access</h2>
+  <p>Ingresa tu clave para activar los controllers.</p>
+  <label>
+    Clave
+    <input class="kgm-auth-input" type="password" autocomplete="off" />
+  </label>
+  <button class="kgm-auth-submit" type="button">Activar</button>
+  <small class="kgm-auth-error"></small>
+</div>`
+    document.body.append($overlay)
+    const $input = $overlay.querySelector<HTMLInputElement>('.kgm-auth-input')!
+    const $submit =
+      $overlay.querySelector<HTMLButtonElement>('.kgm-auth-submit')!
+    const $error = $overlay.querySelector<HTMLElement>('.kgm-auth-error')!
+    const unlock = () => {
+      if (btoa($input.value.trim()) !== ACCESS_KEY_HASH) {
+        $error.textContent = 'Clave incorrecta'
+        return
+      }
+      sessionStorage.setItem(ACCESS_KEY_STORAGE, 'true')
+      this.isUnlocked = true
+      this.element.style.display = ''
+      this.open = true
+      $overlay.remove()
+      this.resolveUnlock()
+    }
+    $submit.addEventListener('click', unlock)
+    $input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') unlock()
+    })
+    $input.focus()
   }
 
   /** Add image handler */
@@ -230,7 +282,12 @@ export class Widget extends Base {
   <img src="${image.pixels.image.src}" alt="Image preview">
 </button>
   <div class="image-controls">
-    <button class="settings" title="Color settings">⚙</button>
+    <button class="settings" title="Image settings" aria-label="Image settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Z"/><path d="m19.4 13.5.2-1.5-1.7-.9a6.5 6.5 0 0 0-.4-1l1-1.7-1-1.1-1.8.7a6.8 6.8 0 0 0-.9-.5L13.5 4h-1.4l-.8 1.9a6.2 6.2 0 0 0-1 .4l-1.8-.8-1 1.1 1 1.7a7 7 0 0 0-.4 1L4.6 12l.2 1.5 1.9.8c.1.4.2.7.4 1L6 17l1 1.1 1.9-.7c.3.2.6.3.9.5l.8 1.9h1.4l.8-1.9c.4-.1.7-.2 1-.4l1.8.8 1-1.1-1-1.7c.2-.3.3-.6.4-1l1.8-.8Z"/></svg>
+    </button>
+    <button class="remove" title="Delete image" aria-label="Delete image">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2m-7 3v7m4-7v7m4-7v7M7 7l1 12h8l1-12"/></svg>
+    </button>
     <button class="up" title="Move up" ${index === 0 ? 'disabled' : ''}>▴</button>
     <button class="down" title="Move down" ${index === this.bot.images.length - 1 ? 'disabled' : ''}>▾</button>
   </div>`
@@ -244,7 +301,13 @@ export class Widget extends Base {
         .querySelector<HTMLButtonElement>('.settings')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
-          image.openColorPanel()
+          image.openSettingsPanel()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.remove')!
+        .addEventListener('click', () => {
+          if (this.activeImageIndex === index) this.activeImageIndex = -1
+          image.destroy()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!
@@ -299,6 +362,7 @@ export class Widget extends Base {
     fin?: () => unknown,
     prefix = '...',
   ): Promise<T> {
+    await this.unlockPromise
     console.log('[KGM][Widget] Task started', { status })
     const originalStatus = this.status
     this.status = `${prefix} ${status}`
@@ -320,6 +384,7 @@ export class Widget extends Base {
   }
 
   protected handleKeyboard(event: KeyboardEvent) {
+    if (!this.isUnlocked) return
     if (isEditableTarget(event.target)) return
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
       event.preventDefault()
