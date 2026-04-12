@@ -240,6 +240,8 @@
 }
 
 .wwidget .images .image .image-controls button {
+  display: grid;
+  place-items: center;
   width: 30px;
   height: 30px;
   border: 1px solid rgb(255 255 255 / 12%);
@@ -260,8 +262,22 @@
   transform: scale(1.06);
 }
 
+.wwidget .images .image .image-controls button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .wwidget .images .image .image-controls .settings {
-  color: #a9d6ff;
+  color: #9fd6ff;
+}
+
+.wwidget .images .image .image-controls .remove {
+  color: #ff8fa3;
 }
 
 .wwidget .shortcuts {
@@ -324,13 +340,15 @@
 }
 
 .wimage:hover .wrapper .wform,
-.wimage:hover .wtopbar {
+.wimage:hover .wtopbar,
+.wimage.settings-pinned .wrapper .wform,
+.wimage.settings-pinned .wtopbar {
   opacity: 1;
 }
 
 .wtopbar button svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
   fill: none;
   stroke: currentcolor;
   transition: transform 0.2s ease;
@@ -570,31 +588,44 @@
   gap: 6px;
 }
 
-.wimage .colors-dialog {
+.wimage .modal-widget {
   overflow: auto;
-  width: min(560px, 92vw);
+  width: min(600px, 92vw);
   min-width: min(320px, 92vw);
-  max-height: min(85dvh, 680px);
+  max-height: min(85dvh, 720px);
   margin: auto;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #0f1526;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #111a2d, #0d1423);
   color: var(--text);
-  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
+  box-shadow:
+    0 24px 54px rgb(2 6 23 / 62%),
+    0 0 0 1px rgb(109 123 255 / 20%);
+  overscroll-behavior: contain;
+}
+
+.wimage .modal-widget::backdrop {
+  background: rgb(0 0 0 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.wimage .colors-dialog {
   resize: both;
 }
 
-.wimage .colors-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
-}
-
-.wimage .colors-dialog-head {
+.wimage .colors-dialog-head,
+.wimage .preview-dialog-head {
   display: flex;
   gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.wimage .colors-dialog-head {
   cursor: move;
   user-select: none;
 }
@@ -614,40 +645,19 @@
 }
 
 .wimage .preview-dialog {
-  overflow: auto;
-  width: min(600px, 92vw);
   min-width: min(330px, 92vw);
-  max-height: min(84dvh, 680px);
-  margin: auto;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #0f1526;
-  color: var(--text);
-  box-shadow: 0 22px 40px rgb(2 6 23 / 55%);
-}
-
-.wimage .preview-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
-}
-
-.wimage .preview-dialog-head {
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
 }
 
 .wimage .preview-dialog-help {
   margin: 0 0 10px;
   color: #b4bfdc;
   font-size: 12px;
+  line-height: 1.4;
 }
 
 .wimage .preview-dialog-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
   gap: 10px;
   overflow: auto;
   max-height: min(68dvh, 560px);
@@ -661,6 +671,20 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #131c30;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.wimage .preview-card:hover {
+  border-color: rgb(109 123 255 / 55%);
+  transform: translateY(-1px);
+}
+
+.wimage .preview-card.active {
+  border-color: rgb(122 168 255 / 85%);
+  box-shadow: 0 0 0 1px rgb(122 168 255 / 40%);
 }
 
 .wimage .preview-card strong {
@@ -766,6 +790,8 @@
 }
 
 .wtopbar button {
+  display: grid;
+  place-items: center;
   min-height: 36px;
   border: 1px solid var(--border);
   background: #182035;
@@ -787,6 +813,10 @@
 
 .wtopbar button.delete {
   color: #ff8fa3;
+}
+
+.wtopbar button.export {
+  color: #92f1ff;
 }
 
 .wtopbar button.open-colors {
