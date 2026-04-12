@@ -1,8 +1,8 @@
-import { WPlaceBot } from './bot'
+import { KGlacerMacro } from './bot'
 
 export class KGlacerMacroError extends Error {
   public name = 'KGlacerMacroError'
-  public constructor(message: string, bot: WPlaceBot) {
+  public constructor(message: string, bot: KGlacerMacro) {
     super(message)
     bot.widget.status = message
   }
@@ -10,14 +10,14 @@ export class KGlacerMacroError extends Error {
 
 export class NotInitializedError extends KGlacerMacroError {
   public name = 'NotInitializedError'
-  public constructor(bot: WPlaceBot) {
+  public constructor(bot: KGlacerMacro) {
     super('❌ Not initialized', bot)
   }
 }
 
 export class NoImageError extends KGlacerMacroError {
   public name = 'NoImageError'
-  public constructor(bot: WPlaceBot) {
+  public constructor(bot: KGlacerMacro) {
     super('❌ No image is selected', bot)
   }
 }

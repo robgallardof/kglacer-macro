@@ -1,6 +1,6 @@
 import { promisifyEventSource } from '@softsky/utils'
 
-import { WPlaceBot } from './bot'
+import { KGlacerMacro } from './bot'
 import { COLORS, COLORS_RGB, deltaE2000, rgbToOklab } from './colors'
 
 export type PixelColorStat = {
@@ -11,7 +11,7 @@ export type PixelColorStat = {
 
 export class Pixels {
   public static async fromJSON(
-    bot: WPlaceBot,
+    bot: KGlacerMacro,
     data: ReturnType<Pixels['toJSON']>,
   ) {
     const image = new Image()
@@ -44,7 +44,7 @@ export class Pixels {
   }
 
   public constructor(
-    public bot: WPlaceBot,
+    public bot: KGlacerMacro,
     /** Image element */
     public image: HTMLImageElement,
     /** Change scale of image pixels */

@@ -5,17 +5,17 @@
 @import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap';
 
 :root {
-  --hover: #f3f5ff;
+  --hover: #1f2433;
   --text-invert: #fff;
-  --error: #e63946;
+  --error: #ff5c7c;
   --resize: 8px;
-  --text: #101828;
-  --background: #fff;
-  --background-hover: #eef2ff;
-  --background-disabled: #d0d5dd;
-  --main: #4f46e5;
-  --main-hover: #4338ca;
-  --border: #d0d5dd;
+  --text: #ecf2ff;
+  --background: #0f111a;
+  --background-hover: #20263a;
+  --background-disabled: #2f3448;
+  --main: #6d7bff;
+  --main-hover: #7f8bff;
+  --border: #2a3044;
 }
 
 .text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
@@ -35,7 +35,7 @@
   width: min(340px, 92vw);
   height: 100dvh;
   border-right: var(--border) 1px solid;
-  background: linear-gradient(180deg, #fff, #f8faff);
+  background: linear-gradient(180deg, #101526, #0b0e18);
   color: var(--text);
   font-family: Poppins, sans-serif;
   transition: transform 0.3s ease;
@@ -43,13 +43,40 @@
 }
 
 .wwidget .title {
-  padding: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 14px 12px;
   border-bottom: var(--border) 1px solid;
-  background-color: var(--main);
+  background-color: #0f1424;
   color: var(--text-invert);
   font-weight: 700;
-  font-size: 20px;
-  text-align: center;
+  font-size: 18px;
+  text-align: left;
+}
+
+.wwidget .widget-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.wwidget .widget-actions button {
+  padding: 6px 8px;
+  border: var(--border) 1px solid;
+  border-radius: 8px;
+  background: #1a2032;
+  color: var(--text);
+  font-size: 11px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.wwidget .widget-actions button:hover {
+  background: #24304d;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 30%);
+  transform: translateY(-1px);
 }
 
 .wwidget.wopen .wopen-button svg {
@@ -80,11 +107,22 @@
   width: 42px;
   height: 42px;
   border: var(--border) 1px solid;
+  border-color: #3b4360;
   border-radius: 999px;
-  background-color: var(--background);
-  color: var(--text);
-  box-shadow: 0 8px 20px rgb(15 23 42 / 25%);
+  background-color: #171d2d;
+  color: #e7ecff;
+  box-shadow: 0 8px 24px rgb(2 6 23 / 55%);
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.wwidget .wopen-button:hover {
+  background-color: #202943;
+  box-shadow: 0 10px 26px rgb(2 6 23 / 65%);
+  transform: scale(1.05);
 }
 
 .wwidget .images {
@@ -116,6 +154,18 @@
   font-size: 16px;
 }
 
+.wwidget .shortcuts-dialog {
+  width: min(380px, 90vw);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #11182a;
+  color: var(--text);
+}
+
+.wwidget .shortcuts-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
 .wwidget .shortcuts {
   display: grid;
   gap: 2px;
@@ -133,9 +183,19 @@
 
 .wimage canvas {
   width: 100%;
+  height: 100%;
   box-shadow: inset var(--text) 0 0 0 1px;
   cursor: all-scroll;
   image-rendering: pixelated;
+}
+
+.wimage .wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed rgb(109 123 255 / 75%);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgb(9 12 20 / 65%);
 }
 
 .wimage .wform {
@@ -145,8 +205,9 @@
   min-width: 240px;
   border: var(--border) 1px solid;
   border-radius: 10px;
-  background-color: var(--background);
+  background-color: #151c2d;
   color: var(--text);
+  box-shadow: 0 18px 36px rgb(2 6 23 / 45%);
 }
 
 .wimage:hover .wrapper .wform {
@@ -158,6 +219,7 @@
   height: 16px;
   fill: none;
   stroke: currentcolor;
+  transition: transform 0.2s ease;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -192,7 +254,8 @@
   padding: 8px;
   border: var(--border) 1px solid;
   border-radius: 10px;
-  background: #fff;
+  background: #171e30;
+  color: var(--text);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -248,14 +311,24 @@
 
 .wform .wprogress span {
   z-index: 1;
-  mix-blend-mode: multiply;
+  mix-blend-mode: screen;
 }
 
 .wform .colors {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+.wform .colors .colors-track {
   position: relative;
+  overflow: hidden;
   width: 100%;
   height: 32px;
-  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   background: repeating-linear-gradient(
     25deg,
     var(--background),
@@ -266,7 +339,7 @@
   cursor: ew-resize;
 }
 
-.wform .colors > button {
+.wform .colors .colors-track > button {
   position: absolute;
   top: 0;
   left: 0;
@@ -280,11 +353,11 @@
     0.2s filter;
 }
 
-.wform .colors > button:hover {
+.wform .colors .colors-track > button:hover {
   filter: brightness(0.8);
 }
 
-.wform .colors > button.color-disabled::before {
+.wform .colors .colors-track > button.color-disabled::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -293,7 +366,7 @@
   pointer-events: none;
 }
 
-.wform .colors > button.substitution button {
+.wform .colors .colors-track > button.substitution button {
   position: absolute;
   top: 0;
   left: 0;
@@ -304,13 +377,61 @@
   font-size: 10px;
 }
 
-.wform .colors > button.substitution button.buy {
+.wform .colors .colors-track > button.substitution button.buy {
   top: 2px;
   height: calc(50% - 2px);
 }
 
-.wform .colors > button.substitution button.disable {
+.wform .colors .colors-track > button.substitution button.disable {
   top: 50%;
+}
+
+.wform .colors .colors-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.wform .colors .color-chip {
+  display: grid;
+  grid-template-columns: 18px 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #161d2f;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.wform .colors .color-chip.disabled {
+  opacity: 0.65;
+}
+
+.wform .colors .color-chip .swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 4px;
+  background: var(--swatch-color);
+}
+
+.wform .colors .color-chip .meta {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.wform .colors .color-chip .premium.on {
+  color: #ffd166;
+}
+
+.wform .colors .color-chip .buy-chip {
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 10px;
 }
 
 .wtopbar {
@@ -318,6 +439,33 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 4px;
+}
+
+.wtopbar button {
+  border: 1px solid var(--border);
+  background: #182035;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.wtopbar button:hover {
+  background: #273150;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 30%);
+  transform: translateY(-1px);
+}
+
+.wtopbar button:hover svg {
+  transform: scale(1.08);
+}
+
+.wtopbar button.delete {
+  color: #ff8fa3;
+}
+
+.wtopbar button.lock.locked {
+  color: #ffd166;
 }
 
 .resize {

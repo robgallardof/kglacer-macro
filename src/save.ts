@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { WPlaceBot } from './bot'
+import { KGlacerMacro } from './bot'
 import { LEGACY_STORAGE_KEYS, STORAGE_KEY } from './version'
 
 function readStoredJSON() {
@@ -18,7 +18,7 @@ export function loadSave() {
   const item = readStoredJSON()
   if (!item) return undefined
 
-  let save: ReturnType<WPlaceBot['toJSON']> | undefined
+  let save: ReturnType<KGlacerMacro['toJSON']> | undefined
   try {
     save = JSON.parse(item.json)
     if (typeof save !== 'object') throw new Error('NOT VALID SAVE')
@@ -37,7 +37,7 @@ export function loadSave() {
 }
 
 let saveTimeout: ReturnType<typeof setTimeout> | undefined
-export function save(bot: WPlaceBot, immediate = false) {
+export function save(bot: KGlacerMacro, immediate = false) {
   clearTimeout(saveTimeout)
   if (immediate) localStorage.setItem(STORAGE_KEY, JSON.stringify(bot))
   else

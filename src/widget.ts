@@ -1,9 +1,9 @@
 import { promisifyEventSource, swap } from '@softsky/utils'
 
 import { Base } from './base'
-import { WPlaceBot } from './bot'
+import { KGlacerMacro } from './bot'
 import { KGlacerMacroError, NoImageError } from './errors'
-import { applyTranslations } from './i18n'
+import { applyTranslations, getLocale, setLocale } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
 import { save } from './save'
@@ -42,6 +42,11 @@ export class Widget extends Base {
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
   protected readonly $minimize!: HTMLButtonElement
+  protected readonly $showShortcuts!: HTMLButtonElement
+  protected readonly $closeShortcuts!: HTMLButtonElement
+  protected readonly $shortcutsDialog!: HTMLDialogElement
+  protected readonly $locale!: HTMLSelectElement
+  protected readonly $minimizedHelp!: HTMLDivElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
@@ -53,7 +58,7 @@ export class Widget extends Base {
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
-  public constructor(protected bot: WPlaceBot) {
+  public constructor(protected bot: KGlacerMacro) {
     super()
     this.element.classList.add('wwidget')
     this.element.innerHTML = html as unknown as string
@@ -65,6 +70,11 @@ export class Widget extends Base {
       $settings: '.wform',
       $status: '.wstatus',
       $minimize: '.minimize',
+      $showShortcuts: '.show-shortcuts',
+      $closeShortcuts: '.close-shortcuts',
+      $shortcutsDialog: '.shortcuts-dialog',
+      $locale: '.locale',
+      $minimizedHelp: '.minimized-help',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
@@ -77,11 +87,27 @@ export class Widget extends Base {
 
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
+    this.$minimize.addEventListener('click', () => {
+      this.minimize()
+    })
+    this.$showShortcuts.addEventListener('click', () => {
+      this.$shortcutsDialog.showModal()
+    })
+    this.$closeShortcuts.addEventListener('click', () => {
+      this.$shortcutsDialog.close()
+    })
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
+    })
+    this.$locale.value = getLocale()
+    this.$locale.addEventListener('change', () => {
+      setLocale(this.$locale.value as 'en' | 'es')
+      applyTranslations(this.element)
+      for (let index = 0; index < this.bot.images.length; index++)
+        this.bot.images[index]!.updateColors()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
@@ -235,7 +261,8 @@ export class Widget extends Base {
 
   /** Hides content */
   protected minimize() {
-    this.$settings.classList.toggle('hidden')
+    const minimized = this.$settings.classList.toggle('hidden')
+    this.$minimizedHelp.classList[minimized ? 'remove' : 'add']('hidden')
   }
 
   protected handleKeyboard(event: KeyboardEvent) {

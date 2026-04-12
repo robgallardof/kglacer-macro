@@ -1,4 +1,4 @@
-import { Me, WPlaceBot } from './bot'
+import { Me, KGlacerMacro } from './bot'
 
 export type Position = {
   x: number
@@ -64,13 +64,13 @@ export function extractScreenPositionFromStar($star: HTMLDivElement) {
 
 export class WorldPosition {
   public static fromJSON(
-    bot: WPlaceBot,
+    bot: KGlacerMacro,
     data: ReturnType<WorldPosition['toJSON']>,
   ) {
     return new WorldPosition(bot, ...data)
   }
 
-  public static fromScreenPosition(bot: WPlaceBot, position: Position) {
+  public static fromScreenPosition(bot: KGlacerMacro, position: Position) {
     const { anchorScreenPosition, pixelSize, anchorWorldPosition } =
       bot.findAnchorsForScreen(position)
     return new WorldPosition(
@@ -133,7 +133,7 @@ export class WorldPosition {
   }
 
   public constructor(
-    protected bot: WPlaceBot,
+    protected bot: KGlacerMacro,
     tileorGlobalX: number,
     tileorGlobalY: number,
     x?: number,
