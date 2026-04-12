@@ -77,6 +77,8 @@ export class BotImage extends Base {
     clientX: number
     clientY: number
   }
+  protected pendingMoveClient?: { x: number; y: number }
+  protected moveFrameScheduled = false
 
   protected readonly $brightness!: HTMLInputElement
   protected readonly $canvas!: HTMLCanvasElement
@@ -288,9 +290,11 @@ export class BotImage extends Base {
   /** Update image (NOT PIXELS) */
   public update() {
     const { x, y } = this.position.toScreenPosition()
-    this.element.style.transform = `translate(${x}px, ${y}px)`
-    this.element.style.width = `${this.position.pixelSize * this.pixels.width}px`
-    this.element.style.height = `${this.position.pixelSize * this.pixels.height}px`
+    const width = Math.round(this.position.pixelSize * this.pixels.width)
+    const height = Math.round(this.position.pixelSize * this.pixels.height)
+    this.element.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
+    this.element.style.width = `${width}px`
+    this.element.style.height = `${height}px`
     this.$canvas.style.opacity = `${this.opacity}%`
     this.element.classList.remove('hidden')
 
@@ -934,6 +938,9 @@ export class BotImage extends Base {
   }
 
   protected moveStart(event: MouseEvent) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
     if (!this.lock)
       this.moveInfo = {
         globalX: this.position.globalX,
@@ -946,39 +953,53 @@ export class BotImage extends Base {
   protected moveStop() {
     if (this.moveInfo) {
       this.moveInfo = undefined
+      this.pendingMoveClient = undefined
+      this.moveFrameScheduled = false
       this.position.updateAnchor()
       this.pixels.update()
       this.updateColors()
+      save(this.bot)
     }
   }
 
   /** Resize/move image */
   protected move(event: MouseEvent) {
     if (!this.moveInfo) return
-    const deltaX = Math.round(
-      (event.clientX - this.moveInfo.clientX) / this.position.pixelSize,
-    )
-    const deltaY = Math.round(
-      (event.clientY - this.moveInfo.clientY) / this.position.pixelSize,
-    )
-    if (this.moveInfo.globalX !== undefined) {
-      this.position.globalX = deltaX + this.moveInfo.globalX
-      if (this.moveInfo.width !== undefined)
-        this.pixels.width = Math.max(1, this.moveInfo.width - deltaX)
-    } else if (this.moveInfo.width !== undefined)
-      this.pixels.width = Math.max(1, deltaX + this.moveInfo.width)
-    if (this.moveInfo.globalY !== undefined) {
-      this.position.globalY = deltaY + this.moveInfo.globalY
-      if (this.moveInfo.height !== undefined)
-        this.pixels.height = Math.max(1, this.moveInfo.height - deltaY)
-    } else if (this.moveInfo.height !== undefined)
-      this.pixels.height = Math.max(1, deltaY + this.moveInfo.height)
-    this.update()
-    save(this.bot)
+    this.pendingMoveClient = { x: event.clientX, y: event.clientY }
+    if (this.moveFrameScheduled) return
+    this.moveFrameScheduled = true
+    requestAnimationFrame(() => {
+      this.moveFrameScheduled = false
+      if (!this.moveInfo || !this.pendingMoveClient) return
+      const deltaX = Math.round(
+        (this.pendingMoveClient.x - this.moveInfo.clientX) /
+          this.position.pixelSize,
+      )
+      const deltaY = Math.round(
+        (this.pendingMoveClient.y - this.moveInfo.clientY) /
+          this.position.pixelSize,
+      )
+      if (this.moveInfo.globalX !== undefined) {
+        this.position.globalX = deltaX + this.moveInfo.globalX
+        if (this.moveInfo.width !== undefined)
+          this.pixels.width = Math.max(1, this.moveInfo.width - deltaX)
+      } else if (this.moveInfo.width !== undefined)
+        this.pixels.width = Math.max(1, deltaX + this.moveInfo.width)
+      if (this.moveInfo.globalY !== undefined) {
+        this.position.globalY = deltaY + this.moveInfo.globalY
+        if (this.moveInfo.height !== undefined)
+          this.pixels.height = Math.max(1, this.moveInfo.height - deltaY)
+      } else if (this.moveInfo.height !== undefined)
+        this.pixels.height = Math.max(1, deltaY + this.moveInfo.height)
+      this.update()
+    })
   }
 
   /** Resize start */
   protected resizeStart(event: MouseEvent) {
+    if (this.lock || event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
     this.moveInfo = {
       clientX: event.clientX,
       clientY: event.clientY,
