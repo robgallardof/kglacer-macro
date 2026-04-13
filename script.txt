@@ -2,7 +2,7 @@
 // @name         kglacer-macro
 // @namespace    https://github.com/robgallardof
 // @version      __APP_VERSION__
-// @description  Macro para automatizar pintado en https://wplace.live
+// @description  Paint automation macro for https://wplace.live / Macro para automatizar pintado en https://wplace.live
 // @author       robergallardof + contributors
 // @license      MPL-2.0
 // @homepageURL  https://github.com/robgallardof/kglacer-macro

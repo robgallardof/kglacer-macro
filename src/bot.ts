@@ -149,7 +149,7 @@ class KGlacerMacro {
       await this.ensureAccessKey()
       document.body.classList.remove(ACCESS_LOCKED_CLASS)
       this._widget = new Widget(this)
-      await this.widget.run('Initializing', async () => {
+      await this.widget.run(t('taskInitializing'), async () => {
         // Waiting for all of website to load
         await this.waitForElement('login', '.avatar.center-absolute.absolute')
         await this.waitForElement(
@@ -272,9 +272,9 @@ class KGlacerMacro {
       if (!event.shiftKey) event.stopPropagation()
     }
     return this.widget.run(
-      'Drawing',
+      t('taskDrawing'),
       async () => {
-        await this.widget.run('Initializing draw', () =>
+        await this.widget.run(t('taskInitializingDraw'), () =>
           Promise.all([this.updateColors(), this.readMap()]),
         )
         // Stop mouse messing with drawing by capturing event
@@ -435,7 +435,9 @@ class KGlacerMacro {
     }
     let done = 0
     this.log('Reading map tiles', { tileCount: imagesToDownload.size })
-    return this.widget.run(`Reading map [0/${imagesToDownload.size}]`, () =>
+    return this.widget.run(
+      `${t('taskReadingMap')} [0/${imagesToDownload.size}]`,
+      () =>
       Promise.all(
         [...imagesToDownload].map(async (x) => {
           this.mapsCache.set(
@@ -445,7 +447,7 @@ class KGlacerMacro {
               exactColor: true,
             }),
           )
-          this.widget.status = `⌛ Reading map [${++done}/${imagesToDownload.size}]`
+          this.widget.status = `⌛ ${t('taskReadingMap')} [${++done}/${imagesToDownload.size}]`
         }),
       ),
     )
@@ -657,7 +659,7 @@ class KGlacerMacro {
     selector: string,
   ): Promise<T> {
     this.log('Waiting for element', { name, selector })
-    return this.widget.run(`Waiting for ${name}`, () => {
+    return this.widget.run(`${t('taskWaitingFor')} ${name}`, () => {
       return new Promise<T>((resolve) => {
         // If element already exists, resolve immediately
         const existing = document.querySelector<T>(selector)

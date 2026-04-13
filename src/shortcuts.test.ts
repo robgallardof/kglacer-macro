@@ -113,4 +113,17 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.toggleOverlay)).toBe(true)
   })
+
+  test('matches shift+r click paint when ready shortcut', () => {
+    const keyboardEvent = {
+      key: 'R',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.clickPaintWhenReady)).toBe(
+      true,
+    )
+  })
 })
