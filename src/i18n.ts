@@ -92,7 +92,8 @@ const MESSAGES = {
     previewStrategy: 'Preview',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
-      'Animated visual reference of the currently selected paint mode using the KGlacer logo.',
+      'Animated visual reference of the currently selected paint mode using your current image.',
+    captureTemplate: 'Capture template',
     exportImage: 'Export image settings',
     lockImage: 'Lock/unlock image',
     deleteImage: 'Delete image',
@@ -196,7 +197,8 @@ const MESSAGES = {
     previewStrategy: 'Vista',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:
-      'Referencia visual animada del modo de pintado seleccionado usando el logo de KGlacer.',
+      'Referencia visual animada del modo de pintado seleccionado usando tu imagen actual.',
+    captureTemplate: 'Capturar template',
     exportImage: 'Exportar configuración de imagen',
     lockImage: 'Bloquear/desbloquear imagen',
     deleteImage: 'Eliminar imagen',
