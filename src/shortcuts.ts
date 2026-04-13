@@ -19,6 +19,7 @@ export const SHORTCUTS = {
   focusPreviousImage: { key: 'p', shift: true } satisfies Shortcut,
   openColorPanel: { key: 'o', shift: true } satisfies Shortcut,
   toggleImageLock: { key: 'l', shift: true } satisfies Shortcut,
+  clickPaintWhenReady: { key: 'r', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {

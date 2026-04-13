@@ -110,6 +110,7 @@ export class BotImage extends Base {
   protected readonly $closeColors!: HTMLButtonElement
   protected readonly $closePreview!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
+  protected readonly $dithering!: HTMLInputElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
   protected readonly $export!: HTMLDivElement
@@ -175,6 +176,7 @@ export class BotImage extends Base {
       $closeColors: '.close-colors',
       $closePreview: '.close-preview',
       $delete: '.delete',
+      $dithering: '.dithering',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
       $export: '.export',
@@ -215,15 +217,16 @@ export class BotImage extends Base {
     // Brightness
     let timeout: ReturnType<typeof setTimeout> | undefined
 
-    this.registerEvent(this.$brightness, 'change', () => {
+    this.registerEvent(this.$brightness, 'input', () => {
       clearTimeout(timeout)
       timeout = setTimeout(() => {
-        this.pixels.brightness = this.$brightness.valueAsNumber
-        this.pixels.update()
-        this.updateColors()
-        this.update()
-        save(this.bot)
-      }, 1000)
+        this.refreshImageAdjustments()
+      }, 150)
+    })
+
+    this.registerEvent(this.$dithering, 'change', () => {
+      this.pixels.dithering = this.$dithering.checked
+      this.refreshImageAdjustments()
     })
 
     // Reset
@@ -335,6 +338,14 @@ export class BotImage extends Base {
     }
   }
 
+  protected refreshImageAdjustments() {
+    this.pixels.brightness = this.$brightness.valueAsNumber
+    this.pixels.update()
+    this.updateColors()
+    this.update()
+    save(this.bot)
+  }
+
   /** Calculates everything we need to do. Very expensive task! */
   public updateTasks() {
     this.tasks.length = 0
@@ -371,9 +382,9 @@ export class BotImage extends Base {
   /** Update image (NOT PIXELS) */
   public update() {
     const { x, y } = this.position.toScreenPosition()
-    const width = Math.round(this.position.pixelSize * this.pixels.width)
-    const height = Math.round(this.position.pixelSize * this.pixels.height)
-    this.element.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`
+    const width = this.position.pixelSize * this.pixels.width
+    const height = this.position.pixelSize * this.pixels.height
+    this.element.style.transform = `translate3d(${x.toFixed(3)}px, ${y.toFixed(3)}px, 0)`
     this.element.style.width = `${width}px`
     this.element.style.height = `${height}px`
     this.$canvas.style.opacity = `${this.opacity}%`
@@ -381,6 +392,7 @@ export class BotImage extends Base {
 
     this.$resetSizeSpan.textContent = this.pixels.width.toString()
     this.$brightness.valueAsNumber = this.pixels.brightness
+    this.$dithering.checked = this.pixels.dithering
     this.$strategy.value = this.strategy
     this.$opacity.valueAsNumber = this.opacity
     this.$drawTransparent.checked = this.drawTransparentPixels
@@ -390,7 +402,9 @@ export class BotImage extends Base {
     const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
     this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(this.tasks.length / 120) | 0}h`
     this.$progressLine.style.transform = `scaleX(${percent / 100})`
-    this.$wrapper.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
+    this.$canvas.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
+    for (const handle of this.element.querySelectorAll<HTMLElement>('.resize'))
+      handle.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
     this.$lock.classList[this.lock ? 'add' : 'remove']('locked')
   }
 
@@ -646,15 +660,15 @@ export class BotImage extends Base {
     const drawFrame = (progressCount: number) => {
       context.fillStyle = '#0f1526'
       context.fillRect(0, 0, canvas.width, canvas.height)
-      this.paintImageGhost(context, cell, offsetX, offsetY, mask)
       for (
         let index = 0;
         index < Math.min(progressCount, filtered.length);
         index++
       ) {
         const pixel = filtered[index]!
-        const progress = index / Math.max(1, filtered.length - 1)
-        context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
+        const colorIndex = this.pixels.pixels[pixel.y]?.[pixel.x] ?? 0
+        if (!colorIndex) continue
+        context.fillStyle = colorToCSS(colorIndex)
         context.fillRect(
           offsetX + pixel.x * cell,
           offsetY + pixel.y * cell,
@@ -696,36 +710,6 @@ export class BotImage extends Base {
     const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
     this.previewSequenceCache.set(cacheKey, filtered)
     return filtered
-  }
-
-  protected paintImageGhost(
-    context: CanvasRenderingContext2D,
-    cell: number,
-    offsetX: number,
-    offsetY: number,
-    mask: Position[],
-  ) {
-    context.save()
-    context.globalAlpha = 0.25
-    context.imageSmoothingEnabled = false
-    context.drawImage(
-      this.pixels.image,
-      offsetX,
-      offsetY,
-      this.pixels.width * cell,
-      this.pixels.height * cell,
-    )
-    context.restore()
-    context.fillStyle = 'rgb(115 132 190 / 28%)'
-    for (let index = 0; index < mask.length; index++) {
-      const pixel = mask[index]!
-      context.fillRect(
-        offsetX + pixel.x * cell,
-        offsetY + pixel.y * cell,
-        Math.max(1, cell),
-        Math.max(1, cell),
-      )
-    }
   }
 
   protected getImagePreviewMask() {

@@ -126,7 +126,7 @@ export class Widget extends Base {
     console.log('[KGM][Widget] Add image flow started')
     this.setDisabled('add-image', true)
     return this.run(
-      'Adding image',
+      t('taskAddingImage'),
       async () => {
         await this.bot.updateColors()
         const input = document.createElement('input')
@@ -185,7 +185,7 @@ export class Widget extends Base {
   public captureTemplate() {
     this.setDisabled('capture-template', true)
     return this.run(
-      'Capturing map image',
+      t('taskCapturingMapImage'),
       async () => {
         const selection = await this.resolveCaptureBounds()
         const { minGlobalX, minGlobalY, maxGlobalX, maxGlobalY } = selection
@@ -205,7 +205,7 @@ export class Widget extends Base {
 
         for (let tileX = tileXStart; tileX <= tileXEnd; tileX++)
           for (let tileY = tileYStart; tileY <= tileYEnd; tileY++) {
-            this.status = `⌛ Reading tiles [${++done}/${totalTiles}]`
+            this.status = `⌛ ${t('taskReadingTiles')} [${++done}/${totalTiles}]`
             const tileImage = await this.loadTileImage(tileX, tileY)
             const tileOriginX = tileX * WORLD_TILE_SIZE
             const tileOriginY = tileY * WORLD_TILE_SIZE
@@ -367,7 +367,7 @@ export class Widget extends Base {
     }>((resolve, reject) => {
       const overlay = document.createElement('div')
       overlay.className = 'kgm-capture-overlay'
-      overlay.innerHTML = `<div class="kgm-capture-hint">${t('captureTemplate')}: A → B</div><div class="kgm-capture-box"></div>`
+      overlay.innerHTML = `<div class="kgm-capture-hint">${t('captureHintSelectArea')}: A → B</div><div class="kgm-capture-box"></div>`
       const box = overlay.querySelector<HTMLDivElement>('.kgm-capture-box')!
       document.body.append(overlay)
       let pointA: { x: number; y: number } | undefined
@@ -590,7 +590,7 @@ export class Widget extends Base {
     } catch (error) {
       if (!(error instanceof KGlacerMacroError)) {
         console.error(error)
-        this.status = `Error: ${status}`
+        this.status = `${t('taskErrorPrefix')}: ${status}`
       }
       console.error('[KGM][Widget] Task failed', { status, error })
       throw error
@@ -645,6 +645,11 @@ export class Widget extends Base {
       this.toggleLockForActiveImage()
       return
     }
+    if (matchesShortcut(event, SHORTCUTS.clickPaintWhenReady)) {
+      event.preventDefault()
+      void this.waitAndClickPaintButton()
+      return
+    }
     if (
       matchesShortcut(event, SHORTCUTS.addImage) &&
       !this.$addImage.disabled
@@ -695,6 +700,32 @@ export class Widget extends Base {
     image.lock = !image.lock
     image.update()
     save(this.bot)
+  }
+
+  protected async waitAndClickPaintButton() {
+    await this.run(t('taskWaitingPaintButton'), async () => {
+      for (;;) {
+        const button = this.findNativePaintButton()
+        if (button && !button.disabled && button.ariaDisabled !== 'true') {
+          button.click()
+          return
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+    })
+  }
+
+  protected findNativePaintButton() {
+    const selectors = [
+      'button.btn.btn-primary.btn-lg.relative.z-30',
+      'button.btn.btn-primary.btn-lg.sm\\:btn-xl.relative.z-30',
+    ]
+    const buttons = selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>(selector)),
+    )
+    return buttons.find((button) =>
+      /pintar|paint/i.test(button.textContent ?? ''),
+    )
   }
 
   // protected async pumpkinHunt() {

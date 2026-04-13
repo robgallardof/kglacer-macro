@@ -514,7 +514,21 @@
 .wwidget .wform {
   display: grid;
   gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100dvh - 92px);
   padding-bottom: 10px;
+}
+
+.wwidget .wform > * {
+  margin: 4px;
+}
+
+.wwidget .wform button,
+.wwidget .wform input,
+.wwidget .wform select,
+.wwidget .wform textarea,
+.wwidget .wform label:has(input[type='checkbox']) {
+  padding: 8px 10px;
 }
 
 .wform button,
