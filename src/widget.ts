@@ -45,7 +45,7 @@ export class Widget extends Base {
 
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
-  protected readonly $shortcuts!: HTMLDivElement
+  protected readonly $shortcuts!: HTMLDetailsElement
   protected readonly $locale!: HTMLSelectElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
@@ -347,6 +347,8 @@ export class Widget extends Base {
     }
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
       event.preventDefault()
+      this.open = true
+      this.$shortcuts.open = true
       this.$shortcuts.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
