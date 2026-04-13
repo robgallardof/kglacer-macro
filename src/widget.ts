@@ -11,7 +11,7 @@ import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
 import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
-import { WorldPosition } from './world-position'
+import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const LOGO_URL =
@@ -173,8 +173,8 @@ export class Widget extends Base {
         await this.bot.readMap()
         botImage.updateTasks()
         save(this.bot, true)
-        console.log('[KGM][Widget] Image persisted, reloading page')
-        document.location.reload()
+        this.bot.updateTasks()
+        this.update()
       },
       () => {
         this.setDisabled('add-image', false)
@@ -185,58 +185,113 @@ export class Widget extends Base {
   public captureTemplate() {
     this.setDisabled('capture-template', true)
     return this.run(
-      'Capturing map template',
+      'Capturing map image',
       async () => {
+        const format = this.askCaptureFormat()
         const selection = await this.selectCaptureBounds()
-        const mapCanvas =
-          document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
-        if (!mapCanvas) throw new Error('Map canvas not found')
-        const mapRect = mapCanvas.getBoundingClientRect()
-        const sourceX =
-          ((selection.left - mapRect.left) / mapRect.width) * mapCanvas.width
-        const sourceY =
-          ((selection.top - mapRect.top) / mapRect.height) * mapCanvas.height
-        const sourceWidth = (selection.width / mapRect.width) * mapCanvas.width
-        const sourceHeight =
-          (selection.height / mapRect.height) * mapCanvas.height
+        const pointA = WorldPosition.fromScreenPosition(this.bot, {
+          x: selection.left,
+          y: selection.top,
+        })
+        const pointB = WorldPosition.fromScreenPosition(this.bot, {
+          x: selection.left + selection.width - 1,
+          y: selection.top + selection.height - 1,
+        })
+        const minGlobalX = Math.min(pointA.globalX, pointB.globalX)
+        const minGlobalY = Math.min(pointA.globalY, pointB.globalY)
+        const maxGlobalX = Math.max(pointA.globalX, pointB.globalX)
+        const maxGlobalY = Math.max(pointA.globalY, pointB.globalY)
         const captured = document.createElement('canvas')
-        captured.width = Math.max(1, Math.round(sourceWidth))
-        captured.height = Math.max(1, Math.round(sourceHeight))
+        captured.width = Math.max(1, maxGlobalX - minGlobalX + 1)
+        captured.height = Math.max(1, maxGlobalY - minGlobalY + 1)
         const context = captured.getContext('2d')
         if (!context) throw new Error('Capture context unavailable')
         context.imageSmoothingEnabled = false
-        context.drawImage(
-          mapCanvas,
-          Math.round(sourceX),
-          Math.round(sourceY),
-          Math.round(sourceWidth),
-          Math.round(sourceHeight),
-          0,
-          0,
-          captured.width,
-          captured.height,
-        )
-        const image = new Image()
-        image.src = captured.toDataURL('image/png')
-        await promisifyEventSource(image, ['load'], ['error'])
-        const botImage = new BotImage(
-          this.bot,
-          WorldPosition.fromScreenPosition(this.bot, {
-            x: selection.left,
-            y: selection.top,
-          }),
-          new Pixels(this.bot, image),
-        )
-        this.bot.images.push(botImage)
-        await this.bot.readMap()
-        botImage.updateTasks()
-        save(this.bot, true)
-        document.location.reload()
+        const tileXStart = Math.floor(minGlobalX / WORLD_TILE_SIZE)
+        const tileYStart = Math.floor(minGlobalY / WORLD_TILE_SIZE)
+        const tileXEnd = Math.floor(maxGlobalX / WORLD_TILE_SIZE)
+        const tileYEnd = Math.floor(maxGlobalY / WORLD_TILE_SIZE)
+        const totalTiles =
+          (tileXEnd - tileXStart + 1) * (tileYEnd - tileYStart + 1)
+        let done = 0
+
+        for (let tileX = tileXStart; tileX <= tileXEnd; tileX++)
+          for (let tileY = tileYStart; tileY <= tileYEnd; tileY++) {
+            this.status = `⌛ Reading tiles [${++done}/${totalTiles}]`
+            const tileImage = await this.loadTileImage(tileX, tileY)
+            const tileOriginX = tileX * WORLD_TILE_SIZE
+            const tileOriginY = tileY * WORLD_TILE_SIZE
+            const startX = Math.max(minGlobalX, tileOriginX)
+            const endX = Math.min(maxGlobalX, tileOriginX + WORLD_TILE_SIZE - 1)
+            const startY = Math.max(minGlobalY, tileOriginY)
+            const endY = Math.min(maxGlobalY, tileOriginY + WORLD_TILE_SIZE - 1)
+            const sourceX = startX - tileOriginX
+            const sourceY = startY - tileOriginY
+            const drawWidth = endX - startX + 1
+            const drawHeight = endY - startY + 1
+            const targetX = startX - minGlobalX
+            const targetY = startY - minGlobalY
+            context.drawImage(
+              tileImage,
+              sourceX,
+              sourceY,
+              drawWidth,
+              drawHeight,
+              targetX,
+              targetY,
+              drawWidth,
+              drawHeight,
+            )
+          }
+
+        const mimeType = format === 'webp' ? 'image/webp' : 'image/png'
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          captured.toBlob((result) => {
+            if (!result) {
+              reject(new Error('Failed to create capture file'))
+              return
+            }
+            resolve(result)
+          }, mimeType)
+        })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `wplace-capture-${Date.now()}.${format}`
+        anchor.click()
+        URL.revokeObjectURL(url)
       },
       () => {
         this.setDisabled('capture-template', false)
       },
     )
+  }
+
+  protected askCaptureFormat(): 'png' | 'webp' {
+    const choice = window
+      .prompt(t('captureFormatPrompt'), 'png')
+      ?.trim()
+      .toLowerCase()
+    if (!choice) return 'png'
+    if (choice === 'png' || choice === 'webp') return choice
+    return 'png'
+  }
+
+  protected async loadTileImage(tileX: number, tileY: number) {
+    const response = await fetch(
+      `https://backend.wplace.live/files/s0/tiles/${tileX}/${tileY}.png`,
+      {
+        credentials: 'include',
+      },
+    )
+    if (!response.ok) throw new Error(`Tile fetch failed (${tileX}/${tileY})`)
+    const blob = await response.blob()
+    const image = new Image()
+    const url = URL.createObjectURL(blob)
+    image.src = url
+    await promisifyEventSource(image, ['load'], ['error'])
+    URL.revokeObjectURL(url)
+    return image
   }
 
   protected selectCaptureBounds() {

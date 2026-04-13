@@ -155,6 +155,13 @@
   transform: translateY(-1px);
 }
 
+.wwidget .capture-template {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
 .wwidget.wopen .wopen-button svg {
   transform: rotate(90deg);
 }
@@ -366,27 +373,31 @@
   margin: 0;
   padding: 0 10px 10px;
   list-style: none;
+  text-align: left;
 }
 
 .wwidget .shortcuts .shortcut-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
   padding: 5px 6px;
   border: 1px solid rgb(140 159 255 / 16%);
   border-radius: 8px;
   background: rgb(13 20 35 / 70%);
+  text-align: left;
 }
 
 .wwidget .shortcuts .shortcut-label {
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  justify-content: flex-start;
   min-width: 0;
   color: #cfdbff;
   font-weight: 600;
   font-size: 10px;
+  text-align: left;
 }
 
 .wwidget .shortcuts .shortcut-label span {
@@ -413,6 +424,9 @@
   flex-wrap: nowrap;
   gap: 4px;
   justify-content: flex-start;
+  align-items: center;
+  align-self: center;
+  justify-self: end;
 }
 
 .wwidget .shortcuts kbd {
@@ -1264,12 +1278,17 @@
   }
 
   .wwidget .shortcuts .shortcut-item {
+    grid-template-columns: minmax(0, 1fr);
     padding: 4px 5px;
   }
 
   .wwidget .shortcuts .shortcut-label,
   .wwidget .shortcuts kbd {
     font-size: 9px;
+  }
+
+  .wwidget .shortcuts .shortcut-keys {
+    justify-self: start;
   }
 }
 
