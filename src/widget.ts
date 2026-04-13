@@ -142,12 +142,14 @@ export class Widget extends Base {
           type: file.type,
         })
         let botImage
+        let shouldOpenEditPanel = false
         if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
           botImage = await BotImage.fromJSON(
             this.bot,
             JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
           )
         } else {
+          shouldOpenEditPanel = true
           const reader = new FileReader()
           reader.readAsDataURL(file)
           await promisifyEventSource(reader, ['load'], ['error'])
@@ -175,6 +177,7 @@ export class Widget extends Base {
         save(this.bot, true)
         this.bot.updateTasks()
         this.update()
+        if (shouldOpenEditPanel) botImage.openEditPanel()
       },
       () => {
         this.setDisabled('add-image', false)
@@ -647,7 +650,7 @@ export class Widget extends Base {
     }
     if (matchesShortcut(event, SHORTCUTS.clickPaintWhenReady)) {
       event.preventDefault()
-      void this.waitAndClickPaintButton()
+      void this.drawAndClickPaintWhenReady()
       return
     }
     if (
@@ -713,6 +716,11 @@ export class Widget extends Base {
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
     })
+  }
+
+  protected async drawAndClickPaintWhenReady() {
+    if (!this.$draw.disabled) await this.bot.draw()
+    await this.waitAndClickPaintButton()
   }
 
   protected findNativePaintButton() {

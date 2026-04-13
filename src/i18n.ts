@@ -86,6 +86,8 @@ const MESSAGES = {
     premium: 'Premium',
     buy: 'Buy',
     openColorPanel: 'Open color panel',
+    editImage: 'Edit image settings',
+    imageEditTitle: 'Image settings',
     searchColors: 'Search by hex, English or Spanish',
     colorPanelResults: 'Color panel results',
     colorPanelHelp:
@@ -205,6 +207,8 @@ const MESSAGES = {
     premium: 'Premium',
     buy: 'Comprar',
     openColorPanel: 'Abrir panel de colores',
+    editImage: 'Editar configuración de imagen',
+    imageEditTitle: 'Configuración de imagen',
     searchColors: 'Buscar por hexa, inglés o español',
     colorPanelResults: 'Resultados del panel de color',
     colorPanelHelp:
