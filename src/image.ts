@@ -11,9 +11,6 @@ import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
 
-const LOGO_PREVIEW_URL =
-  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
-
 export type DrawTask = {
   position: WorldPosition
   color: number
@@ -135,8 +132,6 @@ export class BotImage extends Base {
     moved: boolean
   }
   protected suppressNextColorDialogBackdropClick = false
-  protected logoPreviewMask?: Position[]
-  protected logoPreviewImage?: HTMLImageElement
   protected previewCacheSignature?: string
   protected readonly previewSequenceCache = new Map<string, Position[]>()
   protected readonly previewAnimations = new WeakMap<
@@ -520,7 +515,7 @@ export class BotImage extends Base {
   }
 
   protected invalidatePreviewCacheIfNeeded() {
-    const signature = `${this.pixels.width}x${this.pixels.height}:${this.logoPreviewMask?.length ?? 0}`
+    const signature = `${this.pixels.width}x${this.pixels.height}:${this.pixels.image.src.length}`
     if (this.previewCacheSignature === signature) return
     this.previewCacheSignature = signature
     this.previewSequenceCache.clear()
@@ -627,9 +622,14 @@ export class BotImage extends Base {
     if (!context) return
     context.fillStyle = '#0f1526'
     context.fillRect(0, 0, canvas.width, canvas.height)
-    const mask = this.getLogoPreviewMask()
+    const mask = this.getImagePreviewMask()
     const filtered = this.getCachedPreviewSequence(strategy, mask)
-    const cell = canvas.width / this.pixels.width
+    const cell = Math.min(
+      canvas.width / this.pixels.width,
+      canvas.height / this.pixels.height,
+    )
+    const offsetX = (canvas.width - this.pixels.width * cell) / 2
+    const offsetY = (canvas.height - this.pixels.height * cell) / 2
     const activeAnimation = this.previewAnimations.get(canvas)
     if (activeAnimation) {
       cancelAnimationFrame(activeAnimation)
@@ -646,7 +646,7 @@ export class BotImage extends Base {
     const drawFrame = (progressCount: number) => {
       context.fillStyle = '#0f1526'
       context.fillRect(0, 0, canvas.width, canvas.height)
-      this.paintLogoGhost(context, cell, mask)
+      this.paintImageGhost(context, cell, offsetX, offsetY, mask)
       for (
         let index = 0;
         index < Math.min(progressCount, filtered.length);
@@ -656,8 +656,8 @@ export class BotImage extends Base {
         const progress = index / Math.max(1, filtered.length - 1)
         context.fillStyle = `hsl(${220 - progress * 110} 90% ${43 + progress * 18}%)`
         context.fillRect(
-          pixel.x * cell,
-          pixel.y * cell,
+          offsetX + pixel.x * cell,
+          offsetY + pixel.y * cell,
           Math.max(1, cell),
           Math.max(1, cell),
         )
@@ -698,75 +698,43 @@ export class BotImage extends Base {
     return filtered
   }
 
-  protected paintLogoGhost(
+  protected paintImageGhost(
     context: CanvasRenderingContext2D,
     cell: number,
+    offsetX: number,
+    offsetY: number,
     mask: Position[],
   ) {
-    if (this.logoPreviewImage) {
-      context.save()
-      context.globalAlpha = 0.22
-      context.drawImage(
-        this.logoPreviewImage,
-        0,
-        0,
-        this.pixels.width * cell,
-        this.pixels.height * cell,
-      )
-      context.restore()
-      return
-    }
+    context.save()
+    context.globalAlpha = 0.25
+    context.imageSmoothingEnabled = false
+    context.drawImage(
+      this.pixels.image,
+      offsetX,
+      offsetY,
+      this.pixels.width * cell,
+      this.pixels.height * cell,
+    )
+    context.restore()
     context.fillStyle = 'rgb(115 132 190 / 28%)'
     for (let index = 0; index < mask.length; index++) {
       const pixel = mask[index]!
       context.fillRect(
-        pixel.x * cell,
-        pixel.y * cell,
+        offsetX + pixel.x * cell,
+        offsetY + pixel.y * cell,
         Math.max(1, cell),
         Math.max(1, cell),
       )
     }
   }
 
-  protected getLogoPreviewMask() {
-    if (this.logoPreviewMask) return this.logoPreviewMask
-    this.logoPreviewMask = this.fallbackPreviewMask()
-    const image = new Image()
-    image.src = LOGO_PREVIEW_URL
-    image
-      .decode()
-      .then(() => {
-        this.logoPreviewImage = image
-        const offscreen = document.createElement('canvas')
-        offscreen.width = this.pixels.width
-        offscreen.height = this.pixels.height
-        const context = offscreen.getContext('2d')
-        if (!context) return
-        context.clearRect(0, 0, offscreen.width, offscreen.height)
-        context.drawImage(image, 0, 0, offscreen.width, offscreen.height)
-        this.logoPreviewMask = this.alphaMaskFromCanvas(
-          context,
-          offscreen.width,
-          offscreen.height,
-        )
-        this.previewSequenceCache.clear()
-        if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
-      })
-      .catch(() => undefined)
-    return this.logoPreviewMask
-  }
-
-  protected alphaMaskFromCanvas(
-    context: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ) {
-    const data = context.getImageData(0, 0, width, height).data
+  protected getImagePreviewMask() {
+    const width = this.pixels.width
+    const height = this.pixels.height
     const mask: Position[] = []
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const alpha = data[(y * width + x) * 4 + 3] ?? 0
-        if (alpha > 24) mask.push({ x, y })
+        if ((this.pixels.pixels[y]?.[x] ?? 0) !== 0) mask.push({ x, y })
       }
     }
     return mask.length ? mask : this.fallbackPreviewMask()

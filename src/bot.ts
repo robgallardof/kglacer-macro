@@ -181,7 +181,7 @@ class KGlacerMacro {
         // Load images
         if (save)
           for (let index = 0; index < save.images.length; index++) {
-            const image = await BotImage.fromJSON(this, save.images[index]!)
+            const image = await BotImage.fromJSON(this, save.images[index])
             this.images.push(image)
             image.update()
           }
@@ -191,6 +191,7 @@ class KGlacerMacro {
         // Unblock buttons
         this.widget.setDisabled('draw', false)
         this.widget.setDisabled('add-image', false)
+        this.widget.setDisabled('capture-template', false)
         this.log('Initialization completed; controls enabled')
         // this.widget.setDisabled('pumpkin-hunt', false)
       })

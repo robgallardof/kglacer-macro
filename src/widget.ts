@@ -50,6 +50,7 @@ export class Widget extends Base {
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
+  protected readonly $captureTemplate!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
@@ -78,6 +79,7 @@ export class Widget extends Base {
       $topbar: '.wtopbar',
       $draw: '.draw',
       $addImage: '.add-image',
+      $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
@@ -92,6 +94,9 @@ export class Widget extends Base {
     this.$draw.addEventListener('click', () => this.bot.draw())
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
+    this.$captureTemplate.addEventListener('click', () => {
+      void this.captureTemplate()
+    })
     this.$toggleOverlay.addEventListener('click', () => {
       this.toggleOverlay()
     })
@@ -175,6 +180,126 @@ export class Widget extends Base {
         this.setDisabled('add-image', false)
       },
     )
+  }
+
+  public captureTemplate() {
+    this.setDisabled('capture-template', true)
+    return this.run(
+      'Capturing map template',
+      async () => {
+        const selection = await this.selectCaptureBounds()
+        const mapCanvas =
+          document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
+        if (!mapCanvas) throw new Error('Map canvas not found')
+        const mapRect = mapCanvas.getBoundingClientRect()
+        const sourceX =
+          ((selection.left - mapRect.left) / mapRect.width) * mapCanvas.width
+        const sourceY =
+          ((selection.top - mapRect.top) / mapRect.height) * mapCanvas.height
+        const sourceWidth = (selection.width / mapRect.width) * mapCanvas.width
+        const sourceHeight =
+          (selection.height / mapRect.height) * mapCanvas.height
+        const captured = document.createElement('canvas')
+        captured.width = Math.max(1, Math.round(sourceWidth))
+        captured.height = Math.max(1, Math.round(sourceHeight))
+        const context = captured.getContext('2d')
+        if (!context) throw new Error('Capture context unavailable')
+        context.imageSmoothingEnabled = false
+        context.drawImage(
+          mapCanvas,
+          Math.round(sourceX),
+          Math.round(sourceY),
+          Math.round(sourceWidth),
+          Math.round(sourceHeight),
+          0,
+          0,
+          captured.width,
+          captured.height,
+        )
+        const image = new Image()
+        image.src = captured.toDataURL('image/png')
+        await promisifyEventSource(image, ['load'], ['error'])
+        const botImage = new BotImage(
+          this.bot,
+          WorldPosition.fromScreenPosition(this.bot, {
+            x: selection.left,
+            y: selection.top,
+          }),
+          new Pixels(this.bot, image),
+        )
+        this.bot.images.push(botImage)
+        await this.bot.readMap()
+        botImage.updateTasks()
+        save(this.bot, true)
+        document.location.reload()
+      },
+      () => {
+        this.setDisabled('capture-template', false)
+      },
+    )
+  }
+
+  protected selectCaptureBounds() {
+    return new Promise<{
+      left: number
+      top: number
+      width: number
+      height: number
+    }>((resolve, reject) => {
+      const overlay = document.createElement('div')
+      overlay.className = 'kgm-capture-overlay'
+      overlay.innerHTML = `<div class="kgm-capture-hint">${t('captureTemplate')}: A → B</div><div class="kgm-capture-box"></div>`
+      const box = overlay.querySelector<HTMLDivElement>('.kgm-capture-box')!
+      document.body.append(overlay)
+      let pointA: { x: number; y: number } | undefined
+      const cleanup = () => {
+        window.removeEventListener('keydown', onKeyDown, true)
+        overlay.removeEventListener('pointermove', onPointerMove)
+        overlay.removeEventListener('pointerdown', onPointerDown)
+        overlay.remove()
+      }
+      const getBounds = (pointB: { x: number; y: number }) => {
+        const left = Math.min(pointA!.x, pointB.x)
+        const top = Math.min(pointA!.y, pointB.y)
+        const width = Math.abs(pointA!.x - pointB.x)
+        const height = Math.abs(pointA!.y - pointB.y)
+        return { left, top, width, height }
+      }
+      const drawBox = (pointB: { x: number; y: number }) => {
+        const { left, top, width, height } = getBounds(pointB)
+        box.style.left = `${left}px`
+        box.style.top = `${top}px`
+        box.style.width = `${width}px`
+        box.style.height = `${height}px`
+      }
+      const onPointerMove = (event: PointerEvent) => {
+        if (!pointA) return
+        drawBox({ x: event.clientX, y: event.clientY })
+      }
+      const onPointerDown = (event: PointerEvent) => {
+        event.preventDefault()
+        if (!pointA) {
+          pointA = { x: event.clientX, y: event.clientY }
+          drawBox(pointA)
+          return
+        }
+        const bounds = getBounds({ x: event.clientX, y: event.clientY })
+        cleanup()
+        if (bounds.width < 2 || bounds.height < 2) {
+          reject(new Error('Capture area too small'))
+          return
+        }
+        resolve(bounds)
+      }
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return
+        cleanup()
+        reject(new Error('Capture cancelled'))
+      }
+      window.addEventListener('keydown', onKeyDown, true)
+      overlay.addEventListener('pointermove', onPointerMove)
+      overlay.addEventListener('pointerdown', onPointerDown)
+    })
   }
 
   protected defaultImageScreenPosition() {
