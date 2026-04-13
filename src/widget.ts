@@ -187,20 +187,8 @@ export class Widget extends Base {
     return this.run(
       'Capturing map image',
       async () => {
-        const format = this.askCaptureFormat()
         const selection = await this.selectCaptureBounds()
-        const pointA = WorldPosition.fromScreenPosition(this.bot, {
-          x: selection.left,
-          y: selection.top,
-        })
-        const pointB = WorldPosition.fromScreenPosition(this.bot, {
-          x: selection.left + selection.width - 1,
-          y: selection.top + selection.height - 1,
-        })
-        const minGlobalX = Math.min(pointA.globalX, pointB.globalX)
-        const minGlobalY = Math.min(pointA.globalY, pointB.globalY)
-        const maxGlobalX = Math.max(pointA.globalX, pointB.globalX)
-        const maxGlobalY = Math.max(pointA.globalY, pointB.globalY)
+        const { minGlobalX, minGlobalY, maxGlobalX, maxGlobalY } = selection
         const captured = document.createElement('canvas')
         captured.width = Math.max(1, maxGlobalX - minGlobalX + 1)
         captured.height = Math.max(1, maxGlobalY - minGlobalY + 1)
@@ -244,22 +232,9 @@ export class Widget extends Base {
             )
           }
 
-        const mimeType = format === 'webp' ? 'image/webp' : 'image/png'
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          captured.toBlob((result) => {
-            if (!result) {
-              reject(new Error('Failed to create capture file'))
-              return
-            }
-            resolve(result)
-          }, mimeType)
-        })
-        const url = URL.createObjectURL(blob)
-        const anchor = document.createElement('a')
-        anchor.href = url
-        anchor.download = `wplace-capture-${Date.now()}.${format}`
-        anchor.click()
-        URL.revokeObjectURL(url)
+        const timestamp = Date.now()
+        await this.downloadCapture(captured, 'png', timestamp)
+        await this.downloadCapture(captured, 'webp', timestamp)
       },
       () => {
         this.setDisabled('capture-template', false)
@@ -267,14 +242,29 @@ export class Widget extends Base {
     )
   }
 
-  protected askCaptureFormat(): 'png' | 'webp' {
-    const choice = window
-      .prompt(t('captureFormatPrompt'), 'png')
-      ?.trim()
-      .toLowerCase()
-    if (!choice) return 'png'
-    if (choice === 'png' || choice === 'webp') return choice
-    return 'png'
+  protected async downloadCapture(
+    canvas: HTMLCanvasElement,
+    format: 'png' | 'webp',
+    timestamp: number,
+  ) {
+    const mimeType = format === 'webp' ? 'image/webp' : 'image/png'
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => {
+        if (!result) {
+          reject(
+            new Error(`Failed to create ${format.toUpperCase()} capture file`),
+          )
+          return
+        }
+        resolve(result)
+      }, mimeType)
+    })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `wplace-capture-${timestamp}.${format}`
+    anchor.click()
+    URL.revokeObjectURL(url)
   }
 
   protected async loadTileImage(tileX: number, tileY: number) {
@@ -296,10 +286,10 @@ export class Widget extends Base {
 
   protected selectCaptureBounds() {
     return new Promise<{
-      left: number
-      top: number
-      width: number
-      height: number
+      minGlobalX: number
+      minGlobalY: number
+      maxGlobalX: number
+      maxGlobalY: number
     }>((resolve, reject) => {
       const overlay = document.createElement('div')
       overlay.className = 'kgm-capture-overlay'
@@ -307,21 +297,22 @@ export class Widget extends Base {
       const box = overlay.querySelector<HTMLDivElement>('.kgm-capture-box')!
       document.body.append(overlay)
       let pointA: { x: number; y: number } | undefined
+      let pointAGlobal: { x: number; y: number } | undefined
       const cleanup = () => {
         window.removeEventListener('keydown', onKeyDown, true)
         overlay.removeEventListener('pointermove', onPointerMove)
         overlay.removeEventListener('pointerdown', onPointerDown)
         overlay.remove()
       }
-      const getBounds = (pointB: { x: number; y: number }) => {
+      const getScreenBounds = (pointB: { x: number; y: number }) => {
         const left = Math.min(pointA!.x, pointB.x)
         const top = Math.min(pointA!.y, pointB.y)
-        const width = Math.abs(pointA!.x - pointB.x)
-        const height = Math.abs(pointA!.y - pointB.y)
+        const width = Math.abs(pointA!.x - pointB.x) + 1
+        const height = Math.abs(pointA!.y - pointB.y) + 1
         return { left, top, width, height }
       }
       const drawBox = (pointB: { x: number; y: number }) => {
-        const { left, top, width, height } = getBounds(pointB)
+        const { left, top, width, height } = getScreenBounds(pointB)
         box.style.left = `${left}px`
         box.style.top = `${top}px`
         box.style.width = `${width}px`
@@ -335,16 +326,32 @@ export class Widget extends Base {
         event.preventDefault()
         if (!pointA) {
           pointA = { x: event.clientX, y: event.clientY }
+          const first = WorldPosition.fromScreenPosition(this.bot, pointA)
+          pointAGlobal = { x: first.globalX, y: first.globalY }
           drawBox(pointA)
           return
         }
-        const bounds = getBounds({ x: event.clientX, y: event.clientY })
+        const pointB = { x: event.clientX, y: event.clientY }
+        const second = WorldPosition.fromScreenPosition(this.bot, pointB)
         cleanup()
-        if (bounds.width < 2 || bounds.height < 2) {
+        if (!pointAGlobal) {
+          reject(new Error('Capture anchor point unavailable'))
+          return
+        }
+        const minGlobalX = Math.min(pointAGlobal.x, second.globalX)
+        const minGlobalY = Math.min(pointAGlobal.y, second.globalY)
+        const maxGlobalX = Math.max(pointAGlobal.x, second.globalX)
+        const maxGlobalY = Math.max(pointAGlobal.y, second.globalY)
+        if (maxGlobalX - minGlobalX < 1 || maxGlobalY - minGlobalY < 1) {
           reject(new Error('Capture area too small'))
           return
         }
-        resolve(bounds)
+        resolve({
+          minGlobalX,
+          minGlobalY,
+          maxGlobalX,
+          maxGlobalY,
+        })
       }
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key !== 'Escape') return
