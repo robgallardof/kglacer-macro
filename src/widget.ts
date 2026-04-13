@@ -270,9 +270,6 @@ export class Widget extends Base {
   protected async loadTileImage(tileX: number, tileY: number) {
     const response = await fetch(
       `https://backend.wplace.live/files/s0/tiles/${tileX}/${tileY}.png`,
-      {
-        credentials: 'include',
-      },
     )
     if (!response.ok) throw new Error(`Tile fetch failed (${tileX}/${tileY})`)
     const blob = await response.blob()
