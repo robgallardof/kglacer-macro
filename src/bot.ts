@@ -537,14 +537,31 @@ class KGlacerMacro {
   /** Draw one task */
   protected drawTask(task: DrawTask) {
     if (this.lastColor !== task.color) {
-      ;(
-        document.getElementById('color-' + task.color) as HTMLButtonElement
-      ).click()
+      const colorButton = document.getElementById(
+        'color-' + task.color,
+      ) as HTMLButtonElement | null
+      if (!colorButton) {
+        this.log('Skipped draw task: color button not found', {
+          color: task.color,
+          tileX: task.position.tileX,
+          tileY: task.position.tileY,
+          x: task.position.x,
+          y: task.position.y,
+        })
+        return
+      }
+      colorButton.click()
       this.lastColor = task.color
       this.log('Color switched for draw task', { color: task.color })
     }
     const halfPixel = task.position.pixelSize / 2
     const position = task.position.toScreenPosition()
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+      this.log('Skipped draw task: invalid screen position', {
+        color: task.color,
+      })
+      return
+    }
     document.documentElement.dispatchEvent(
       new MouseEvent('mousemove', {
         bubbles: true,
