@@ -181,6 +181,7 @@ export class Widget extends Base {
         save(this.bot, true)
         this.bot.updateTasks()
         this.update()
+        globalThis.location.reload()
       },
       () => {
         this.setDisabled('add-image', false)
