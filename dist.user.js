@@ -1528,7 +1528,7 @@ function so(o,p,a){let s=o[a];return o[a]=o[p],o[p]=s,o}function po(o,p){let a=o
 <div class="title">
   <div class="widget-brand">
     <img class="widget-logo" src="" alt="KGlacer Macro logo" />
-    <span class="widget-brand-text">KGlaceMacro</span>
+    <span class="widget-brand-text">KGlacerMacro</span>
   </div>
 </div>
 <div class="wform">
