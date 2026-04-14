@@ -20,6 +20,7 @@ export const SHORTCUTS = {
   openColorPanel: { key: 'o', shift: true } satisfies Shortcut,
   toggleImageLock: { key: 'l', shift: true } satisfies Shortcut,
   clickPaintWhenReady: { key: 'r', shift: true } satisfies Shortcut,
+  startAutoFarm: { key: 'f', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {

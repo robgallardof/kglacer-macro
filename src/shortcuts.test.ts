@@ -126,4 +126,15 @@ describe('matchesShortcut', () => {
       true,
     )
   })
+
+  test('matches shift+f start auto farm shortcut', () => {
+    const keyboardEvent = {
+      key: 'F',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.startAutoFarm)).toBe(true)
+  })
 })

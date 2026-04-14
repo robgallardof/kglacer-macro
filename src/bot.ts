@@ -597,6 +597,46 @@ class KGlacerMacro {
     )
   }
 
+  public async paintRandomPixelInViewport() {
+    try {
+      await this.updateColors()
+      const availableButtons = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('button[id^="color-"]'),
+      ).filter(
+        (button) =>
+          !button.disabled &&
+          button.getAttribute('aria-disabled') !== 'true' &&
+          button.offsetParent !== null,
+      )
+      if (!availableButtons.length) return
+      const selectedButton =
+        availableButtons[Math.floor(Math.random() * availableButtons.length)]!
+      const color = Number.parseInt(selectedButton.id.slice(6), 10)
+      if (!Number.isFinite(color)) return
+      const canvas =
+        document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const margin = 24
+      const minX = rect.left + margin
+      const maxX = rect.right - margin
+      const minY = rect.top + margin
+      const maxY = rect.bottom - margin
+      if (maxX <= minX || maxY <= minY) return
+      const screenX = minX + Math.random() * (maxX - minX)
+      const screenY = minY + Math.random() * (maxY - minY)
+      this.drawTask({
+        color,
+        position: WorldPosition.fromScreenPosition(this, {
+          x: screenX,
+          y: screenY,
+        }),
+      })
+    } catch (error) {
+      this.log('Auto farm tick failed', error)
+    }
+  }
+
   /** Start listening to fetch requests */
   protected registerFetchInterceptor() {
     const originalFetch = globalThis.fetch
