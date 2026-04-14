@@ -100,19 +100,15 @@ export class BotImage extends Base {
     clientY: number
   }
 
-  protected readonly $brightness!: HTMLInputElement
   protected readonly $canvas!: HTMLCanvasElement
   protected readonly $colorsDialog!: HTMLDialogElement
   protected readonly $colorsDialogList!: HTMLDivElement
   protected readonly $colorSearch!: HTMLInputElement
   protected readonly $openColors!: HTMLButtonElement
-  protected readonly $openEdit!: HTMLButtonElement
   protected readonly $openPreview!: HTMLButtonElement
   protected readonly $closeColors!: HTMLButtonElement
   protected readonly $closePreview!: HTMLButtonElement
-  protected readonly $closeEdit!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
-  protected readonly $dithering!: HTMLInputElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
   protected readonly $export!: HTMLDivElement
@@ -122,7 +118,6 @@ export class BotImage extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $previewDialog!: HTMLDialogElement
   protected readonly $previewDialogList!: HTMLDivElement
-  protected readonly $editDialog!: HTMLDialogElement
   protected readonly $resetSize!: HTMLButtonElement
   protected readonly $resetSizeSpan!: HTMLSpanElement
   protected readonly $settings!: HTMLDivElement
@@ -170,18 +165,14 @@ export class BotImage extends Base {
     document.body.append(this.element)
 
     this.populateElementsWithSelector(this.element, {
-      $brightness: '.brightness',
       $colorsDialog: '.colors-dialog',
       $colorsDialogList: '.colors-dialog-list',
       $colorSearch: '.color-search',
       $openColors: '.open-colors',
-      $openEdit: '.open-edit',
       $openPreview: '.open-preview',
       $closeColors: '.close-colors',
-      $closeEdit: '.close-edit',
       $closePreview: '.close-preview',
       $delete: '.delete',
-      $dithering: '.dithering',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
       $export: '.export',
@@ -191,7 +182,6 @@ export class BotImage extends Base {
       $progressText: '.wprogress span',
       $previewDialog: '.preview-dialog',
       $previewDialogList: '.preview-dialog-list',
-      $editDialog: '.image-edit-dialog',
       $resetSize: '.reset-size',
       $settings: '.wform',
       $strategy: '.strategy',
@@ -202,11 +192,7 @@ export class BotImage extends Base {
       this.$resetSize.querySelector<HTMLSpanElement>('span')!
     this.$canvas = this.pixels.canvas
     this.$wrapper.prepend(this.pixels.canvas)
-    document.body.append(
-      this.$editDialog,
-      this.$colorsDialog,
-      this.$previewDialog,
-    )
+    document.body.append(this.$colorsDialog, this.$previewDialog)
 
     // Strategy
     this.registerEvent(this.$strategy, 'change', () => {
@@ -223,21 +209,6 @@ export class BotImage extends Base {
       save(this.bot)
     })
     this.$opacity.style.setProperty('--val', this.opacity + '%')
-
-    // Brightness
-    let timeout: ReturnType<typeof setTimeout> | undefined
-
-    this.registerEvent(this.$brightness, 'input', () => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        this.refreshImageAdjustments()
-      }, 150)
-    })
-
-    this.registerEvent(this.$dithering, 'change', () => {
-      this.pixels.dithering = this.$dithering.checked
-      this.refreshImageAdjustments()
-    })
 
     // Reset
     this.registerEvent(this.$resetSize, 'click', () => {
@@ -271,9 +242,6 @@ export class BotImage extends Base {
     this.registerEvent(this.$openColors, 'click', () => {
       this.openColorPanel()
     })
-    this.registerEvent(this.$openEdit, 'click', () => {
-      this.openEditPanel()
-    })
     this.registerEvent(this.$openPreview, 'click', () => {
       this.openPreviewPanel()
     })
@@ -282,9 +250,6 @@ export class BotImage extends Base {
     })
     this.registerEvent(this.$closePreview, 'click', () => {
       this.closeDialog(this.$previewDialog)
-    })
-    this.registerEvent(this.$closeEdit, 'click', () => {
-      this.closeDialog(this.$editDialog)
     })
     this.registerEvent(
       this.$colorsDialog.querySelector('.colors-dialog-head')!,
@@ -319,9 +284,6 @@ export class BotImage extends Base {
       if (event.target === this.$previewDialog)
         this.closeDialog(this.$previewDialog)
     })
-    this.registerEvent(this.$editDialog, 'click', (event: MouseEvent) => {
-      if (event.target === this.$editDialog) this.closeDialog(this.$editDialog)
-    })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
@@ -355,14 +317,6 @@ export class BotImage extends Base {
       colors: this.colors,
       lock: this.lock,
     }
-  }
-
-  protected refreshImageAdjustments() {
-    this.pixels.brightness = this.$brightness.valueAsNumber
-    this.pixels.update()
-    this.updateColors()
-    this.update()
-    save(this.bot)
   }
 
   /** Calculates everything we need to do. Very expensive task! */
@@ -410,8 +364,6 @@ export class BotImage extends Base {
     this.element.classList.remove('hidden')
 
     this.$resetSizeSpan.textContent = this.pixels.width.toString()
-    this.$brightness.valueAsNumber = this.pixels.brightness
-    this.$dithering.checked = this.pixels.dithering
     this.$strategy.value = this.strategy
     this.$opacity.valueAsNumber = this.opacity
     this.$drawTransparent.checked = this.drawTransparentPixels
@@ -436,7 +388,6 @@ export class BotImage extends Base {
     super.destroy()
     this.element.remove()
     this.$colorsDialog.remove()
-    this.$editDialog.remove()
     this.$previewDialog.remove()
     removeFromArray(this.bot.images, this)
     this.bot.widget.update()
@@ -467,19 +418,6 @@ export class BotImage extends Base {
     this.$previewDialog.style.margin = 'auto'
     this.$previewDialog.showModal()
     this.renderStrategyPreviewSamples()
-  }
-
-  public openEditPanel() {
-    if (this.$editDialog.open) {
-      this.$brightness.focus()
-      return
-    }
-    this.$editDialog.style.position = 'fixed'
-    this.$editDialog.style.left = ''
-    this.$editDialog.style.top = ''
-    this.$editDialog.style.margin = 'auto'
-    this.$editDialog.showModal()
-    this.$brightness.focus()
   }
 
   protected closeDialog(dialog: HTMLDialogElement) {
