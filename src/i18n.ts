@@ -5,6 +5,11 @@ const MESSAGES = {
   en: {
     widgetTitle: 'KGlacerMacro',
     draw: 'Draw',
+    drawAndPaint: 'Draw + Paint',
+    generalSection: 'General',
+    actionsSection: 'Actions',
+    strategySection: 'Draw strategy',
+    imagesSection: 'Images',
     addImage: 'Add image',
     strategy: 'Strategy',
     sequential: 'Sequential',
@@ -122,6 +127,11 @@ const MESSAGES = {
   es: {
     widgetTitle: 'KGlacerMacro',
     draw: 'Dibujar',
+    drawAndPaint: 'Dibujar + Pintar',
+    generalSection: 'General',
+    actionsSection: 'Acciones',
+    strategySection: 'Estrategia de pintado',
+    imagesSection: 'Imágenes',
     addImage: 'Agregar imagen',
     strategy: 'Estrategia',
     sequential: 'Secuencial',

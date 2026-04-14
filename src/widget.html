@@ -10,77 +10,99 @@
   </div>
 </div>
 <div class="wform">
-  <label><span data-i18n="language">Language</span>:&nbsp;<select class="locale">
-    <option value="en">English</option>
-    <option value="es">Español</option>
-  </select></label>
-  <div class="wprogress"><div></div><span></span></div>
-  <div class="wp wstatus"></div>
-  <button class="draw" disabled data-i18n="draw">Draw</button>
-  <details class="shortcuts">
-    <summary class="shortcuts-summary">
-      <span class="shortcuts-summary-title">
-        <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
-        <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
-      </span>
-      <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
-    </summary>
-    <ul class="shortcut-list">
-      <li class="shortcut-item shortcut-item-toggle-widget">
-        <span class="shortcut-label"><i class="fa-solid fa-keyboard"></i><span data-i18n="shortcutToggleWidget">Toggle widget</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>B</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-toggle-overlay">
-        <span class="shortcut-label"><i class="fa-solid fa-layer-group"></i><span data-i18n="shortcutToggleOverlay">Toggle overlays</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>V</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-draw">
-        <span class="shortcut-label"><i class="fa-solid fa-pencil"></i><span data-i18n="shortcutDraw">Draw</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-add-image">
-        <span class="shortcut-label"><i class="fa-solid fa-image"></i><span data-i18n="shortcutAddImage">Add image</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>I</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-focus-shortcuts">
-        <span class="shortcut-label"><i class="fa-solid fa-list"></i><span data-i18n="shortcutFocusList">Focus shortcuts</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>/</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-next-image">
-        <span class="shortcut-label"><i class="fa-solid fa-arrow-right"></i><span data-i18n="shortcutNextImage">Next image</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>N</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-previous-image">
-        <span class="shortcut-label"><i class="fa-solid fa-arrow-left"></i><span data-i18n="shortcutPreviousImage">Previous image</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>P</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-color-panel">
-        <span class="shortcut-label"><i class="fa-solid fa-palette"></i><span data-i18n="shortcutColorPanel">Color panel</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>O</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-lock-image">
-        <span class="shortcut-label"><i class="fa-solid fa-lock"></i><span data-i18n="shortcutLockImage">Lock image</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>L</kbd></span>
-      </li>
-      <li class="shortcut-item shortcut-item-paint-ready">
-        <span class="shortcut-label"><i class="fa-solid fa-hourglass-half"></i><span data-i18n="shortcutClickPaintWhenReady">Wait + click Paint</span></span>
-        <span class="shortcut-keys"><kbd>Shift</kbd><kbd>R</kbd></span>
-      </li>
-    </ul>
-  </details>
-  <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
-    <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
-    <option value="ALL" data-i18n="all">All</option>
-    <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
-  </select></label>
-  <div class="widget-actions">
-    <strong data-i18n="overlaySection">Overlay</strong>
-    <button class="toggle-overlay" data-i18n="toggleOverlay">Hide/show overlays</button>
-  </div>
-  <div class="images"></div>
-  <button class="capture-template" disabled>
-    <i class="fa-solid fa-camera" aria-hidden="true"></i>
-    <span data-i18n="captureTemplate">Capture template</span>
-  </button>
-  <button class="add-image" disabled data-i18n="addImage">Add image</button>
+  <section class="widget-section widget-section-general">
+    <strong class="widget-section-title" data-i18n="generalSection">General</strong>
+    <label><span data-i18n="language">Language</span>:&nbsp;<select class="locale">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+    </select></label>
+    <div class="wprogress"><div></div><span></span></div>
+    <div class="wp wstatus"></div>
+  </section>
+
+  <section class="widget-section widget-section-actions">
+    <strong class="widget-section-title" data-i18n="actionsSection">Actions</strong>
+    <button class="draw" disabled data-i18n="draw">Draw</button>
+    <button class="draw-and-paint" disabled data-i18n="drawAndPaint">Draw + Paint</button>
+  </section>
+
+  <section class="widget-section widget-section-shortcuts">
+    <details class="shortcuts">
+      <summary class="shortcuts-summary">
+        <span class="shortcuts-summary-title">
+          <i class="fa-solid fa-keyboard" aria-hidden="true"></i>
+          <strong data-i18n="keyboardShortcuts">Shortcuts</strong>
+        </span>
+        <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
+      </summary>
+      <ul class="shortcut-list">
+        <li class="shortcut-item shortcut-item-toggle-widget">
+          <span class="shortcut-label"><i class="fa-solid fa-keyboard"></i><span data-i18n="shortcutToggleWidget">Toggle widget</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>B</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-toggle-overlay">
+          <span class="shortcut-label"><i class="fa-solid fa-layer-group"></i><span data-i18n="shortcutToggleOverlay">Toggle overlays</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>V</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-draw">
+          <span class="shortcut-label"><i class="fa-solid fa-pencil"></i><span data-i18n="shortcutDraw">Draw</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-add-image">
+          <span class="shortcut-label"><i class="fa-solid fa-image"></i><span data-i18n="shortcutAddImage">Add image</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>I</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-focus-shortcuts">
+          <span class="shortcut-label"><i class="fa-solid fa-list"></i><span data-i18n="shortcutFocusList">Focus shortcuts</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>/</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-next-image">
+          <span class="shortcut-label"><i class="fa-solid fa-arrow-right"></i><span data-i18n="shortcutNextImage">Next image</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>N</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-previous-image">
+          <span class="shortcut-label"><i class="fa-solid fa-arrow-left"></i><span data-i18n="shortcutPreviousImage">Previous image</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>P</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-color-panel">
+          <span class="shortcut-label"><i class="fa-solid fa-palette"></i><span data-i18n="shortcutColorPanel">Color panel</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>O</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-lock-image">
+          <span class="shortcut-label"><i class="fa-solid fa-lock"></i><span data-i18n="shortcutLockImage">Lock image</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>L</kbd></span>
+        </li>
+        <li class="shortcut-item shortcut-item-paint-ready">
+          <span class="shortcut-label"><i class="fa-solid fa-hourglass-half"></i><span data-i18n="shortcutClickPaintWhenReady">Wait + click Paint</span></span>
+          <span class="shortcut-keys"><kbd>Shift</kbd><kbd>R</kbd></span>
+        </li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="widget-section widget-section-strategy">
+    <strong class="widget-section-title" data-i18n="strategySection">Draw strategy</strong>
+    <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
+      <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
+      <option value="ALL" data-i18n="all">All</option>
+      <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
+    </select></label>
+  </section>
+
+  <section class="widget-section widget-section-overlay">
+    <div class="widget-actions">
+      <strong data-i18n="overlaySection">Overlay</strong>
+      <button class="toggle-overlay" data-i18n="toggleOverlay">Hide/show overlays</button>
+    </div>
+  </section>
+
+  <section class="widget-section widget-section-images">
+    <strong class="widget-section-title" data-i18n="imagesSection">Images</strong>
+    <div class="images"></div>
+    <button class="capture-template" disabled>
+      <i class="fa-solid fa-camera" aria-hidden="true"></i>
+      <span data-i18n="captureTemplate">Capture template</span>
+    </button>
+    <button class="add-image" disabled data-i18n="addImage">Add image</button>
+  </section>
 </div>

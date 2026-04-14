@@ -500,7 +500,10 @@ export class BotImage extends Base {
   }
 
   protected invalidatePreviewCacheIfNeeded() {
-    const signature = `${this.pixels.width}x${this.pixels.height}:${this.pixels.image.src.length}`
+    const colorState = this.colors
+      .map((color, index) => `${index}:${color.realColor}:${color.disabled ? 1 : 0}`)
+      .join('|')
+    const signature = `${this.pixels.width}x${this.pixels.height}:${this.pixels.image.src.length}:${this.drawColorsInOrder ? 1 : 0}:${colorState}`
     if (this.previewCacheSignature === signature) return
     this.previewCacheSignature = signature
     this.previewSequenceCache.clear()
@@ -670,7 +673,10 @@ export class BotImage extends Base {
     strategy: ImageStrategy,
     mask: Position[],
   ) {
-    const cacheKey = `${strategy}:${this.pixels.width}x${this.pixels.height}:${mask.length}`
+    const colorState = this.colors
+      .map((color, index) => `${index}:${color.realColor}:${color.disabled ? 1 : 0}`)
+      .join('|')
+    const cacheKey = `${strategy}:${this.pixels.width}x${this.pixels.height}:${mask.length}:${this.drawColorsInOrder ? 1 : 0}:${colorState}`
     const cached = this.previewSequenceCache.get(cacheKey)
     if (cached) return cached
     const previousStrategy = this.strategy
@@ -679,6 +685,16 @@ export class BotImage extends Base {
     this.strategy = previousStrategy
     const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
     const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+    if (this.drawColorsInOrder) {
+      const colorsOrderMap = new Map<number, number>()
+      for (let index = 0; index < this.colors.length; index++)
+        colorsOrderMap.set(this.colors[index]!.realColor, index)
+      filtered.sort(
+        (a, b) =>
+          (colorsOrderMap.get(this.pixels.pixels[a.y]?.[a.x] ?? 0) ?? 0) -
+          (colorsOrderMap.get(this.pixels.pixels[b.y]?.[b.x] ?? 0) ?? 0),
+      )
+    }
     this.previewSequenceCache.set(cacheKey, filtered)
     return filtered
   }
@@ -686,10 +702,16 @@ export class BotImage extends Base {
   protected getImagePreviewMask() {
     const width = this.pixels.width
     const height = this.pixels.height
+    const disabledColors = new Set<number>()
+    for (let index = 0; index < this.colors.length; index++) {
+      const drawColor = this.colors[index]!
+      if (drawColor.disabled) disabledColors.add(drawColor.realColor)
+    }
     const mask: Position[] = []
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        if ((this.pixels.pixels[y]?.[x] ?? 0) !== 0) mask.push({ x, y })
+        const color = this.pixels.pixels[y]?.[x] ?? 0
+        if (color !== 0 && !disabledColors.has(color)) mask.push({ x, y })
       }
     }
     return mask.length ? mask : this.fallbackPreviewMask()

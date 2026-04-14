@@ -190,6 +190,7 @@ class KGlacerMacro {
         this.updateTasks()
         // Unblock buttons
         this.widget.setDisabled('draw', false)
+        this.widget.setDisabled('draw-and-paint', false)
         this.widget.setDisabled('add-image', false)
         this.widget.setDisabled('capture-template', false)
         this.log('Initialization completed; controls enabled')
@@ -263,6 +264,7 @@ class KGlacerMacro {
       images: this.images.length,
     })
     this.widget.setDisabled('draw', true)
+    this.widget.setDisabled('draw-and-paint', true)
     this.widget.status = ''
     // Clear maps cache to refetch pixels
     this.mapsCache.clear()
@@ -364,6 +366,7 @@ class KGlacerMacro {
         globalThis.removeEventListener('mousemove', prevent, true)
         $canvas.removeEventListener('wheel', prevent, true)
         this.widget.setDisabled('draw', false)
+        this.widget.setDisabled('draw-and-paint', false)
       },
     )
   }
@@ -438,18 +441,18 @@ class KGlacerMacro {
     return this.widget.run(
       `${t('taskReadingMap')} [0/${imagesToDownload.size}]`,
       () =>
-      Promise.all(
-        [...imagesToDownload].map(async (x) => {
-          this.mapsCache.set(
-            x,
-            await Pixels.fromJSON(this, {
-              url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
-              exactColor: true,
-            }),
-          )
-          this.widget.status = `⌛ ${t('taskReadingMap')} [${++done}/${imagesToDownload.size}]`
-        }),
-      ),
+        Promise.all(
+          [...imagesToDownload].map(async (x) => {
+            this.mapsCache.set(
+              x,
+              await Pixels.fromJSON(this, {
+                url: `https://backend.wplace.live/files/s0/tiles/${x}.png`,
+                exactColor: true,
+              }),
+            )
+            this.widget.status = `⌛ ${t('taskReadingMap')} [${++done}/${imagesToDownload.size}]`
+          }),
+        ),
     )
   }
 
