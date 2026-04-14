@@ -183,6 +183,7 @@ export class Widget extends Base {
     this.statusRefreshIntervalId = window.setInterval(() => {
       this.refreshAutoFarmStatusText()
       this.refreshAutoOverlayStatusText()
+      this.refreshProgress()
     }, 1000)
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
@@ -514,18 +515,7 @@ export class Widget extends Base {
   /** Update widget position and contents */
   public update() {
     this.$strategy.value = this.bot.strategy
-    // Progress
-    let maxTasks = 0
-    let totalTasks = 0
-    for (let index = 0; index < this.bot.images.length; index++) {
-      const image = this.bot.images[index]!
-      maxTasks += image.pixels.pixels.length * image.pixels.pixels[0]!.length
-      totalTasks += image.tasks.length
-    }
-    const doneTasks = Math.max(0, maxTasks - totalTasks)
-    const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
-    this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`
-    this.$progressLine.style.transform = `scaleX(${percent / 100})`
+    this.refreshProgress()
 
     // Images
     this.$images.innerHTML = ''
@@ -592,6 +582,20 @@ export class Widget extends Base {
     this.$images.append(fragment)
   }
 
+  protected refreshProgress() {
+    let maxTasks = 0
+    let totalTasks = 0
+    for (let index = 0; index < this.bot.images.length; index++) {
+      const image = this.bot.images[index]!
+      maxTasks += image.pixels.pixels.length * image.pixels.pixels[0]!.length
+      totalTasks += image.tasks.length
+    }
+    const doneTasks = Math.max(0, maxTasks - totalTasks)
+    const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
+    this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`
+    this.$progressLine.style.transform = `scaleX(${percent / 100})`
+  }
+
   protected syncOverlayVisibilityFromStorage() {
     const hidden =
       localStorage.getItem(OVERLAY_VISIBILITY_STORAGE_KEY) === 'true'
@@ -607,11 +611,10 @@ export class Widget extends Base {
   }
 
   protected refreshOverlayToggleText() {
-    this.$toggleOverlay.textContent = document.body.classList.contains(
-      'overlay-hidden',
-    )
-      ? `${t('toggleOverlay')} (${t('disabled')})`
-      : `${t('toggleOverlay')} (${t('enabled')})`
+    const stateLabel = document.body.classList.contains('overlay-hidden')
+      ? t('disabled')
+      : t('enabled')
+    this.$toggleOverlay.innerHTML = `<i class="fa-solid fa-layer-group"></i><span>${t('toggleOverlay')} (${stateLabel})</span>`
   }
 
   protected applyLocaleToUI(locale: 'en' | 'es') {
@@ -641,10 +644,26 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
-  <div class="autofarm-help">
-    <strong><i class="fa-solid fa-keyboard"></i> <span data-i18n="keyboardShortcuts">Shortcuts</span></strong>
-    <div data-i18n="shortcutsHelp">Shift+B toggle widget...</div>
-  </div>
+  <details class="shortcuts" open>
+    <summary class="shortcuts-summary">
+      <strong class="shortcuts-summary-title"><i class="fa-solid fa-keyboard"></i> <span data-i18n="keyboardShortcuts">Shortcuts</span></strong>
+      <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
+    </summary>
+    <ul class="shortcut-list">
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-table-cells-large"></i><span data-i18n="shortcutToggleWidget">Toggle widget</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>B</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-layer-group"></i><span data-i18n="shortcutToggleOverlay">Toggle overlays</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>V</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-pen-nib"></i><span data-i18n="shortcutDraw">Draw</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-image"></i><span data-i18n="shortcutAddImage">Add image</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>I</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-sliders"></i><span data-i18n="shortcutOpenSettings">Open settings</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>/</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-forward"></i><span data-i18n="shortcutNextImage">Next image</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>N</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-backward"></i><span data-i18n="shortcutPreviousImage">Previous image</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>P</kbd></span></li>
+      <li class="shortcut-item shortcut-item-color-panel"><span class="shortcut-label"><i class="fa-solid fa-palette"></i><span data-i18n="shortcutColorPanel">Color panel</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>O</kbd></span></li>
+      <li class="shortcut-item shortcut-item-lock-image"><span class="shortcut-label"><i class="fa-solid fa-lock"></i><span data-i18n="shortcutLockImage">Lock image</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>L</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-hourglass-half"></i><span data-i18n="shortcutClickPaintWhenReady">Wait + click Paint</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>R</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-play"></i><span data-i18n="shortcutStartAutoFarm">Start auto farm</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>F</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-stop"></i><span data-i18n="shortcutStopAutoFarm">Stop auto farm</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>G</kbd></span></li>
+    </ul>
+  </details>
 </form>`
     document.body.append($dialog)
     applyTranslations($dialog)
