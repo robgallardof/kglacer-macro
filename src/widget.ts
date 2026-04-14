@@ -616,9 +616,7 @@ export class Widget extends Base {
     if (!this.autoFarmConfig || this.autoFarmTickRunning) return
     this.autoFarmTickRunning = true
     try {
-      const drawn = await this.bot.drawTransparentPixelsBatch(
-        this.autoFarmConfig.pixels,
-      )
+      const drawn = await this.bot.drawRandomPixelsBatch(this.autoFarmConfig.pixels)
       if (drawn <= 0) {
         this.status = `⚠️ ${t('autoFarmNoTransparentTasks')}`
         return
@@ -700,7 +698,7 @@ export class Widget extends Base {
     </div>
   </label>
   <label class="autofarm-label">
-    <span data-i18n="autoFarmTransparentPixels">Transparent pixels per cycle</span>
+    <span data-i18n="autoFarmPixelsPerCycle">Pixels per cycle</span>
     <div class="autofarm-fields">
       <input class="autofarm-pixels" type="number" min="1" step="1" value="${defaultPixels}" />
     </div>

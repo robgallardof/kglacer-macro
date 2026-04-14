@@ -637,38 +637,49 @@ class KGlacerMacro {
     }
   }
 
-  public async drawTransparentPixelsBatch(limit: number) {
+  public async drawRandomPixelsBatch(limit: number) {
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
-    await this.widget.run(t('taskDrawingTransparentPixels'), async () => {
-      await this.widget.run(t('taskInitializingDraw'), () =>
-        Promise.all([this.updateColors(), this.readMap()]),
+    await this.widget.run(t('taskDrawingRandomPixels'), async () => {
+      await this.widget.run(t('taskInitializingDraw'), () => this.updateColors())
+      const availableButtons = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('button[id^="color-"]'),
+      ).filter(
+        (button) =>
+          !button.disabled &&
+          button.getAttribute('aria-disabled') !== 'true' &&
+          button.offsetParent !== null,
       )
-      this.updateTasks()
-      let remaining = normalizedLimit
-      for (
-        let imageIndex = 0;
-        imageIndex < this.images.length && remaining > 0;
-        imageIndex++
-      ) {
-        const image = this.images[imageIndex]!
-        for (
-          let taskIndex = 0;
-          taskIndex < image.tasks.length && remaining > 0;
-          taskIndex++
-        ) {
-          const task = image.tasks[taskIndex]!
-          if (task.color !== 0) continue
-          this.drawTask(task)
-          image.tasks.splice(taskIndex, 1)
-          taskIndex--
-          remaining--
-          drawn++
-          await wait(1)
-        }
+      const canvas =
+        document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
+      if (!availableButtons.length || !canvas) return
+      const rect = canvas.getBoundingClientRect()
+      const margin = 24
+      const minX = rect.left + margin
+      const maxX = rect.right - margin
+      const minY = rect.top + margin
+      const maxY = rect.bottom - margin
+      if (maxX <= minX || maxY <= minY) return
+      for (let index = 0; index < normalizedLimit; index++) {
+        const selectedButton =
+          availableButtons[
+            Math.floor(Math.random() * availableButtons.length)
+          ]!
+        const color = Number.parseInt(selectedButton.id.slice(6), 10)
+        if (!Number.isFinite(color)) continue
+        const screenX = minX + Math.random() * (maxX - minX)
+        const screenY = minY + Math.random() * (maxY - minY)
+        this.drawTask({
+          color,
+          position: WorldPosition.fromScreenPosition(this, {
+            x: screenX,
+            y: screenY,
+          }),
+        })
+        drawn++
+        await wait(1)
       }
     })
-    this.updateTasks()
     return drawn
   }
 
