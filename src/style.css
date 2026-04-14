@@ -854,6 +854,55 @@
   padding: 12px;
 }
 
+.upload-edit-dialog {
+  width: min(760px, 94vw);
+  min-width: min(320px, 92vw);
+  max-height: min(88dvh, 760px);
+  padding: 14px;
+}
+
+.upload-edit-help {
+  margin: 0 0 10px;
+  color: #b4bfdc;
+  font-size: 12px;
+}
+
+.upload-edit-preview-wrap {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 220px;
+  max-height: min(56dvh, 520px);
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgb(143 162 255 / 28%);
+  border-radius: 10px;
+  background: #0d1324;
+}
+
+.upload-edit-preview {
+  width: min(100%, 520px);
+  height: auto;
+  max-height: min(50dvh, 520px);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 8px;
+  background: repeating-conic-gradient(#12203d 0% 25%, #0f172b 0% 50%) 50% /
+    18px 18px;
+  image-rendering: pixelated;
+}
+
+.upload-edit-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.upload-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .preview-dialog-help {
   margin: 0 0 10px;
   color: #b4bfdc;

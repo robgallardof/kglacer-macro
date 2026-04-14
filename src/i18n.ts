@@ -12,7 +12,11 @@ const MESSAGES = {
     percentage: 'Percentage',
     opacity: 'Opacity',
     brightness: 'Brightness',
+    contrast: 'Contrast',
+    saturation: 'Saturation',
     dithering: 'Dithering',
+    cancel: 'Cancel',
+    apply: 'Apply',
     random: 'Random',
     humanized: 'Hand-painted blocks',
     humanSoftDither: 'Soft hand dithering',
@@ -88,6 +92,9 @@ const MESSAGES = {
     openColorPanel: 'Open color panel',
     editImage: 'Edit image settings',
     imageEditTitle: 'Image settings',
+    uploadEditTitle: 'Edit image before adding',
+    uploadEditHelp:
+      'Adjust brightness, contrast, saturation and dithering in real-time before placing the image overlay.',
     searchColors: 'Search by hex, English or Spanish',
     colorPanelResults: 'Color panel results',
     colorPanelHelp:
@@ -133,7 +140,11 @@ const MESSAGES = {
     percentage: 'Porcentaje',
     opacity: 'Opacidad',
     brightness: 'Brillo',
+    contrast: 'Contraste',
+    saturation: 'Saturación',
     dithering: 'Dithering',
+    cancel: 'Cancelar',
+    apply: 'Aplicar',
     random: 'Aleatorio',
     humanized: 'Bloques pintados a mano',
     humanSoftDither: 'Difuminado manual suave',
@@ -209,6 +220,9 @@ const MESSAGES = {
     openColorPanel: 'Abrir panel de colores',
     editImage: 'Editar configuración de imagen',
     imageEditTitle: 'Configuración de imagen',
+    uploadEditTitle: 'Editar imagen antes de agregar',
+    uploadEditHelp:
+      'Ajusta brillo, contraste, saturación y dithering en tiempo real antes de poner el overlay.',
     searchColors: 'Buscar por hexa, inglés o español',
     colorPanelResults: 'Resultados del panel de color',
     colorPanelHelp:
