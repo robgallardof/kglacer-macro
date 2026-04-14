@@ -305,63 +305,7 @@ export class Widget extends Base {
   }
 
   protected async resolveCaptureBounds() {
-    const preferManual = confirm(
-      'Capture mode:\nOK = manual coordinates (tile/pixel)\nCancel = select area on map',
-    )
-    if (!preferManual) return this.selectCaptureBounds()
-    return this.selectCaptureBoundsFromCoordinates()
-  }
-
-  protected selectCaptureBoundsFromCoordinates() {
-    const first = prompt(
-      'Top-left corner (tileX,tileY,pixelX,pixelY). Example: 120,340,1,1',
-    )
-    if (!first) throw new Error('Capture cancelled')
-    const second = prompt(
-      'Bottom-right corner (tileX,tileY,pixelX,pixelY). Example: 121,341,1000,1000',
-    )
-    if (!second) throw new Error('Capture cancelled')
-    const topLeft = this.parseTilePixelCoordinate(first)
-    const bottomRight = this.parseTilePixelCoordinate(second)
-    if (
-      bottomRight.tileX < topLeft.tileX ||
-      bottomRight.tileY < topLeft.tileY ||
-      (bottomRight.tileX === topLeft.tileX &&
-        bottomRight.tileY === topLeft.tileY &&
-        (bottomRight.pixelX < topLeft.pixelX ||
-          bottomRight.pixelY < topLeft.pixelY))
-    )
-      throw new Error('Invalid coordinate order (top-left -> bottom-right)')
-    const startGlobalX = topLeft.tileX * WORLD_TILE_SIZE + topLeft.pixelX
-    const startGlobalY = topLeft.tileY * WORLD_TILE_SIZE + topLeft.pixelY
-    const endGlobalX = bottomRight.tileX * WORLD_TILE_SIZE + bottomRight.pixelX
-    const endGlobalY = bottomRight.tileY * WORLD_TILE_SIZE + bottomRight.pixelY
-    return Promise.resolve({
-      minGlobalX: startGlobalX,
-      minGlobalY: startGlobalY,
-      maxGlobalX: endGlobalX,
-      maxGlobalY: endGlobalY,
-    })
-  }
-
-  protected parseTilePixelCoordinate(value: string) {
-    const [tileXRaw, tileYRaw, pixelXRaw, pixelYRaw] = value
-      .split(',')
-      .map((part) => Number.parseInt(part.trim(), 10))
-    if (
-      [tileXRaw, tileYRaw, pixelXRaw, pixelYRaw].some(
-        (part) => !Number.isFinite(part),
-      )
-    )
-      throw new Error('Invalid coordinate format')
-    const pixelX = Math.max(0, Math.min(999, pixelXRaw! - 1))
-    const pixelY = Math.max(0, Math.min(999, pixelYRaw! - 1))
-    return {
-      tileX: tileXRaw!,
-      tileY: tileYRaw!,
-      pixelX,
-      pixelY,
-    }
+    return this.selectCaptureBounds()
   }
 
   protected selectCaptureBounds() {
