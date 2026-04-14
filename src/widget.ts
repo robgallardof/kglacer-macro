@@ -23,13 +23,6 @@ export enum BotStrategy {
   SEQUENTIAL = 'SEQUENTIAL',
 }
 
-type UploadPreprocessSettings = {
-  brightness: number
-  contrast: number
-  saturation: number
-  dithering: boolean
-}
-
 /** Widget UI with buttons */
 export class Widget extends Base {
   public readonly element = document.createElement('div')
@@ -149,26 +142,22 @@ export class Widget extends Base {
           type: file.type,
         })
         let botImage
-        let shouldOpenEditPanel = false
         if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
           botImage = await BotImage.fromJSON(
             this.bot,
             JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
           )
         } else {
-          shouldOpenEditPanel = true
           const reader = new FileReader()
           reader.readAsDataURL(file)
           await promisifyEventSource(reader, ['load'], ['error'])
           const optimizedDataURL = await this.compressImageBeforeLoad(
             reader.result as string,
           )
-          const preprocessedDataURL =
-            await this.openImagePreprocessModal(optimizedDataURL)
-          if (!preprocessedDataURL) throw new NoImageError(this.bot)
           const image = new Image()
-          image.src = preprocessedDataURL
+          image.src = optimizedDataURL
           await promisifyEventSource(image, ['load'], ['error'])
+          await this.waitForStableViewportProjection()
           botImage = new BotImage(
             this.bot,
             WorldPosition.fromScreenPosition(
@@ -187,7 +176,6 @@ export class Widget extends Base {
         save(this.bot, true)
         this.bot.updateTasks()
         this.update()
-        if (shouldOpenEditPanel) botImage.openEditPanel()
       },
       () => {
         this.setDisabled('add-image', false)
@@ -476,186 +464,46 @@ export class Widget extends Base {
     return canvas.toDataURL('image/png')
   }
 
-  protected async openImagePreprocessModal(sourceDataURL: string) {
-    const sourceImage = new Image()
-    sourceImage.src = sourceDataURL
-    await promisifyEventSource(sourceImage, ['load'], ['error'])
-
-    const dialog = document.createElement('dialog')
-    dialog.className = 'kgm-modal upload-edit-dialog'
-    dialog.innerHTML = `
-      <div class="kgm-modal-head">
-        <strong data-i18n="uploadEditTitle"></strong>
-      </div>
-      <p class="upload-edit-help" data-i18n="uploadEditHelp"></p>
-      <div class="upload-edit-preview-wrap">
-        <canvas class="upload-edit-preview" width="640" height="640"></canvas>
-      </div>
-      <div class="upload-edit-controls">
-        <label>
-          <span data-i18n="brightness"></span>:&nbsp;
-          <input class="upload-edit-brightness" type="range" min="-100" max="100" step="1" value="0"/>
-        </label>
-        <label>
-          <span data-i18n="contrast"></span>:&nbsp;
-          <input class="upload-edit-contrast" type="range" min="50" max="200" step="1" value="100"/>
-        </label>
-        <label>
-          <span data-i18n="saturation"></span>:&nbsp;
-          <input class="upload-edit-saturation" type="range" min="0" max="200" step="1" value="100"/>
-        </label>
-        <label>
-          <input class="upload-edit-dithering" type="checkbox" />&nbsp;<span data-i18n="dithering"></span>
-        </label>
-      </div>
-      <div class="upload-edit-actions">
-        <button type="button" class="upload-edit-cancel" data-i18n="cancel"></button>
-        <button type="button" class="upload-edit-apply" data-i18n="apply"></button>
-      </div>
-    `
-    applyTranslations(dialog)
-    document.body.append(dialog)
-    const previewCanvas = dialog.querySelector<HTMLCanvasElement>(
-      '.upload-edit-preview',
-    )!
-    const $brightness = dialog.querySelector<HTMLInputElement>(
-      '.upload-edit-brightness',
-    )!
-    const $contrast = dialog.querySelector<HTMLInputElement>(
-      '.upload-edit-contrast',
-    )!
-    const $saturation = dialog.querySelector<HTMLInputElement>(
-      '.upload-edit-saturation',
-    )!
-    const $dithering = dialog.querySelector<HTMLInputElement>(
-      '.upload-edit-dithering',
-    )!
-    const $cancel = dialog.querySelector<HTMLButtonElement>(
-      '.upload-edit-cancel',
-    )!
-    const $apply =
-      dialog.querySelector<HTMLButtonElement>('.upload-edit-apply')!
-    const settings: UploadPreprocessSettings = {
-      brightness: 0,
-      contrast: 100,
-      saturation: 100,
-      dithering: false,
+  protected async waitForStableViewportProjection() {
+    type ProjectionSample = {
+      anchorX: number
+      anchorY: number
+      pixelSize: number
     }
 
-    let renderQueued = false
-    const renderPreview = () => {
-      renderQueued = false
-      this.renderProcessedImageToCanvas(sourceImage, previewCanvas, settings)
-    }
-    const queueRender = () => {
-      if (renderQueued) return
-      renderQueued = true
-      requestAnimationFrame(renderPreview)
-    }
-    const syncSettingsFromInputs = () => {
-      settings.brightness = $brightness.valueAsNumber
-      settings.contrast = $contrast.valueAsNumber
-      settings.saturation = $saturation.valueAsNumber
-      settings.dithering = $dithering.checked
-      queueRender()
-    }
+    const target = this.defaultImageScreenPosition()
+    let stableFrames = 0
+    let previous: ProjectionSample | undefined
 
-    const resolveResult = (value: string | null) => {
-      if (dialog.open) dialog.close()
-      dialog.remove()
-      return value
-    }
-
-    return await new Promise<string | null>((resolve) => {
-      const onCancel = () => {
-        resolve(resolveResult(null))
+    for (let attempts = 0; attempts < 45; attempts++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      const {
+        anchorScreenPosition: { x, y },
+        pixelSize,
+      } = this.bot.findAnchorsForScreen(target)
+      if (!Number.isFinite(pixelSize) || pixelSize <= 0) {
+        stableFrames = 0
+        continue
       }
-      const onApply = () => {
-        const processed = document.createElement('canvas')
-        processed.width = sourceImage.naturalWidth
-        processed.height = sourceImage.naturalHeight
-        this.renderProcessedImageToCanvas(sourceImage, processed, settings)
-        resolve(resolveResult(processed.toDataURL('image/png')))
+      const current: ProjectionSample = {
+        anchorX: x,
+        anchorY: y,
+        pixelSize,
       }
-
-      dialog.addEventListener('cancel', (event) => {
-        event.preventDefault()
-        onCancel()
-      })
-      dialog.addEventListener('click', (event) => {
-        if (event.target === dialog) onCancel()
-      })
-      $cancel.addEventListener('click', onCancel)
-      $apply.addEventListener('click', onApply)
-      $brightness.addEventListener('input', syncSettingsFromInputs)
-      $contrast.addEventListener('input', syncSettingsFromInputs)
-      $saturation.addEventListener('input', syncSettingsFromInputs)
-      $dithering.addEventListener('change', syncSettingsFromInputs)
-      queueRender()
-      dialog.showModal()
-    })
-  }
-
-  protected renderProcessedImageToCanvas(
-    sourceImage: HTMLImageElement,
-    targetCanvas: HTMLCanvasElement,
-    settings: UploadPreprocessSettings,
-  ) {
-    const context = targetCanvas.getContext('2d')
-    if (!context) return
-    const targetScale = Math.min(
-      targetCanvas.width / sourceImage.naturalWidth,
-      targetCanvas.height / sourceImage.naturalHeight,
-      1,
-    )
-    const drawWidth = Math.max(1, (sourceImage.naturalWidth * targetScale) | 0)
-    const drawHeight = Math.max(
-      1,
-      (sourceImage.naturalHeight * targetScale) | 0,
-    )
-    const drawX = ((targetCanvas.width - drawWidth) / 2) | 0
-    const drawY = ((targetCanvas.height - drawHeight) / 2) | 0
-
-    context.save()
-    context.clearRect(0, 0, targetCanvas.width, targetCanvas.height)
-    context.filter = `brightness(${100 + settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%)`
-    context.imageSmoothingEnabled = false
-    context.imageSmoothingQuality = 'low'
-    context.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight)
-    context.restore()
-    if (!settings.dithering) return
-    this.applyPreviewDithering(context, drawX, drawY, drawWidth, drawHeight)
-  }
-
-  protected applyPreviewDithering(
-    context: CanvasRenderingContext2D,
-    startX: number,
-    startY: number,
-    width: number,
-    height: number,
-  ) {
-    const ditherMatrix = [
-      [0, 8, 2, 10],
-      [12, 4, 14, 6],
-      [3, 11, 1, 9],
-      [15, 7, 13, 5],
-    ]
-    const imageData = context.getImageData(startX, startY, width, height)
-    const data = imageData.data
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4
-        const offset = ditherMatrix[y % 4]![x % 4]! - 8
-        data[idx] = this.clampColorByte(data[idx]! + offset)
-        data[idx + 1] = this.clampColorByte(data[idx + 1]! + offset)
-        data[idx + 2] = this.clampColorByte(data[idx + 2]! + offset)
+      if (!previous) {
+        previous = current
+        stableFrames = 1
+        continue
       }
+      const delta =
+        Math.abs(current.anchorX - previous.anchorX) +
+        Math.abs(current.anchorY - previous.anchorY) +
+        Math.abs(current.pixelSize - previous.pixelSize)
+      if (delta < 0.0012) stableFrames++
+      else stableFrames = 0
+      previous = current
+      if (stableFrames >= 3) return
     }
-    context.putImageData(imageData, startX, startY)
-  }
-
-  protected clampColorByte(value: number) {
-    return Math.max(0, Math.min(255, value | 0))
   }
 
   /** Update widget position and contents */

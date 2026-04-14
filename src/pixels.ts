@@ -25,9 +25,7 @@ export class Pixels {
       bot,
       image,
       data.width,
-      data.brightness,
       data.exactColor,
-      data.dithering,
     )
   }
 
@@ -56,12 +54,8 @@ export class Pixels {
     public image: HTMLImageElement,
     /** Change scale of image pixels */
     public width = image.naturalWidth,
-    /** Change brightness of picture */
-    public brightness = 0,
     /** Use fast exact color algorithm */
     public exactColor = false,
-    /** Apply simple dithering before quantization */
-    public dithering = false,
   ) {
     if (exactColor) {
       this.resolution = 1
@@ -108,10 +102,9 @@ export class Pixels {
         const g = data[index + 1]!
         const b = data[index + 2]!
         const a = data[index + 3]!
-        const dither = this.dithering ? this.ditherOffset(x, y) : 0
-        const rr = this.clampByte(r + dither)
-        const gg = this.clampByte(g + dither)
-        const bb = this.clampByte(b + dither)
+        const rr = r
+        const gg = g
+        const bb = b
         // Key for caching
         const key = `${rr},${gg},${bb}`
         if (this.exactColor) {
@@ -134,7 +127,7 @@ export class Pixels {
             const delta = deltaE2000(
               rgbToOklab(rr, gg, bb),
               color,
-              this.brightness,
+              0,
             )
             if (
               !this.bot.unavailableColors.has(colorIndex) &&
@@ -183,29 +176,11 @@ export class Pixels {
     return {
       url: canvas.toDataURL('image/webp', 1),
       width: this.width,
-      brightness: this.brightness,
       exactColor: this.exactColor,
-      dithering: this.dithering,
     } as {
       url: string
       width?: number
-      brightness?: number
       exactColor?: boolean
-      dithering?: boolean
     }
-  }
-
-  protected ditherOffset(x: number, y: number) {
-    const matrix = [
-      [0, 8, 2, 10],
-      [12, 4, 14, 6],
-      [3, 11, 1, 9],
-      [15, 7, 13, 5],
-    ]
-    return matrix[y % 4]![x % 4]! - 8
-  }
-
-  protected clampByte(value: number) {
-    return Math.max(0, Math.min(255, value | 0))
   }
 }
