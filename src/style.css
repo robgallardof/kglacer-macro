@@ -162,6 +162,13 @@
   align-items: center;
 }
 
+.wwidget .widget-image-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .wwidget.wopen .wopen-button svg {
   transform: rotate(90deg);
 }

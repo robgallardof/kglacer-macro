@@ -99,7 +99,7 @@ const MESSAGES = {
     previewStrategyHelp:
       'Animated visual reference of the currently selected paint mode using your current image.',
     captureTemplate: 'Capture image',
-    captureFormatPrompt: 'Capture format (png or webp)',
+    captureFormatPrompt: 'Capture format (png)',
     exportImage: 'Export image settings',
     lockImage: 'Lock/unlock image',
     deleteImage: 'Delete image',
@@ -221,7 +221,7 @@ const MESSAGES = {
     previewStrategyHelp:
       'Referencia visual animada del modo de pintado seleccionado usando tu imagen actual.',
     captureTemplate: 'Capturar imagen',
-    captureFormatPrompt: 'Formato de captura (png o webp)',
+    captureFormatPrompt: 'Formato de captura (png)',
     exportImage: 'Exportar configuración de imagen',
     lockImage: 'Bloquear/desbloquear imagen',
     deleteImage: 'Eliminar imagen',

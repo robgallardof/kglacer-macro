@@ -1,6 +1,6 @@
 {
   "name": "kglacer-macro",
-  "version": "2.1.15",
+  "version": "2.1.16",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

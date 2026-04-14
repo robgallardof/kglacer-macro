@@ -240,7 +240,6 @@ export class Widget extends Base {
 
         const timestamp = Date.now()
         await this.downloadCapture(captured, 'png', timestamp)
-        await this.downloadCapture(captured, 'webp', timestamp)
       },
       () => {
         this.setDisabled('capture-template', false)
@@ -277,21 +276,11 @@ export class Widget extends Base {
     let lastError: unknown
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const response = await fetch(
-          `https://backend.wplace.live/files/s0/tiles/${tileX}/${tileY}.png`,
-          {
-            cache: 'no-store',
-            credentials: 'include',
-          },
-        )
-        if (!response.ok)
-          throw new Error(`Tile fetch failed (${tileX}/${tileY})`)
-        const blob = await response.blob()
         const image = new Image()
-        const url = URL.createObjectURL(blob)
-        image.src = url
+        image.crossOrigin = 'anonymous'
+        image.referrerPolicy = 'no-referrer'
+        image.src = `https://backend.wplace.live/files/s0/tiles/${tileX}/${tileY}.png?ts=${Date.now()}-${attempt}`
         await promisifyEventSource(image, ['load'], ['error'])
-        URL.revokeObjectURL(url)
         return image
       } catch (error) {
         lastError = error
