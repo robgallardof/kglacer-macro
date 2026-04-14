@@ -74,8 +74,9 @@ const MESSAGES = {
     shortcutLockImage: 'Lock image',
     shortcutClickPaintWhenReady: 'Wait + click Paint',
     shortcutStartAutoFarm: 'Start auto farm',
+    shortcutStopAutoFarm: 'Stop auto farm',
     shortcutsHelp:
-      'Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image · Shift+/ focus shortcuts · Shift+N next image · Shift+P previous image · Shift+O color panel (active image) · Shift+L lock/unlock active image · Shift+R wait cooldown and click Paint · Shift+F start auto farm',
+      'Shift+B toggle widget · Shift+V hide/show overlays · Shift+Enter draw · Shift+I add image · Shift+/ focus shortcuts · Shift+N next image · Shift+P previous image · Shift+O color panel (active image) · Shift+L lock/unlock active image · Shift+R wait cooldown and click Paint · Shift+F start auto farm · Shift+G stop auto farm',
     language: 'Language',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
@@ -213,8 +214,9 @@ const MESSAGES = {
     shortcutLockImage: 'Bloquear imagen',
     shortcutClickPaintWhenReady: 'Esperar + click en Pintar',
     shortcutStartAutoFarm: 'Iniciar auto farm',
+    shortcutStopAutoFarm: 'Detener auto farm',
     shortcutsHelp:
-      'Shift+B mostrar widget · Shift+V ocultar/mostrar overlays · Shift+Enter dibujar · Shift+I agregar imagen · Shift+/ enfocar atajos · Shift+N siguiente imagen · Shift+P imagen anterior · Shift+O panel de colores (imagen activa) · Shift+L bloquear/desbloquear imagen activa · Shift+R esperar cooldown y click en Pintar · Shift+F iniciar auto farm',
+      'Shift+B mostrar widget · Shift+V ocultar/mostrar overlays · Shift+Enter dibujar · Shift+I agregar imagen · Shift+/ enfocar atajos · Shift+N siguiente imagen · Shift+P imagen anterior · Shift+O panel de colores (imagen activa) · Shift+L bloquear/desbloquear imagen activa · Shift+R esperar cooldown y click en Pintar · Shift+F iniciar auto farm · Shift+G detener auto farm',
     language: 'Idioma',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',

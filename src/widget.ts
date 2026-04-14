@@ -64,6 +64,8 @@ export class Widget extends Base {
   protected readonly $captureTemplate!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $autofarmConfig!: HTMLButtonElement
+  protected readonly $autofarmStart!: HTMLButtonElement
+  protected readonly $autofarmStop!: HTMLButtonElement
   protected readonly $autofarmStatus!: HTMLDivElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
@@ -99,6 +101,8 @@ export class Widget extends Base {
       $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
       $autofarmConfig: '.autofarm-config',
+      $autofarmStart: '.widget-section-autofarm > .widget-actions > .autofarm-start',
+      $autofarmStop: '.widget-section-autofarm > .widget-actions > .autofarm-stop',
       $autofarmStatus: '.autofarm-status',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
@@ -124,6 +128,12 @@ export class Widget extends Base {
     })
     this.$autofarmConfig.addEventListener('click', () => {
       this.openAutoFarmModal()
+    })
+    this.$autofarmStart.addEventListener('click', () => {
+      this.startAutoFarm()
+    })
+    this.$autofarmStop.addEventListener('click', () => {
+      this.stopAutoFarm()
     })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
@@ -616,11 +626,7 @@ export class Widget extends Base {
     if (!this.autoFarmConfig || this.autoFarmTickRunning) return
     this.autoFarmTickRunning = true
     try {
-      const drawn = await this.bot.drawRandomPixelsBatch(this.autoFarmConfig.pixels)
-      if (drawn <= 0) {
-        this.status = `⚠️ ${t('autoFarmNoTransparentTasks')}`
-        return
-      }
+      await this.bot.drawRandomPixelsBatch(this.autoFarmConfig.pixels)
       await this.waitAndClickPaintButton()
     } finally {
       this.autoFarmTickRunning = false
@@ -835,6 +841,11 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.startAutoFarm)) {
       event.preventDefault()
       this.startAutoFarm()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.stopAutoFarm)) {
+      event.preventDefault()
+      this.stopAutoFarm()
       return
     }
     if (

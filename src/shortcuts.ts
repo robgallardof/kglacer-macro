@@ -21,6 +21,7 @@ export const SHORTCUTS = {
   toggleImageLock: { key: 'l', shift: true } satisfies Shortcut,
   clickPaintWhenReady: { key: 'r', shift: true } satisfies Shortcut,
   startAutoFarm: { key: 'f', shift: true } satisfies Shortcut,
+  stopAutoFarm: { key: 'g', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
