@@ -88,9 +88,12 @@ export class Widget extends Base {
   protected autoFarmIntervalId?: number
   protected autoFarmConfig?: AutoFarmConfig
   protected autoFarmTickRunning = false
+  protected autoFarmNextTickAt?: number
   protected autoOverlayIntervalId?: number
   protected autoOverlayConfig?: AutoOverlayConfig
   protected autoOverlayTickRunning = false
+  protected autoOverlayNextTickAt?: number
+  protected statusRefreshIntervalId?: number
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -114,16 +117,12 @@ export class Widget extends Base {
       $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
       $autofarmConfig: '.autofarm-config',
-      $autofarmStart:
-        '.widget-section-autofarm > .widget-actions > .autofarm-start',
-      $autofarmStop:
-        '.widget-section-autofarm > .widget-actions > .autofarm-stop',
+      $autofarmStart: '.autofarm-start',
+      $autofarmStop: '.autofarm-stop',
       $autofarmStatus: '.autofarm-status',
       $autoOverlayConfig: '.autooverlay-config',
-      $autoOverlayStart:
-        '.widget-section-autooverlay > .widget-actions > .autooverlay-start',
-      $autoOverlayStop:
-        '.widget-section-autooverlay > .widget-actions > .autooverlay-stop',
+      $autoOverlayStart: '.autooverlay-start',
+      $autoOverlayStop: '.autooverlay-stop',
       $autoOverlayStatus: '.autooverlay-status',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
@@ -181,6 +180,10 @@ export class Widget extends Base {
     this.loadAutoOverlayConfigFromStorage()
     this.refreshAutoFarmStatusText()
     this.refreshAutoOverlayStatusText()
+    this.statusRefreshIntervalId = window.setInterval(() => {
+      this.refreshAutoFarmStatusText()
+      this.refreshAutoOverlayStatusText()
+    }, 1000)
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
   }
@@ -645,7 +648,8 @@ export class Widget extends Base {
 </form>`
     document.body.append($dialog)
     applyTranslations($dialog)
-    const $locale = $dialog.querySelector<HTMLSelectElement>('.settings-locale')!
+    const $locale =
+      $dialog.querySelector<HTMLSelectElement>('.settings-locale')!
     $locale.value = getLocale()
     $locale.addEventListener('change', () => {
       this.applyLocaleToUI($locale.value as 'en' | 'es')
@@ -667,7 +671,7 @@ export class Widget extends Base {
       return
     }
     this.$autofarmStatus.textContent = this.autoFarmIntervalId
-      ? `${t('autoFarmRunning')} (${this.formatAutoFarmDelay(this.autoFarmConfig.timerMs)})`
+      ? `${t('autoFarmRunning')} (${this.formatAutoFarmDelay(this.autoFarmConfig.timerMs)}) · ${this.formatCountdown(this.autoFarmNextTickAt)}`
       : t('autoFarmStopped')
   }
 
@@ -677,8 +681,17 @@ export class Widget extends Base {
       return
     }
     this.$autoOverlayStatus.textContent = this.autoOverlayIntervalId
-      ? `${t('autoOverlayRunning')} (${this.formatAutoFarmDelay(this.autoOverlayConfig.timerMs)})`
+      ? `${t('autoOverlayRunning')} (${this.formatAutoFarmDelay(this.autoOverlayConfig.timerMs)}) · ${this.formatCountdown(this.autoOverlayNextTickAt)}`
       : t('autoOverlayStopped')
+  }
+
+  protected formatCountdown(nextTickAt?: number) {
+    if (!nextTickAt) return '00:00'
+    const remainingMs = Math.max(0, nextTickAt - Date.now())
+    const totalSeconds = Math.ceil(remainingMs / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `next in ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
   }
 
   protected formatAutoFarmDelay(ms: number) {
@@ -691,6 +704,7 @@ export class Widget extends Base {
     if (!this.autoFarmIntervalId) return
     clearInterval(this.autoFarmIntervalId)
     this.autoFarmIntervalId = undefined
+    this.autoFarmNextTickAt = undefined
     this.refreshAutoFarmStatusText()
   }
 
@@ -698,6 +712,7 @@ export class Widget extends Base {
     if (!this.autoOverlayIntervalId) return
     clearInterval(this.autoOverlayIntervalId)
     this.autoOverlayIntervalId = undefined
+    this.autoOverlayNextTickAt = undefined
     this.refreshAutoOverlayStatusText()
   }
 
@@ -708,7 +723,9 @@ export class Widget extends Base {
       return
     }
     this.stopAutoFarm()
+    this.autoFarmNextTickAt = Date.now() + this.autoFarmConfig.timerMs
     this.autoFarmIntervalId = window.setInterval(() => {
+      this.autoFarmNextTickAt = Date.now() + this.autoFarmConfig!.timerMs
       void this.runAutoFarmCycle()
     }, this.autoFarmConfig.timerMs)
     void this.runAutoFarmCycle()
@@ -722,7 +739,9 @@ export class Widget extends Base {
       return
     }
     this.stopAutoOverlay()
+    this.autoOverlayNextTickAt = Date.now() + this.autoOverlayConfig.timerMs
     this.autoOverlayIntervalId = window.setInterval(() => {
+      this.autoOverlayNextTickAt = Date.now() + this.autoOverlayConfig!.timerMs
       void this.runAutoOverlayCycle()
     }, this.autoOverlayConfig.timerMs)
     void this.runAutoOverlayCycle()
