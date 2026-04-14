@@ -49,6 +49,7 @@ export class Widget extends Base {
   protected readonly $locale!: HTMLSelectElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
+  protected readonly $drawAndPaint!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
   protected readonly $captureTemplate!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
@@ -78,6 +79,7 @@ export class Widget extends Base {
       $locale: '.locale',
       $topbar: '.wtopbar',
       $draw: '.draw',
+      $drawAndPaint: '.draw-and-paint',
       $addImage: '.add-image',
       $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
@@ -92,6 +94,9 @@ export class Widget extends Base {
     // Button actions
     this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
     this.$draw.addEventListener('click', () => this.bot.draw())
+    this.$drawAndPaint.addEventListener('click', () => {
+      void this.drawAndClickPaintWhenReady()
+    })
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
     this.$captureTemplate.addEventListener('click', () => {
@@ -476,7 +481,11 @@ export class Widget extends Base {
     let previous: ProjectionSample | undefined
 
     for (let attempts = 0; attempts < 45; attempts++) {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => {
+          resolve()
+        }),
+      )
       const {
         anchorScreenPosition: { x, y },
         pixelSize,
