@@ -750,7 +750,7 @@ export class Widget extends Base {
       for (;;) {
         const button = this.findNativePaintButton()
         if (button && !button.disabled && button.ariaDisabled !== 'true') {
-          button.click()
+          this.triggerNativePaintClick(button)
           return
         }
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -765,8 +765,11 @@ export class Widget extends Base {
 
   protected findNativePaintButton() {
     const selectors = [
+      'button.btn.btn-primary.btn-lg.sm\\:btn-xl.relative',
+      'button.btn.btn-primary.btn-lg.relative',
       'button.btn.btn-primary.btn-lg.relative.z-30',
       'button.btn.btn-primary.btn-lg.sm\\:btn-xl.relative.z-30',
+      'div.absolute.bottom-0.left-1\\/2.-translate-x-1\\/2 button.btn.btn-primary',
     ]
     const buttons = selectors.flatMap((selector) =>
       Array.from(document.querySelectorAll<HTMLButtonElement>(selector)),
@@ -774,6 +777,40 @@ export class Widget extends Base {
     return buttons.find((button) =>
       /pintar|paint/i.test(button.textContent ?? ''),
     )
+  }
+
+  protected triggerNativePaintClick(button: HTMLButtonElement) {
+    button.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'mouse',
+        button: 0,
+      }),
+    )
+    button.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    )
+    button.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'mouse',
+        button: 0,
+      }),
+    )
+    button.dispatchEvent(
+      new MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    )
+    button.click()
   }
 
   // protected async pumpkinHunt() {
