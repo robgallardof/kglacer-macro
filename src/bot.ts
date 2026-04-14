@@ -637,6 +637,41 @@ class KGlacerMacro {
     }
   }
 
+  public async drawTransparentPixelsBatch(limit: number) {
+    const normalizedLimit = Math.max(1, Math.floor(limit))
+    let drawn = 0
+    await this.widget.run(t('taskDrawingTransparentPixels'), async () => {
+      await this.widget.run(t('taskInitializingDraw'), () =>
+        Promise.all([this.updateColors(), this.readMap()]),
+      )
+      this.updateTasks()
+      let remaining = normalizedLimit
+      for (
+        let imageIndex = 0;
+        imageIndex < this.images.length && remaining > 0;
+        imageIndex++
+      ) {
+        const image = this.images[imageIndex]!
+        for (
+          let taskIndex = 0;
+          taskIndex < image.tasks.length && remaining > 0;
+          taskIndex++
+        ) {
+          const task = image.tasks[taskIndex]!
+          if (task.color !== 0) continue
+          this.drawTask(task)
+          image.tasks.splice(taskIndex, 1)
+          taskIndex--
+          remaining--
+          drawn++
+          await wait(1)
+        }
+      }
+    })
+    this.updateTasks()
+    return drawn
+  }
+
   /** Start listening to fetch requests */
   protected registerFetchInterceptor() {
     const originalFetch = globalThis.fetch

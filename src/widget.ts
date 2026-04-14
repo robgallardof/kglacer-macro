@@ -23,6 +23,7 @@ type AutoFarmUnit = 'seconds' | 'minutes' | 'hours'
 type AutoFarmConfig = {
   value: number
   unit: AutoFarmUnit
+  pixels: number
   timerMs: number
 }
 
@@ -73,6 +74,7 @@ export class Widget extends Base {
   protected activeImageIndex = -1
   protected autoFarmIntervalId?: number
   protected autoFarmConfig?: AutoFarmConfig
+  protected autoFarmTickRunning = false
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -604,9 +606,27 @@ export class Widget extends Base {
     }
     this.stopAutoFarm()
     this.autoFarmIntervalId = window.setInterval(() => {
-      void this.bot.paintRandomPixelInViewport()
+      void this.runAutoFarmCycle()
     }, this.autoFarmConfig.timerMs)
+    void this.runAutoFarmCycle()
     this.refreshAutoFarmStatusText()
+  }
+
+  protected async runAutoFarmCycle() {
+    if (!this.autoFarmConfig || this.autoFarmTickRunning) return
+    this.autoFarmTickRunning = true
+    try {
+      const drawn = await this.bot.drawTransparentPixelsBatch(
+        this.autoFarmConfig.pixels,
+      )
+      if (drawn <= 0) {
+        this.status = `⚠️ ${t('autoFarmNoTransparentTasks')}`
+        return
+      }
+      await this.waitAndClickPaintButton()
+    } finally {
+      this.autoFarmTickRunning = false
+    }
   }
 
   protected saveAutoFarmConfig(config: AutoFarmConfig) {
@@ -625,6 +645,12 @@ export class Widget extends Base {
         parsed.value < 1
       )
         return
+      const pixels =
+        typeof parsed.pixels === 'number' &&
+        Number.isFinite(parsed.pixels) &&
+        parsed.pixels >= 1
+          ? Math.floor(parsed.pixels)
+          : 60
       const unit =
         parsed.unit === 'hours' ||
         parsed.unit === 'minutes' ||
@@ -641,6 +667,7 @@ export class Widget extends Base {
               : parsed.value * 1000
       this.autoFarmConfig = {
         value: Math.max(1, Math.floor(parsed.value)),
+        pixels,
         unit,
         timerMs,
       }
@@ -654,6 +681,7 @@ export class Widget extends Base {
     $dialog.className = 'kgm-modal autofarm-dialog'
     const defaultUnit = this.autoFarmConfig?.unit ?? 'minutes'
     const defaultValue = this.autoFarmConfig?.value ?? 1
+    const defaultPixels = this.autoFarmConfig?.pixels ?? 60
     $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
   <div class="kgm-modal-head">
     <strong data-i18n="autoFarmModalTitle">Auto farm</strong>
@@ -671,6 +699,12 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
+  <label class="autofarm-label">
+    <span data-i18n="autoFarmTransparentPixels">Transparent pixels per cycle</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-pixels" type="number" min="1" step="1" value="${defaultPixels}" />
+    </div>
+  </label>
   <div class="autofarm-actions">
     <button type="button" class="autofarm-start" data-i18n="autoFarmStart">Start</button>
     <button type="button" class="autofarm-stop" data-i18n="autoFarmStop">Stop</button>
@@ -681,6 +715,7 @@ export class Widget extends Base {
     const $unit = $dialog.querySelector<HTMLSelectElement>('.autofarm-unit')!
     $unit.value = defaultUnit
     const $value = $dialog.querySelector<HTMLInputElement>('.autofarm-value')!
+    const $pixels = $dialog.querySelector<HTMLInputElement>('.autofarm-pixels')!
     const resolveTimerMs = () => {
       const value = Math.max(1, Number.parseInt($value.value || '1', 10))
       if ($unit.value === 'hours') return value * 3_600_000
@@ -691,6 +726,7 @@ export class Widget extends Base {
       () => {
         this.saveAutoFarmConfig({
           value: Math.max(1, Number.parseInt($value.value || '1', 10)),
+          pixels: Math.max(1, Number.parseInt($pixels.value || '60', 10)),
           unit: $unit.value as AutoFarmUnit,
           timerMs: resolveTimerMs(),
         })
