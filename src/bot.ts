@@ -637,11 +637,13 @@ class KGlacerMacro {
     }
   }
 
-  public async drawRandomPixelsBatch(limit: number) {
+  public async drawRandomPixelsBatch(limit: number, preferredColor?: number) {
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
     await this.widget.run(t('taskDrawingRandomPixels'), async () => {
-      await this.widget.run(t('taskInitializingDraw'), () => this.updateColors())
+      await this.widget.run(t('taskInitializingDraw'), () =>
+        this.updateColors(),
+      )
       const availableButtons = Array.from(
         document.querySelectorAll<HTMLButtonElement>('button[id^="color-"]'),
       ).filter(
@@ -653,6 +655,14 @@ class KGlacerMacro {
       const canvas =
         document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')
       if (!availableButtons.length || !canvas) return
+      const preferredButton =
+        preferredColor === undefined
+          ? undefined
+          : availableButtons.find(
+              (button) =>
+                Number.parseInt(button.id.slice(6), 10) === preferredColor,
+            )
+      if (preferredColor !== undefined && !preferredButton) return
       const rect = canvas.getBoundingClientRect()
       const margin = 24
       const minX = rect.left + margin
@@ -662,9 +672,8 @@ class KGlacerMacro {
       if (maxX <= minX || maxY <= minY) return
       for (let index = 0; index < normalizedLimit; index++) {
         const selectedButton =
-          availableButtons[
-            Math.floor(Math.random() * availableButtons.length)
-          ]!
+          preferredButton ??
+          availableButtons[Math.floor(Math.random() * availableButtons.length)]!
         const color = Number.parseInt(selectedButton.id.slice(6), 10)
         if (!Number.isFinite(color)) continue
         const screenX = minX + Math.random() * (maxX - minX)
@@ -681,6 +690,63 @@ class KGlacerMacro {
       }
     })
     return drawn
+  }
+
+  public async drawOverlayPixelsBatch(limit: number) {
+    const normalizedLimit = Math.max(1, Math.floor(limit))
+    let drawn = 0
+    await this.widget.run(t('taskDrawingOverlayPixels'), async () => {
+      await this.widget.run(t('taskInitializingDraw'), () =>
+        Promise.all([this.updateColors(), this.readMap()]),
+      )
+      this.updateTasks()
+      for (let index = 0; index < normalizedLimit; index++) {
+        const task = this.takeNextTaskFromStrategy()
+        if (!task) break
+        this.drawTask(task)
+        drawn++
+        await wait(1)
+      }
+      this.widget.update()
+    })
+    return drawn
+  }
+
+  protected takeNextTaskFromStrategy() {
+    switch (this.strategy) {
+      case BotStrategy.ALL:
+      case BotStrategy.SEQUENTIAL: {
+        for (
+          let imageIndex = 0;
+          imageIndex < this.images.length;
+          imageIndex++
+        ) {
+          const task = this.images[imageIndex]!.tasks.shift()
+          if (task) return task
+        }
+        return undefined
+      }
+      case BotStrategy.PERCENTAGE: {
+        let bestImage: BotImage | undefined
+        let minPercent = Number.POSITIVE_INFINITY
+        for (
+          let imageIndex = 0;
+          imageIndex < this.images.length;
+          imageIndex++
+        ) {
+          const image = this.images[imageIndex]!
+          if (!image.tasks.length) continue
+          const total =
+            image.pixels.pixels.length * image.pixels.pixels[0]!.length
+          const percent = 1 - image.tasks.length / total
+          if (percent < minPercent) {
+            minPercent = percent
+            bestImage = image
+          }
+        }
+        return bestImage?.tasks.shift()
+      }
+    }
   }
 
   /** Start listening to fetch requests */

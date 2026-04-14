@@ -15,12 +15,20 @@ import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
+const AUTO_OVERLAY_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-overlay-config'
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 
 type AutoFarmUnit = 'seconds' | 'minutes' | 'hours'
 
 type AutoFarmConfig = {
+  value: number
+  unit: AutoFarmUnit
+  pixels: number
+  timerMs: number
+}
+
+type AutoOverlayConfig = {
   value: number
   unit: AutoFarmUnit
   pixels: number
@@ -55,8 +63,7 @@ export class Widget extends Base {
 
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
-  protected readonly $shortcuts!: HTMLDetailsElement
-  protected readonly $locale!: HTMLSelectElement
+  protected readonly $openConfig!: HTMLButtonElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $drawAndPaint!: HTMLButtonElement
@@ -67,6 +74,10 @@ export class Widget extends Base {
   protected readonly $autofarmStart!: HTMLButtonElement
   protected readonly $autofarmStop!: HTMLButtonElement
   protected readonly $autofarmStatus!: HTMLDivElement
+  protected readonly $autoOverlayConfig!: HTMLButtonElement
+  protected readonly $autoOverlayStart!: HTMLButtonElement
+  protected readonly $autoOverlayStop!: HTMLButtonElement
+  protected readonly $autoOverlayStatus!: HTMLDivElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
@@ -77,6 +88,9 @@ export class Widget extends Base {
   protected autoFarmIntervalId?: number
   protected autoFarmConfig?: AutoFarmConfig
   protected autoFarmTickRunning = false
+  protected autoOverlayIntervalId?: number
+  protected autoOverlayConfig?: AutoOverlayConfig
+  protected autoOverlayTickRunning = false
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -92,8 +106,7 @@ export class Widget extends Base {
       $widgetLogo: '.widget-logo',
       $settings: '.wform',
       $status: '.wstatus',
-      $shortcuts: '.shortcuts',
-      $locale: '.locale',
+      $openConfig: '.open-config',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $drawAndPaint: '.draw-and-paint',
@@ -101,9 +114,17 @@ export class Widget extends Base {
       $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
       $autofarmConfig: '.autofarm-config',
-      $autofarmStart: '.widget-section-autofarm > .widget-actions > .autofarm-start',
-      $autofarmStop: '.widget-section-autofarm > .widget-actions > .autofarm-stop',
+      $autofarmStart:
+        '.widget-section-autofarm > .widget-actions > .autofarm-start',
+      $autofarmStop:
+        '.widget-section-autofarm > .widget-actions > .autofarm-stop',
       $autofarmStatus: '.autofarm-status',
+      $autoOverlayConfig: '.autooverlay-config',
+      $autoOverlayStart:
+        '.widget-section-autooverlay > .widget-actions > .autooverlay-start',
+      $autoOverlayStop:
+        '.widget-section-autooverlay > .widget-actions > .autooverlay-stop',
+      $autoOverlayStatus: '.autooverlay-status',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
@@ -120,6 +141,9 @@ export class Widget extends Base {
     })
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
     this.$addImage.addEventListener('click', () => this.addImage())
+    this.$openConfig.addEventListener('click', () => {
+      this.openSettingsModal()
+    })
     this.$captureTemplate.addEventListener('click', () => {
       void this.captureTemplate()
     })
@@ -135,17 +159,17 @@ export class Widget extends Base {
     this.$autofarmStop.addEventListener('click', () => {
       this.stopAutoFarm()
     })
+    this.$autoOverlayConfig.addEventListener('click', () => {
+      this.openAutoOverlayModal()
+    })
+    this.$autoOverlayStart.addEventListener('click', () => {
+      this.startAutoOverlay()
+    })
+    this.$autoOverlayStop.addEventListener('click', () => {
+      this.stopAutoOverlay()
+    })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
-    })
-    this.$locale.value = getLocale()
-    this.$locale.addEventListener('change', () => {
-      setLocale(this.$locale.value as 'en' | 'es')
-      applyTranslations(this.element)
-      for (let index = 0; index < this.bot.images.length; index++)
-        this.bot.images[index]!.applyLocale()
-      this.refreshOverlayToggleText()
-      this.refreshAutoFarmStatusText()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
@@ -154,7 +178,9 @@ export class Widget extends Base {
     this.update()
     this.syncOverlayVisibilityFromStorage()
     this.loadAutoFarmConfigFromStorage()
+    this.loadAutoOverlayConfigFromStorage()
     this.refreshAutoFarmStatusText()
+    this.refreshAutoOverlayStatusText()
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
   }
@@ -585,6 +611,56 @@ export class Widget extends Base {
       : `${t('toggleOverlay')} (${t('enabled')})`
   }
 
+  protected applyLocaleToUI(locale: 'en' | 'es') {
+    setLocale(locale)
+    applyTranslations(this.element)
+    for (let index = 0; index < this.bot.images.length; index++)
+      this.bot.images[index]!.applyLocale()
+    this.refreshOverlayToggleText()
+    this.refreshAutoFarmStatusText()
+    this.refreshAutoOverlayStatusText()
+  }
+
+  protected openSettingsModal() {
+    const $dialog = document.createElement('dialog')
+    $dialog.className = 'kgm-modal autofarm-dialog'
+    $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
+  <div class="kgm-modal-head">
+    <strong data-i18n="settingsModalTitle">Settings</strong>
+    <button type="button" class="modal-close" aria-label="${t('close')}"><span class="icon">×</span></button>
+  </div>
+  <label class="autofarm-label">
+    <span data-i18n="language">Language</span>
+    <div class="autofarm-fields">
+      <select class="settings-locale autofarm-unit">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
+    </div>
+  </label>
+  <div class="autofarm-help">
+    <strong><i class="fa-solid fa-keyboard"></i> <span data-i18n="keyboardShortcuts">Shortcuts</span></strong>
+    <div data-i18n="shortcutsHelp">Shift+B toggle widget...</div>
+  </div>
+</form>`
+    document.body.append($dialog)
+    applyTranslations($dialog)
+    const $locale = $dialog.querySelector<HTMLSelectElement>('.settings-locale')!
+    $locale.value = getLocale()
+    $locale.addEventListener('change', () => {
+      this.applyLocaleToUI($locale.value as 'en' | 'es')
+      applyTranslations($dialog)
+    })
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+      $dialog.close()
+      $dialog.remove()
+    }
+    $dialog.addEventListener('close', () => {
+      $dialog.remove()
+    })
+    $dialog.showModal()
+  }
+
   protected refreshAutoFarmStatusText() {
     if (!this.autoFarmConfig) {
       this.$autofarmStatus.textContent = t('autoFarmNeedsConfig')
@@ -593,6 +669,16 @@ export class Widget extends Base {
     this.$autofarmStatus.textContent = this.autoFarmIntervalId
       ? `${t('autoFarmRunning')} (${this.formatAutoFarmDelay(this.autoFarmConfig.timerMs)})`
       : t('autoFarmStopped')
+  }
+
+  protected refreshAutoOverlayStatusText() {
+    if (!this.autoOverlayConfig) {
+      this.$autoOverlayStatus.textContent = t('autoOverlayNeedsConfig')
+      return
+    }
+    this.$autoOverlayStatus.textContent = this.autoOverlayIntervalId
+      ? `${t('autoOverlayRunning')} (${this.formatAutoFarmDelay(this.autoOverlayConfig.timerMs)})`
+      : t('autoOverlayStopped')
   }
 
   protected formatAutoFarmDelay(ms: number) {
@@ -606,6 +692,13 @@ export class Widget extends Base {
     clearInterval(this.autoFarmIntervalId)
     this.autoFarmIntervalId = undefined
     this.refreshAutoFarmStatusText()
+  }
+
+  protected stopAutoOverlay() {
+    if (!this.autoOverlayIntervalId) return
+    clearInterval(this.autoOverlayIntervalId)
+    this.autoOverlayIntervalId = undefined
+    this.refreshAutoOverlayStatusText()
   }
 
   protected startAutoFarm() {
@@ -622,20 +715,68 @@ export class Widget extends Base {
     this.refreshAutoFarmStatusText()
   }
 
+  protected startAutoOverlay() {
+    if (!this.autoOverlayConfig) {
+      this.status = `⚠️ ${t('autoOverlayNeedsConfig')}`
+      this.refreshAutoOverlayStatusText()
+      return
+    }
+    this.stopAutoOverlay()
+    this.autoOverlayIntervalId = window.setInterval(() => {
+      void this.runAutoOverlayCycle()
+    }, this.autoOverlayConfig.timerMs)
+    void this.runAutoOverlayCycle()
+    this.refreshAutoOverlayStatusText()
+  }
+
   protected async runAutoFarmCycle() {
     if (!this.autoFarmConfig || this.autoFarmTickRunning) return
     this.autoFarmTickRunning = true
     try {
-      await this.bot.drawRandomPixelsBatch(this.autoFarmConfig.pixels)
+      const painted = await this.bot.drawRandomPixelsBatch(
+        this.autoFarmConfig.pixels,
+        0,
+      )
+      if (!painted) {
+        this.status = `⚠️ ${t('autoFarmStopped')}: ${t('autoFarmTransparentUnavailable')}`
+        this.stopAutoFarm()
+        return
+      }
       await this.waitAndClickPaintButton()
     } finally {
       this.autoFarmTickRunning = false
     }
   }
 
+  protected async runAutoOverlayCycle() {
+    if (!this.autoOverlayConfig || this.autoOverlayTickRunning) return
+    this.autoOverlayTickRunning = true
+    try {
+      const painted = await this.bot.drawOverlayPixelsBatch(
+        this.autoOverlayConfig.pixels,
+      )
+      if (!painted) {
+        this.status = `⚠️ ${t('autoOverlayStopped')}: ${t('autoOverlayNoTasks')}`
+        this.stopAutoOverlay()
+        return
+      }
+      await this.waitAndClickPaintButton()
+    } finally {
+      this.autoOverlayTickRunning = false
+    }
+  }
+
   protected saveAutoFarmConfig(config: AutoFarmConfig) {
     this.autoFarmConfig = config
     localStorage.setItem(AUTO_FARM_CONFIG_STORAGE_KEY, JSON.stringify(config))
+  }
+
+  protected saveAutoOverlayConfig(config: AutoOverlayConfig) {
+    this.autoOverlayConfig = config
+    localStorage.setItem(
+      AUTO_OVERLAY_CONFIG_STORAGE_KEY,
+      JSON.stringify(config),
+    )
   }
 
   protected loadAutoFarmConfigFromStorage() {
@@ -680,6 +821,48 @@ export class Widget extends Base {
     }
   }
 
+  protected loadAutoOverlayConfigFromStorage() {
+    const raw = localStorage.getItem(AUTO_OVERLAY_CONFIG_STORAGE_KEY)
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw) as Partial<AutoOverlayConfig>
+      if (
+        typeof parsed.value !== 'number' ||
+        !Number.isFinite(parsed.value) ||
+        parsed.value < 1
+      )
+        return
+      const pixels =
+        typeof parsed.pixels === 'number' &&
+        Number.isFinite(parsed.pixels) &&
+        parsed.pixels >= 1
+          ? Math.floor(parsed.pixels)
+          : 60
+      const unit =
+        parsed.unit === 'hours' ||
+        parsed.unit === 'minutes' ||
+        parsed.unit === 'seconds'
+          ? parsed.unit
+          : 'minutes'
+      const timerMs =
+        typeof parsed.timerMs === 'number' && parsed.timerMs > 0
+          ? parsed.timerMs
+          : unit === 'hours'
+            ? parsed.value * 3_600_000
+            : unit === 'minutes'
+              ? parsed.value * 60_000
+              : parsed.value * 1000
+      this.autoOverlayConfig = {
+        value: Math.max(1, Math.floor(parsed.value)),
+        pixels,
+        unit,
+        timerMs,
+      }
+    } catch {
+      return
+    }
+  }
+
   protected openAutoFarmModal() {
     const $dialog = document.createElement('dialog')
     $dialog.className = 'kgm-modal autofarm-dialog'
@@ -710,8 +893,8 @@ export class Widget extends Base {
     </div>
   </label>
   <div class="autofarm-actions">
-    <button type="button" class="autofarm-start" data-i18n="autoFarmStart">Start</button>
-    <button type="button" class="autofarm-stop" data-i18n="autoFarmStop">Stop</button>
+    <button type="button" class="autofarm-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoFarmStart">Start</span></button>
+    <button type="button" class="autofarm-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoFarmStop">Stop</span></button>
   </div>
 </form>`
     document.body.append($dialog)
@@ -741,6 +924,80 @@ export class Widget extends Base {
     $dialog.querySelector<HTMLButtonElement>('.autofarm-stop')!.onclick =
       () => {
         this.stopAutoFarm()
+        $dialog.close()
+        $dialog.remove()
+      }
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+      $dialog.close()
+      $dialog.remove()
+    }
+    $dialog.addEventListener('close', () => {
+      $dialog.remove()
+    })
+    $dialog.showModal()
+  }
+
+  protected openAutoOverlayModal() {
+    const $dialog = document.createElement('dialog')
+    $dialog.className = 'kgm-modal autofarm-dialog'
+    const defaultUnit = this.autoOverlayConfig?.unit ?? 'minutes'
+    const defaultValue = this.autoOverlayConfig?.value ?? 1
+    const defaultPixels = this.autoOverlayConfig?.pixels ?? 60
+    $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
+  <div class="kgm-modal-head">
+    <strong data-i18n="autoOverlayModalTitle">Auto overlay timer</strong>
+    <button type="button" class="modal-close" aria-label="${t('close')}"><span class="icon">×</span></button>
+  </div>
+  <p class="autofarm-help" data-i18n="autoOverlayHelp">Paint overlay image pixels, click Paint, then repeat by timer.</p>
+  <label class="autofarm-label">
+    <span data-i18n="autoOverlayTimer">Timer</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-value" type="number" min="1" step="1" value="${defaultValue}" />
+      <select class="autofarm-unit">
+        <option value="seconds" data-i18n="seconds">Seconds</option>
+        <option value="minutes" selected data-i18n="minutes">Minutes</option>
+        <option value="hours" data-i18n="hours">Hours</option>
+      </select>
+    </div>
+  </label>
+  <label class="autofarm-label">
+    <span data-i18n="autoOverlayPixelsPerCycle">Pixels per cycle</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-pixels" type="number" min="1" step="1" value="${defaultPixels}" />
+    </div>
+  </label>
+  <div class="autofarm-actions">
+    <button type="button" class="autooverlay-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoOverlayStart">Start</span></button>
+    <button type="button" class="autooverlay-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoOverlayStop">Stop</span></button>
+  </div>
+</form>`
+    document.body.append($dialog)
+    applyTranslations($dialog)
+    const $unit = $dialog.querySelector<HTMLSelectElement>('.autofarm-unit')!
+    $unit.value = defaultUnit
+    const $value = $dialog.querySelector<HTMLInputElement>('.autofarm-value')!
+    const $pixels = $dialog.querySelector<HTMLInputElement>('.autofarm-pixels')!
+    const resolveTimerMs = () => {
+      const value = Math.max(1, Number.parseInt($value.value || '1', 10))
+      if ($unit.value === 'hours') return value * 3_600_000
+      if ($unit.value === 'minutes') return value * 60_000
+      return value * 1000
+    }
+    $dialog.querySelector<HTMLButtonElement>('.autooverlay-start')!.onclick =
+      () => {
+        this.saveAutoOverlayConfig({
+          value: Math.max(1, Number.parseInt($value.value || '1', 10)),
+          pixels: Math.max(1, Number.parseInt($pixels.value || '60', 10)),
+          unit: $unit.value as AutoFarmUnit,
+          timerMs: resolveTimerMs(),
+        })
+        this.startAutoOverlay()
+        $dialog.close()
+        $dialog.remove()
+      }
+    $dialog.querySelector<HTMLButtonElement>('.autooverlay-stop')!.onclick =
+      () => {
+        this.stopAutoOverlay()
         $dialog.close()
         $dialog.remove()
       }
@@ -797,15 +1054,7 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
       event.preventDefault()
       this.open = true
-      this.$shortcuts.open = true
-      this.$shortcuts.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-      this.$shortcuts.classList.remove('shortcut-pulse')
-      requestAnimationFrame(() => {
-        this.$shortcuts.classList.add('shortcut-pulse')
-      })
+      this.openSettingsModal()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.toggleOverlay)) {
