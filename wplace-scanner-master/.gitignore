@@ -1,0 +1,10 @@
+tiles
+config.yml
+config
+*.swp
+build
+out
+output
+debug
+wplace-scanner
+*.exe

@@ -1,0 +1,97 @@
+:root {
+  --spacing: .25rem;
+}
+
+/* 悬浮窗口容器 */
+.wplace-saver-widget {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 350px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  border: 1px solid #e0e0e0;
+}
+
+/* 可拖动的标题栏 */
+.wplace-saver-header {
+  background: #feffff;
+  padding: 12px 16px;
+  border-radius: 12px 12px 0 0;
+  cursor: move;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wplace-saver-header h1 {
+  margin: 0;
+  font-size: 16px;
+  margin-top: 0.5em;
+  font-weight: 600;
+}
+
+.wplace-saver-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.coordinate-group {
+  background: #e3e9f4;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e5e5;
+}
+
+.coordinate-group h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #555;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.input-row input {
+  min-width: 0;
+}
+
+.input-row input::-webkit-outer-spin-button,
+.input-row input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-row input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.input-row input:invalid {
+  border-color: #ff6b6b;
+  background-color: #fff5f5;
+}
+
+/* 拖动时的样式 */
+.wplace-saver-widget.dragging {
+  opacity: 0.8;
+  transition: opacity 0.1s ease-in-out;
+}
+
+.ws-toggle {
+  position: absolute;
+  bottom: calc((var(--spacing) * 20));
+  left: calc((var(--spacing) * 3));
+}
