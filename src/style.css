@@ -376,11 +376,29 @@
 .wwidget .shortcuts .shortcut-list {
   display: grid;
   gap: 6px;
+  overflow-y: auto;
   width: 100%;
+  max-height: 220px;
   margin: 0;
   padding: 0 10px 10px;
   list-style: none;
   text-align: left;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(141 160 255 / 60%) rgb(16 24 43 / 75%);
+}
+
+.wwidget .shortcuts .shortcut-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.wwidget .shortcuts .shortcut-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgb(16 24 43 / 75%);
+}
+
+.wwidget .shortcuts .shortcut-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6d7bff, #8ea4ee);
 }
 
 .wwidget .shortcuts .shortcut-item {
@@ -892,6 +910,61 @@
   margin: 0 0 10px;
   color: #b4bfdc;
   font-size: 12px;
+}
+
+.autofarm-dialog {
+  width: min(420px, 92vw);
+  padding: 12px;
+}
+
+.autofarm-form {
+  display: grid;
+  gap: 12px;
+}
+
+.autofarm-help {
+  margin: 0;
+  color: #b8c4e6;
+  font-size: 12px;
+}
+
+.autofarm-label {
+  display: grid;
+  gap: 6px;
+}
+
+.autofarm-fields {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.autofarm-value,
+.autofarm-unit {
+  min-height: 34px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.autofarm-value {
+  padding: 0 10px;
+}
+
+.autofarm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.autofarm-actions button {
+  min-height: 34px;
+  border: 1px solid rgb(141 160 255 / 34%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #273559, #1b2743);
+  color: #ebf1ff;
+  font-weight: 600;
 }
 
 .preview-dialog-list {

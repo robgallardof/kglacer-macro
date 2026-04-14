@@ -14,8 +14,17 @@ import html from './widget.html' with { type: 'text' }
 import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
+
+type AutoFarmUnit = 'seconds' | 'minutes' | 'hours'
+
+type AutoFarmConfig = {
+  value: number
+  unit: AutoFarmUnit
+  timerMs: number
+}
 
 export enum BotStrategy {
   ALL = 'ALL',
@@ -53,6 +62,8 @@ export class Widget extends Base {
   protected readonly $addImage!: HTMLButtonElement
   protected readonly $captureTemplate!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
+  protected readonly $autofarmConfig!: HTMLButtonElement
+  protected readonly $autofarmStatus!: HTMLDivElement
   protected readonly $strategy!: HTMLInputElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
@@ -60,6 +71,8 @@ export class Widget extends Base {
   protected readonly $wopenButton!: HTMLButtonElement
   protected readonly $widgetLogo!: HTMLImageElement
   protected activeImageIndex = -1
+  protected autoFarmIntervalId?: number
+  protected autoFarmConfig?: AutoFarmConfig
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -83,6 +96,8 @@ export class Widget extends Base {
       $addImage: '.add-image',
       $captureTemplate: '.capture-template',
       $toggleOverlay: '.toggle-overlay',
+      $autofarmConfig: '.autofarm-config',
+      $autofarmStatus: '.autofarm-status',
       $strategy: '.strategy',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
@@ -105,6 +120,9 @@ export class Widget extends Base {
     this.$toggleOverlay.addEventListener('click', () => {
       this.toggleOverlay()
     })
+    this.$autofarmConfig.addEventListener('click', () => {
+      this.openAutoFarmModal()
+    })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
@@ -115,6 +133,7 @@ export class Widget extends Base {
       for (let index = 0; index < this.bot.images.length; index++)
         this.bot.images[index]!.applyLocale()
       this.refreshOverlayToggleText()
+      this.refreshAutoFarmStatusText()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
@@ -122,6 +141,8 @@ export class Widget extends Base {
 
     this.update()
     this.syncOverlayVisibilityFromStorage()
+    this.loadAutoFarmConfigFromStorage()
+    this.refreshAutoFarmStatusText()
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
   }
@@ -552,6 +573,147 @@ export class Widget extends Base {
       : `${t('toggleOverlay')} (${t('enabled')})`
   }
 
+  protected refreshAutoFarmStatusText() {
+    if (!this.autoFarmConfig) {
+      this.$autofarmStatus.textContent = t('autoFarmNeedsConfig')
+      return
+    }
+    this.$autofarmStatus.textContent = this.autoFarmIntervalId
+      ? `${t('autoFarmRunning')} (${this.formatAutoFarmDelay(this.autoFarmConfig.timerMs)})`
+      : t('autoFarmStopped')
+  }
+
+  protected formatAutoFarmDelay(ms: number) {
+    if (ms % 3_600_000 === 0) return `${ms / 3_600_000}h`
+    if (ms % 60_000 === 0) return `${ms / 60_000}m`
+    return `${ms / 1000}s`
+  }
+
+  protected stopAutoFarm() {
+    if (!this.autoFarmIntervalId) return
+    clearInterval(this.autoFarmIntervalId)
+    this.autoFarmIntervalId = undefined
+    this.refreshAutoFarmStatusText()
+  }
+
+  protected startAutoFarm() {
+    if (!this.autoFarmConfig) {
+      this.status = `⚠️ ${t('autoFarmNeedsConfig')}`
+      this.refreshAutoFarmStatusText()
+      return
+    }
+    this.stopAutoFarm()
+    this.autoFarmIntervalId = window.setInterval(() => {
+      void this.bot.paintRandomPixelInViewport()
+    }, this.autoFarmConfig.timerMs)
+    this.refreshAutoFarmStatusText()
+  }
+
+  protected saveAutoFarmConfig(config: AutoFarmConfig) {
+    this.autoFarmConfig = config
+    localStorage.setItem(AUTO_FARM_CONFIG_STORAGE_KEY, JSON.stringify(config))
+  }
+
+  protected loadAutoFarmConfigFromStorage() {
+    const raw = localStorage.getItem(AUTO_FARM_CONFIG_STORAGE_KEY)
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw) as Partial<AutoFarmConfig>
+      if (
+        typeof parsed.value !== 'number' ||
+        !Number.isFinite(parsed.value) ||
+        parsed.value < 1
+      )
+        return
+      const unit =
+        parsed.unit === 'hours' ||
+        parsed.unit === 'minutes' ||
+        parsed.unit === 'seconds'
+          ? parsed.unit
+          : 'minutes'
+      const timerMs =
+        typeof parsed.timerMs === 'number' && parsed.timerMs > 0
+          ? parsed.timerMs
+          : unit === 'hours'
+            ? parsed.value * 3_600_000
+            : unit === 'minutes'
+              ? parsed.value * 60_000
+              : parsed.value * 1000
+      this.autoFarmConfig = {
+        value: Math.max(1, Math.floor(parsed.value)),
+        unit,
+        timerMs,
+      }
+    } catch {
+      return
+    }
+  }
+
+  protected openAutoFarmModal() {
+    const $dialog = document.createElement('dialog')
+    $dialog.className = 'kgm-modal autofarm-dialog'
+    const defaultUnit = this.autoFarmConfig?.unit ?? 'minutes'
+    const defaultValue = this.autoFarmConfig?.value ?? 1
+    $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
+  <div class="kgm-modal-head">
+    <strong data-i18n="autoFarmModalTitle">Auto farm</strong>
+    <button type="button" class="modal-close" aria-label="${t('close')}"><span class="icon">×</span></button>
+  </div>
+  <p class="autofarm-help" data-i18n="autoFarmHelp">Paint a random pixel each timer cycle.</p>
+  <label class="autofarm-label">
+    <span data-i18n="autoFarmTimer">Timer</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-value" type="number" min="1" step="1" value="${defaultValue}" />
+      <select class="autofarm-unit">
+        <option value="seconds" data-i18n="seconds">Seconds</option>
+        <option value="minutes" selected data-i18n="minutes">Minutes</option>
+        <option value="hours" data-i18n="hours">Hours</option>
+      </select>
+    </div>
+  </label>
+  <div class="autofarm-actions">
+    <button type="button" class="autofarm-start" data-i18n="autoFarmStart">Start</button>
+    <button type="button" class="autofarm-stop" data-i18n="autoFarmStop">Stop</button>
+  </div>
+</form>`
+    document.body.append($dialog)
+    applyTranslations($dialog)
+    const $unit = $dialog.querySelector<HTMLSelectElement>('.autofarm-unit')!
+    $unit.value = defaultUnit
+    const $value = $dialog.querySelector<HTMLInputElement>('.autofarm-value')!
+    const resolveTimerMs = () => {
+      const value = Math.max(1, Number.parseInt($value.value || '1', 10))
+      if ($unit.value === 'hours') return value * 3_600_000
+      if ($unit.value === 'minutes') return value * 60_000
+      return value * 1000
+    }
+    $dialog.querySelector<HTMLButtonElement>('.autofarm-start')!.onclick =
+      () => {
+        this.saveAutoFarmConfig({
+          value: Math.max(1, Number.parseInt($value.value || '1', 10)),
+          unit: $unit.value as AutoFarmUnit,
+          timerMs: resolveTimerMs(),
+        })
+        this.startAutoFarm()
+        $dialog.close()
+        $dialog.remove()
+      }
+    $dialog.querySelector<HTMLButtonElement>('.autofarm-stop')!.onclick =
+      () => {
+        this.stopAutoFarm()
+        $dialog.close()
+        $dialog.remove()
+      }
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+      $dialog.close()
+      $dialog.remove()
+    }
+    $dialog.addEventListener('close', () => {
+      $dialog.remove()
+    })
+    $dialog.showModal()
+  }
+
   /** Disable/enable element by class name */
   public setDisabled(name: string, disabled: boolean) {
     this.element.querySelector<HTMLButtonElement>('.' + name)!.disabled =
@@ -634,6 +796,11 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.clickPaintWhenReady)) {
       event.preventDefault()
       void this.drawAndClickPaintWhenReady()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.startAutoFarm)) {
+      event.preventDefault()
+      this.startAutoFarm()
       return
     }
     if (
