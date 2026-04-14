@@ -138,6 +138,7 @@
 
 .wwidget .widget-actions button {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
   align-items: center;
@@ -167,6 +168,20 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.wwidget .actions-inline button {
+  flex-direction: column;
+  gap: 4px;
+  min-height: 50px;
+  padding: 8px 6px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+}
+
+.wwidget .actions-inline button i {
+  font-size: 14px;
 }
 
 .wwidget .open-config-toggle {
@@ -439,7 +454,8 @@
 
 .wwidget .shortcuts .shortcut-list {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   overflow-y: auto;
   width: 100%;
   max-height: 220px;
@@ -467,13 +483,13 @@
 
 .wwidget .shortcuts .shortcut-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 8px;
-  align-items: center;
-  padding: 5px 6px;
-  border: 1px solid rgb(140 159 255 / 16%);
-  border-radius: 8px;
-  background: rgb(13 20 35 / 70%);
+  align-items: start;
+  padding: 7px;
+  border: 1px solid rgb(140 159 255 / 22%);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgb(18 27 46 / 92%), rgb(11 19 33 / 92%));
   text-align: left;
 }
 
@@ -496,8 +512,16 @@
 }
 
 .wwidget .shortcuts .shortcut-label i {
-  color: #8fd8ff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2f5287, #22385f);
+  color: #eff5ff;
   font-size: 12px;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 25%);
 }
 
 .wwidget .shortcuts .shortcut-item-color-panel .shortcut-label i {
@@ -514,7 +538,19 @@
   gap: 4px;
   justify-content: flex-start;
   align-items: center;
-  place-self: center end;
+  place-self: end start;
+}
+
+.wwidget .shortcuts .shortcut-item:nth-child(3n + 1) .shortcut-label i {
+  background: linear-gradient(180deg, #3f7cff, #2552d3);
+}
+
+.wwidget .shortcuts .shortcut-item:nth-child(3n + 2) .shortcut-label i {
+  background: linear-gradient(180deg, #17b26a, #14804e);
+}
+
+.wwidget .shortcuts .shortcut-item:nth-child(3n) .shortcut-label i {
+  background: linear-gradient(180deg, #f97316, #d9480f);
 }
 
 .wwidget .shortcuts kbd {
@@ -667,6 +703,21 @@
 
 .wwidget .widget-actions button i {
   color: #8fd8ff;
+}
+
+.wwidget .autooverlay-start i,
+.wwidget .autofarm-start i {
+  color: #5fe39a;
+}
+
+.wwidget .autooverlay-stop i,
+.wwidget .autofarm-stop i {
+  color: #ff7b8f;
+}
+
+.wwidget .autooverlay-config i,
+.wwidget .autofarm-config i {
+  color: #ffcf66;
 }
 
 .wform button,
@@ -1502,6 +1553,10 @@
 
   .wwidget .shortcuts .shortcut-keys {
     justify-self: start;
+  }
+
+  .wwidget .shortcuts .shortcut-list {
+    grid-template-columns: 1fr;
   }
 }
 
