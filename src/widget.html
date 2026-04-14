@@ -11,26 +11,44 @@
 </div>
 <div class="wform">
   <section class="widget-section widget-section-general">
-    <strong class="widget-section-title" data-i18n="generalSection">General</strong>
-    <button class="open-config"><i class="fa-solid fa-gear"></i> <span data-i18n="openConfig">Config</span></button>
+    <div class="widget-section-head">
+      <strong class="widget-section-title" data-i18n="generalSection">General</strong>
+      <button class="open-config open-config-toggle" title="Open settings">
+        <i class="fa-solid fa-sliders"></i>
+        <span data-i18n="openConfig">Config</span>
+      </button>
+    </div>
     <div class="wprogress"><div></div><span></span></div>
     <div class="wp wstatus"></div>
   </section>
 
   <section class="widget-section widget-section-actions">
     <strong class="widget-section-title" data-i18n="actionsSection">Actions</strong>
-    <button class="draw" disabled data-i18n="draw">Draw</button>
-    <button class="draw-and-paint" disabled data-i18n="drawAndPaint">Draw + Paint</button>
+    <button class="draw" disabled><i class="fa-solid fa-pen-nib"></i><span data-i18n="draw">Draw</span></button>
+    <button class="draw-and-paint" disabled><i class="fa-solid fa-wand-magic-sparkles"></i><span data-i18n="drawAndPaint">Draw + Paint</span></button>
+    <button class="capture-template" disabled>
+      <i class="fa-solid fa-camera" aria-hidden="true"></i>
+      <span data-i18n="captureTemplate">Capture template</span>
+    </button>
+    <button class="autooverlay-config"><i class="fa-solid fa-clock-rotate-left"></i><span data-i18n="configureAutoOverlay">Configure auto draw</span></button>
+    <div class="wp autooverlay-status" data-i18n="autoOverlayStopped">Stopped</div>
+    <div class="actions-inline">
+      <button class="autooverlay-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoOverlayStart">Start</span></button>
+      <button class="autooverlay-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoOverlayStop">Stop</span></button>
+    </div>
   </section>
 
-  <section class="widget-section widget-section-strategy">
-    <strong class="widget-section-title" data-i18n="strategySection">Draw strategy</strong>
+  <details class="widget-section widget-section-strategy" open>
+    <summary class="widget-section-summary">
+      <strong class="widget-section-title" data-i18n="strategySection">Draw strategy</strong>
+      <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+    </summary>
     <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
       <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
       <option value="ALL" data-i18n="all">All</option>
       <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
     </select></label>
-  </section>
+  </details>
 
   <section class="widget-section widget-section-overlay">
     <div class="widget-actions">
@@ -43,31 +61,22 @@
     <div class="widget-actions">
       <strong data-i18n="autoFarmSection">Auto farm</strong>
       <button class="autofarm-config" data-i18n="configureAutoFarm">Configure auto farm</button>
-      <button class="autofarm-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoFarmStart">Start</span></button>
-      <button class="autofarm-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoFarmStop">Stop</span></button>
+      <div class="actions-inline">
+        <button class="autofarm-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoFarmStart">Start</span></button>
+        <button class="autofarm-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoFarmStop">Stop</span></button>
+      </div>
       <div class="wp autofarm-status" data-i18n="autoFarmStopped">Stopped</div>
     </div>
   </section>
 
-  <section class="widget-section widget-section-autooverlay">
-    <div class="widget-actions">
-      <strong data-i18n="autoOverlaySection">Auto draw</strong>
-      <button class="autooverlay-config" data-i18n="configureAutoOverlay">Configure auto draw</button>
-      <button class="autooverlay-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoOverlayStart">Start</span></button>
-      <button class="autooverlay-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoOverlayStop">Stop</span></button>
-      <div class="wp autooverlay-status" data-i18n="autoOverlayStopped">Stopped</div>
-    </div>
-  </section>
-
-  <section class="widget-section widget-section-images">
-    <strong class="widget-section-title" data-i18n="imagesSection">Images</strong>
+  <details class="widget-section widget-section-images" open>
+    <summary class="widget-section-summary">
+      <strong class="widget-section-title" data-i18n="imagesSection">Images</strong>
+      <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+    </summary>
     <div class="widget-image-actions">
-      <button class="add-image" disabled data-i18n="addImage">Add image</button>
+      <button class="add-image" disabled><i class="fa-solid fa-image"></i><span data-i18n="addImage">Add image</span></button>
     </div>
     <div class="images"></div>
-    <button class="capture-template" disabled>
-      <i class="fa-solid fa-camera" aria-hidden="true"></i>
-      <span data-i18n="captureTemplate">Capture template</span>
-    </button>
-  </section>
+  </details>
 </div>

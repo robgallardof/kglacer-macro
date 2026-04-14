@@ -149,6 +149,34 @@
     background-color 0.2s ease;
 }
 
+.wwidget .widget-section-head {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wwidget .actions-inline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wwidget .open-config-toggle {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  width: auto;
+  min-height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #253864, #1b2848);
+  color: #dce6ff;
+}
+
+.wwidget .open-config-toggle i {
+  color: #8fd8ff;
+}
+
 .wwidget .widget-actions button:hover {
   background: #24304d;
   box-shadow: 0 6px 14px rgb(0 0 0 / 30%);
@@ -160,6 +188,28 @@
   gap: 8px;
   justify-content: center;
   align-items: center;
+}
+
+.wwidget .widget-section-summary {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+}
+
+.wwidget .widget-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wwidget .widget-section-summary i {
+  color: #95abf9;
+  transition: transform 0.2s ease;
+}
+
+.wwidget details[open] > .widget-section-summary i {
+  transform: rotate(180deg);
 }
 
 .wwidget .widget-image-actions {
@@ -421,7 +471,7 @@
   min-width: 0;
   color: #cfdbff;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 11px;
   text-align: left;
 }
 
@@ -432,8 +482,8 @@
 }
 
 .wwidget .shortcuts .shortcut-label i {
-  color: #9db3ff;
-  font-size: 11px;
+  color: #8fd8ff;
+  font-size: 12px;
 }
 
 .wwidget .shortcuts .shortcut-item-color-panel .shortcut-label i {
@@ -462,7 +512,7 @@
   color: #ebf1ff;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11px;
   font-family: Poppins, sans-serif;
   text-align: center;
 }
@@ -540,7 +590,7 @@
   gap: 8px;
   overflow-y: auto;
   max-height: calc(100dvh - 92px);
-  padding: 0 4px 12px;
+  padding: 0 8px 14px;
 }
 
 .wwidget .wform > * {
@@ -552,7 +602,7 @@
   gap: 8px;
   width: auto;
   margin: 0;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid rgb(129 140 248 / 24%);
   border-radius: 12px;
   background: linear-gradient(180deg, rgb(20 30 52 / 86%), rgb(14 22 40 / 88%));
@@ -579,7 +629,20 @@
 .wwidget .wform select,
 .wwidget .wform textarea,
 .wwidget .wform label:has(input[type='checkbox']) {
-  padding: 8px 10px;
+  padding: 10px 12px;
+}
+
+.wwidget .widget-section-actions > button,
+.wwidget .widget-image-actions button {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.wwidget .widget-section-actions > button i,
+.wwidget .widget-image-actions button i {
+  color: #8fd8ff;
 }
 
 .wform button,
@@ -1384,12 +1447,12 @@
     white-space: normal;
   }
 
-  .wform button,
-  .wform input,
-  .wform select,
-  .wform textarea,
-  .wform label:has(input[type='checkbox']) {
-    padding: 8px 9px;
+  .wwidget .wform button,
+  .wwidget .wform input,
+  .wwidget .wform select,
+  .wwidget .wform textarea,
+  .wwidget .wform label:has(input[type='checkbox']) {
+    padding: 10px 11px;
   }
 
   .wwidget .images {
@@ -1399,12 +1462,12 @@
 
   .wwidget .shortcuts .shortcut-item {
     grid-template-columns: minmax(0, 1fr);
-    padding: 4px 5px;
+    padding: 6px 7px;
   }
 
   .wwidget .shortcuts .shortcut-label,
   .wwidget .shortcuts kbd {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .wwidget .shortcuts .shortcut-keys {
