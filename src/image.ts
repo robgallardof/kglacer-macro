@@ -68,6 +68,9 @@ export enum ImageStrategy {
 }
 
 export class BotImage extends Base {
+  protected static readonly PREVIEW_MASK_BASE_WIDTH = 96
+  protected static readonly PREVIEW_MASK_BASE_HEIGHT = 96
+
   public static async fromJSON(
     bot: KGlacerMacro,
     data: ReturnType<BotImage['toJSON']>,
@@ -501,7 +504,10 @@ export class BotImage extends Base {
 
   protected invalidatePreviewCacheIfNeeded() {
     const colorState = this.colors
-      .map((color, index) => `${index}:${color.realColor}:${color.disabled ? 1 : 0}`)
+      .map(
+        (color, index) =>
+          `${index}:${color.realColor}:${color.disabled ? 1 : 0}`,
+      )
       .join('|')
     const signature = `${this.pixels.width}x${this.pixels.height}:${this.pixels.image.src.length}:${this.drawColorsInOrder ? 1 : 0}:${colorState}`
     if (this.previewCacheSignature === signature) return
@@ -610,14 +616,19 @@ export class BotImage extends Base {
     if (!context) return
     context.fillStyle = '#0f1526'
     context.fillRect(0, 0, canvas.width, canvas.height)
-    const mask = this.getImagePreviewMask()
-    const filtered = this.getCachedPreviewSequence(strategy, mask)
-    const cell = Math.min(
-      canvas.width / this.pixels.width,
-      canvas.height / this.pixels.height,
+    const preview = this.getSampledImagePreviewData()
+    const filtered = this.getCachedPreviewSequence(
+      strategy,
+      preview.mask,
+      preview.width,
+      preview.height,
     )
-    const offsetX = (canvas.width - this.pixels.width * cell) / 2
-    const offsetY = (canvas.height - this.pixels.height * cell) / 2
+    const cell = Math.min(
+      canvas.width / preview.width,
+      canvas.height / preview.height,
+    )
+    const offsetX = (canvas.width - preview.width * cell) / 2
+    const offsetY = (canvas.height - preview.height * cell) / 2
     const activeAnimation = this.previewAnimations.get(canvas)
     if (activeAnimation) {
       cancelAnimationFrame(activeAnimation)
@@ -640,7 +651,7 @@ export class BotImage extends Base {
         index++
       ) {
         const pixel = filtered[index]!
-        const colorIndex = this.pixels.pixels[pixel.y]?.[pixel.x] ?? 0
+        const colorIndex = preview.colors.get(`${pixel.x}:${pixel.y}`) ?? 0
         if (!colorIndex) continue
         context.fillStyle = colorToCSS(colorIndex)
         context.fillRect(
@@ -672,19 +683,22 @@ export class BotImage extends Base {
   protected getCachedPreviewSequence(
     strategy: ImageStrategy,
     mask: Position[],
+    previewWidth = this.pixels.width,
+    previewHeight = this.pixels.height,
   ) {
     const colorState = this.colors
-      .map((color, index) => `${index}:${color.realColor}:${color.disabled ? 1 : 0}`)
+      .map(
+        (color, index) =>
+          `${index}:${color.realColor}:${color.disabled ? 1 : 0}`,
+      )
       .join('|')
-    const cacheKey = `${strategy}:${this.pixels.width}x${this.pixels.height}:${mask.length}:${this.drawColorsInOrder ? 1 : 0}:${colorState}`
+    const cacheKey = `${strategy}:${previewWidth}x${previewHeight}:${mask.length}:${this.drawColorsInOrder ? 1 : 0}:${colorState}`
     const cached = this.previewSequenceCache.get(cacheKey)
     if (cached) return cached
-    const previousStrategy = this.strategy
-    this.strategy = strategy
-    const sequence = [...this.strategyPositionIterator()]
-    this.strategy = previousStrategy
-    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
-    const filtered = sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+    const filtered =
+      previewWidth === this.pixels.width && previewHeight === this.pixels.height
+        ? this.getExactPreviewSequence(strategy, mask)
+        : this.getApproxPreviewSequence(strategy, mask, previewWidth)
     if (this.drawColorsInOrder) {
       const colorsOrderMap = new Map<number, number>()
       for (let index = 0; index < this.colors.length; index++)
@@ -697,6 +711,150 @@ export class BotImage extends Base {
     }
     this.previewSequenceCache.set(cacheKey, filtered)
     return filtered
+  }
+
+  protected getExactPreviewSequence(strategy: ImageStrategy, mask: Position[]) {
+    const previousStrategy = this.strategy
+    this.strategy = strategy
+    const sequence = [...this.strategyPositionIterator()]
+    this.strategy = previousStrategy
+    const maskKeys = new Set(mask.map(({ x, y }) => `${x}:${y}`))
+    return sequence.filter(({ x, y }) => maskKeys.has(`${x}:${y}`))
+  }
+
+  protected getApproxPreviewSequence(
+    strategy: ImageStrategy,
+    mask: Position[],
+    width: number,
+  ) {
+    const sequence = [...mask]
+    const seeded = (x: number, y: number, seed: number) => {
+      const value = (x * 73856093 + y * 19349663 + seed * 83492791) >>> 0
+      return value / 4294967296
+    }
+    const sortByDirectional = (dx: number, dy: number) =>
+      sequence.sort(
+        (a, b) =>
+          a.x * dx + a.y * dy - (b.x * dx + b.y * dy) || a.y - b.y || a.x - b.x,
+      )
+    const serpentine = sequence.sort((a, b) => {
+      if (a.y !== b.y) return a.y - b.y
+      const aDirection = a.y % 2 === 0 ? a.x : width - a.x
+      const bDirection = b.y % 2 === 0 ? b.x : width - b.x
+      return aDirection - bDirection
+    })
+    switch (strategy) {
+      case ImageStrategy.UP:
+        return sortByDirectional(0, -1)
+      case ImageStrategy.LEFT:
+        return sortByDirectional(-1, 0)
+      case ImageStrategy.RIGHT:
+        return sortByDirectional(1, 0)
+      case ImageStrategy.SPIRAL_FROM_CENTER:
+      case ImageStrategy.SPIRAL_TO_CENTER: {
+        const centerX = width / 2
+        const centerY = Math.max(
+          1,
+          Math.round(
+            sequence.reduce((sum, pixel) => sum + pixel.y, 0) /
+              Math.max(1, sequence.length),
+          ),
+        )
+        sequence.sort((a, b) => {
+          const distanceA = (a.x - centerX) ** 2 + (a.y - centerY) ** 2
+          const distanceB = (b.x - centerX) ** 2 + (b.y - centerY) ** 2
+          return strategy === ImageStrategy.SPIRAL_FROM_CENTER
+            ? distanceA - distanceB
+            : distanceB - distanceA
+        })
+        return sequence
+      }
+      case ImageStrategy.RANDOM:
+      case ImageStrategy.HUMANIZED:
+      case ImageStrategy.HUMAN_SOFT_DITHER:
+      case ImageStrategy.HUMAN_PATCHY:
+      case ImageStrategy.HUMAN_SWEEP_ARCS:
+      case ImageStrategy.HUMAN_MICRO_CORRECTIONS:
+      case ImageStrategy.HUMAN_JITTER_FILL:
+      case ImageStrategy.HUMAN_CORNER_BIAS:
+      case ImageStrategy.HUMAN_LONG_STROKES:
+      case ImageStrategy.HUMAN_TAP_CLUSTERS:
+      case ImageStrategy.HUMAN_MESSY_SPIRAL:
+      case ImageStrategy.HUMAN_DRUNK_WALK:
+      case ImageStrategy.HUMAN_NOISE_CLOUD:
+      case ImageStrategy.HUMAN_PATCH_JUMP:
+      case ImageStrategy.HUMAN_HESITANT_LINES:
+      case ImageStrategy.HUMAN_OVERLAP_SWEEPS:
+      case ImageStrategy.HUMAN_WOBBLE_DRIFT:
+      case ImageStrategy.HUMAN_GAP_RECOVERY:
+      case ImageStrategy.HUMAN_STAIRCASE:
+      case ImageStrategy.HUMAN_EDGE_HUGGER:
+      case ImageStrategy.HUMAN_BLOBS:
+      case ImageStrategy.HUMAN_BACKTRACK:
+      case ImageStrategy.HUMAN_SHAKY_DIAGONAL:
+      case ImageStrategy.HUMAN_LATE_FIXES:
+        return sequence.sort(
+          (a, b) =>
+            seeded(a.x, a.y, strategy.length) -
+            seeded(b.x, b.y, strategy.length),
+        )
+      default:
+        return serpentine
+    }
+  }
+
+  protected getSampledImagePreviewData() {
+    const sourceWidth = this.pixels.width
+    const sourceHeight = this.pixels.height
+    const limitWidth = BotImage.PREVIEW_MASK_BASE_WIDTH
+    const limitHeight = BotImage.PREVIEW_MASK_BASE_HEIGHT
+    const scale = Math.min(
+      1,
+      limitWidth / Math.max(1, sourceWidth),
+      limitHeight / Math.max(1, sourceHeight),
+    )
+    const width = Math.max(1, Math.round(sourceWidth * scale))
+    const height = Math.max(1, Math.round(sourceHeight * scale))
+    const disabledColors = new Set<number>()
+    for (let index = 0; index < this.colors.length; index++) {
+      const drawColor = this.colors[index]!
+      if (drawColor.disabled) disabledColors.add(drawColor.realColor)
+    }
+    const maskMap = new Map<string, Position>()
+    const colors = new Map<string, number>()
+    for (let y = 0; y < sourceHeight; y++) {
+      for (let x = 0; x < sourceWidth; x++) {
+        const color = this.pixels.pixels[y]?.[x] ?? 0
+        if (!color || disabledColors.has(color)) continue
+        const sampledX = Math.min(
+          width - 1,
+          Math.floor((x / sourceWidth) * width),
+        )
+        const sampledY = Math.min(
+          height - 1,
+          Math.floor((y / sourceHeight) * height),
+        )
+        const key = `${sampledX}:${sampledY}`
+        if (!maskMap.has(key)) maskMap.set(key, { x: sampledX, y: sampledY })
+        if (!colors.has(key)) colors.set(key, color)
+      }
+    }
+    const mask = [...maskMap.values()]
+    if (!mask.length) {
+      const fallbackMask = this.fallbackPreviewMask()
+      return {
+        width: sourceWidth,
+        height: sourceHeight,
+        mask: fallbackMask,
+        colors: new Map(
+          fallbackMask.map((pixel) => [
+            `${pixel.x}:${pixel.y}`,
+            this.pixels.pixels[pixel.y]?.[pixel.x] ?? 0,
+          ]),
+        ),
+      }
+    }
+    return { width, height, mask, colors }
   }
 
   protected getImagePreviewMask() {
