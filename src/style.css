@@ -121,7 +121,10 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
-  margin-top: 4px;
+}
+
+.wwidget .widget-section-autofarm .widget-actions {
+  margin-top: 8px;
   padding-top: 10px;
   border-top: 1px solid rgb(143 162 255 / 20%);
 }
@@ -185,6 +188,13 @@
 
 .wwidget .capture-template {
   display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.wwidget .widget-section-actions button {
+  display: inline-flex;
   gap: 8px;
   justify-content: center;
   align-items: center;
