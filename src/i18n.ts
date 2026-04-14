@@ -112,11 +112,13 @@ const MESSAGES = {
     autoFarmRunning: 'Running',
     autoFarmModalTitle: 'Auto farm timer',
     autoFarmHelp:
-      'Paint random sparse pixels over time, similar to transparent PNG farming.',
+      'Draw selected transparent pixels, click Paint, then repeat by timer.',
     autoFarmTimer: 'Timer',
+    autoFarmTransparentPixels: 'Transparent pixels per cycle',
     autoFarmStart: 'Start',
     autoFarmStop: 'Stop',
     autoFarmNeedsConfig: 'Configure auto farm first',
+    autoFarmNoTransparentTasks: 'No transparent pending pixels were found',
     seconds: 'Seconds',
     minutes: 'Minutes',
     hours: 'Hours',
@@ -137,6 +139,7 @@ const MESSAGES = {
     taskWaitingFor: 'Waiting for',
     taskErrorPrefix: 'Error',
     taskWaitingPaintButton: 'Waiting for paint cooldown',
+    taskDrawingTransparentPixels: 'Drawing transparent pixels',
     captureHintSelectArea: 'Select area',
   },
   es: {
@@ -249,11 +252,14 @@ const MESSAGES = {
     autoFarmRunning: 'Activo',
     autoFarmModalTitle: 'Temporizador auto farm',
     autoFarmHelp:
-      'Pinta píxeles aleatorios y dispersos en el tiempo, como un farm de PNG transparente.',
+      'Dibuja los transparentes seleccionados, pulsa Pintar y repite por temporizador.',
     autoFarmTimer: 'Temporizador',
+    autoFarmTransparentPixels: 'Píxeles transparentes por ciclo',
     autoFarmStart: 'Iniciar',
     autoFarmStop: 'Detener',
     autoFarmNeedsConfig: 'Primero configura el auto farm',
+    autoFarmNoTransparentTasks:
+      'No se encontraron píxeles transparentes pendientes',
     seconds: 'Segundos',
     minutes: 'Minutos',
     hours: 'Horas',
@@ -274,6 +280,7 @@ const MESSAGES = {
     taskWaitingFor: 'Esperando',
     taskErrorPrefix: 'Error',
     taskWaitingPaintButton: 'Esperando cooldown de pintado',
+    taskDrawingTransparentPixels: 'Dibujando píxeles transparentes',
     captureHintSelectArea: 'Selecciona área',
   },
 } as const
