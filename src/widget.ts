@@ -94,6 +94,8 @@ export class Widget extends Base {
   protected autoOverlayTickRunning = false
   protected autoOverlayNextTickAt?: number
   protected statusRefreshIntervalId?: number
+  protected challengeWatcherObserver?: MutationObserver
+  protected challengeWatcherRunning = false
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -180,6 +182,7 @@ export class Widget extends Base {
     this.loadAutoOverlayConfigFromStorage()
     this.refreshAutoFarmStatusText()
     this.refreshAutoOverlayStatusText()
+    this.startChallengeWatcher()
     this.statusRefreshIntervalId = window.setInterval(() => {
       this.refreshAutoFarmStatusText()
       this.refreshAutoOverlayStatusText()
@@ -187,6 +190,32 @@ export class Widget extends Base {
     }, 1000)
     this.open = true
     console.log('[KGM][Widget] Widget mounted and opened')
+  }
+
+  protected startChallengeWatcher() {
+    const tick = () => {
+      if (!this.isChallengeBlockingPaint()) return
+      if (this.challengeWatcherRunning) return
+      this.challengeWatcherRunning = true
+      this.status = `⌛ ${t('taskWaitingChallengeResolve')}`
+      void this.waitForChallengeToResolve().finally(() => {
+        this.challengeWatcherRunning = false
+      })
+    }
+
+    this.challengeWatcherObserver = new MutationObserver(() => tick())
+    this.challengeWatcherObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open', 'style', 'class', 'value', 'aria-hidden'],
+    })
+    const interval = window.setInterval(tick, 750)
+    this.runOnDestroy.push(() => {
+      this.challengeWatcherObserver?.disconnect()
+      clearInterval(interval)
+    })
+    tick()
   }
 
   /** Add image handler */
@@ -1190,6 +1219,11 @@ export class Widget extends Base {
   protected async waitAndClickPaintButton() {
     await this.run(t('taskWaitingPaintButton'), async () => {
       for (;;) {
+        if (this.isChallengeBlockingPaint()) {
+          await this.waitForChallengeToResolve()
+          await new Promise((resolve) => setTimeout(resolve, 250))
+          continue
+        }
         const button = this.findNativePaintButton()
         if (button && !button.disabled && button.ariaDisabled !== 'true') {
           await this.triggerNativePaintClickWithChallengeRecovery(button)
@@ -1258,41 +1292,106 @@ export class Widget extends Base {
   protected async triggerNativePaintClickWithChallengeRecovery(
     button: HTMLButtonElement,
   ) {
-    this.triggerNativePaintClick(button)
-    const challengeAppeared = await this.waitForChallengeAppearance(4_000)
-    if (!challengeAppeared) return
-    await this.waitForChallengeToResolve()
-    const retryButton = this.findNativePaintButton()
-    if (
-      retryButton &&
-      !retryButton.disabled &&
-      retryButton.ariaDisabled !== 'true'
+    const maxAttempts = 3
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const candidate = attempt === 0 ? button : this.findNativePaintButton()
+      if (!candidate) return
+      if (candidate.disabled || candidate.ariaDisabled === 'true') return
+
+      this.triggerNativePaintClick(candidate)
+      const outcome = await this.waitForPaintAttemptOutcome(6_000)
+      if (outcome === 'painted') return
+
+      if (outcome === 'challenge') {
+        await this.waitForChallengeToResolve()
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        continue
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 350))
+    }
+
+    console.log(
+      '[KGM][Widget] Paint click finished without a clear success signal after retries',
     )
-      this.triggerNativePaintClick(retryButton)
   }
 
-  protected async waitForChallengeAppearance(timeoutMs: number) {
+  protected async waitForPaintAttemptOutcome(timeoutMs: number) {
     const startedAt = Date.now()
     while (Date.now() - startedAt <= timeoutMs) {
-      if (this.isChallengeVisible()) return true
-      await new Promise((resolve) => setTimeout(resolve, 250))
+      if (this.isChallengeBlockingPaint()) return 'challenge' as const
+      const button = this.findNativePaintButton()
+      if (button && (button.disabled || button.ariaDisabled === 'true')) {
+        const delayedChallenge = await this.waitForDelayedChallenge(1_200)
+        return delayedChallenge ? ('challenge' as const) : ('painted' as const)
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    return 'unknown' as const
+  }
+
+  protected async waitForDelayedChallenge(windowMs: number) {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt <= windowMs) {
+      if (this.isChallengeBlockingPaint()) return true
+      await new Promise((resolve) => setTimeout(resolve, 150))
     }
     return false
   }
 
   protected async waitForChallengeToResolve() {
     await this.run(t('taskWaitingChallengeResolve'), async () => {
-      while (this.isChallengeVisible())
+      const startedAt = Date.now()
+      const timeoutMs = 90_000
+      while (
+        this.isChallengeBlockingPaint() &&
+        Date.now() - startedAt <= timeoutMs
+      )
         await new Promise((resolve) => setTimeout(resolve, 500))
     })
   }
 
-  protected isChallengeVisible() {
-    return Boolean(
-      document.querySelector(
-        'iframe[src*="hcaptcha.com"], iframe[src*="newassets.hcaptcha.com"], iframe[src*="captcha"], .h-captcha, [data-hcaptcha-widget-id]',
-      ),
+  protected isChallengeBlockingPaint() {
+    const challengeSelector =
+      'h-captcha, .h-captcha, iframe[src*="hcaptcha.com"], iframe[src*="newassets.hcaptcha.com"], iframe[src*="captcha"], [data-hcaptcha-widget-id]'
+    const challengeElements = Array.from(
+      document.querySelectorAll<HTMLElement>(challengeSelector),
     )
+    const visibleChallengeElements = challengeElements.filter((element) => {
+      if (element.closest('dialog')?.matches('dialog:not([open])')) return false
+      const style = globalThis.getComputedStyle(element)
+      if (style.display === 'none' || style.visibility === 'hidden') return false
+      const rect = element.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0
+    })
+    if (!visibleChallengeElements.length) return false
+
+    const openModal = document.querySelector<HTMLElement>(
+      'dialog.modal[open], dialog[open]',
+    )
+    const modalChallengeVisible = openModal?.querySelector(challengeSelector)
+    if (modalChallengeVisible) {
+      const modalHasToken = Array.from(
+        openModal.querySelectorAll<HTMLTextAreaElement>(
+          'textarea[name="h-captcha-response"], textarea[name^="h-captcha-response-"]',
+        ),
+      ).some((textarea) => textarea.value.trim().length > 0)
+      if (!modalHasToken) return true
+    }
+
+    return visibleChallengeElements.some((element) => {
+      const scope =
+        element.closest('h-captcha') ??
+        element.parentElement ??
+        document.documentElement
+      const tokenFields = Array.from(
+        scope.querySelectorAll<HTMLTextAreaElement>(
+          'textarea[name="h-captcha-response"], textarea[name^="h-captcha-response-"]',
+        ),
+      )
+      if (!tokenFields.length) return true
+      return tokenFields.every((textarea) => textarea.value.trim().length === 0)
+    })
   }
 
   // protected async pumpkinHunt() {
