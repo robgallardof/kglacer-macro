@@ -1192,7 +1192,7 @@ export class Widget extends Base {
       for (;;) {
         const button = this.findNativePaintButton()
         if (button && !button.disabled && button.ariaDisabled !== 'true') {
-          this.triggerNativePaintClick(button)
+          await this.triggerNativePaintClickWithChallengeRecovery(button)
           return
         }
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -1253,6 +1253,46 @@ export class Widget extends Base {
       }),
     )
     button.click()
+  }
+
+  protected async triggerNativePaintClickWithChallengeRecovery(
+    button: HTMLButtonElement,
+  ) {
+    this.triggerNativePaintClick(button)
+    const challengeAppeared = await this.waitForChallengeAppearance(4_000)
+    if (!challengeAppeared) return
+    await this.waitForChallengeToResolve()
+    const retryButton = this.findNativePaintButton()
+    if (
+      retryButton &&
+      !retryButton.disabled &&
+      retryButton.ariaDisabled !== 'true'
+    )
+      this.triggerNativePaintClick(retryButton)
+  }
+
+  protected async waitForChallengeAppearance(timeoutMs: number) {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt <= timeoutMs) {
+      if (this.isChallengeVisible()) return true
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+    return false
+  }
+
+  protected async waitForChallengeToResolve() {
+    await this.run(t('taskWaitingChallengeResolve'), async () => {
+      while (this.isChallengeVisible())
+        await new Promise((resolve) => setTimeout(resolve, 500))
+    })
+  }
+
+  protected isChallengeVisible() {
+    return Boolean(
+      document.querySelector(
+        'iframe[src*="hcaptcha.com"], iframe[src*="newassets.hcaptcha.com"], iframe[src*="captcha"], .h-captcha, [data-hcaptcha-widget-id]',
+      ),
+    )
   }
 
   // protected async pumpkinHunt() {
