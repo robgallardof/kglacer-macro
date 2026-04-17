@@ -156,6 +156,8 @@ const MESSAGES = {
     taskWaitingFor: 'Waiting for',
     taskErrorPrefix: 'Error',
     taskWaitingPaintButton: 'Waiting for paint cooldown',
+    taskWaitingChallengeResolve:
+      'Challenge detected. Solve it manually, then continuing…',
     taskDrawingRandomPixels: 'Drawing random pixels',
     taskDrawingOverlayPixels: 'Drawing overlay pixels',
     captureHintSelectArea: 'Select area',
@@ -315,6 +317,8 @@ const MESSAGES = {
     taskWaitingFor: 'Esperando',
     taskErrorPrefix: 'Error',
     taskWaitingPaintButton: 'Esperando cooldown de pintado',
+    taskWaitingChallengeResolve:
+      'Se detectó un challenge. Resuélvelo manualmente y continuaré…',
     taskDrawingRandomPixels: 'Dibujando píxeles aleatorios',
     taskDrawingOverlayPixels: 'Dibujando píxeles del overlay',
     captureHintSelectArea: 'Selecciona área',
