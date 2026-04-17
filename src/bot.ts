@@ -1,5 +1,6 @@
 import { wait } from '@softsky/utils'
 
+import { initChallengeSolver } from './challenge-solver'
 import {
   applyTranslations,
   availableLocales,
@@ -875,6 +876,9 @@ declare global {
   var wbot: KGlacerMacro
 }
 
-globalThis.kglacerMacro = new KGlacerMacro()
-globalThis.kgm = globalThis.kglacerMacro
-globalThis.wbot = globalThis.kglacerMacro
+if (location.hostname.includes('hcaptcha.com')) initChallengeSolver()
+else {
+  globalThis.kglacerMacro = new KGlacerMacro()
+  globalThis.kgm = globalThis.kglacerMacro
+  globalThis.wbot = globalThis.kglacerMacro
+}
