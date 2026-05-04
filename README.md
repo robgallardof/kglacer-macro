@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v3.1.6)
+### Highlights (v4.3.3)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -16,6 +16,8 @@ Macro/UI to support pixel painting on **wplace.live**.
 - New **Auto farm** section with modal timer controls (seconds/minutes/hours) to trigger random sparse painting cycles.
 - Auto farm config is cached in `localStorage` and can be started quickly with **Shift+F** after first setup.
 - Updated distributed userscript version in `dist.user.js` for direct install.
+- Added compatibility guards that define a safe `fp_assemble_injection` fallback when third-party wrappers call it before definition.
+- Added media autoplay-safe handling to avoid noisy uncaught `NotAllowedError: play() failed` promise rejections before user interaction.
 
 ### Install
 
@@ -48,7 +50,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v3.1.6)
+### Novedades (v4.3.3)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
@@ -56,6 +58,8 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Nueva sección **Auto farm** con modal de temporizador (segundos/minutos/horas) para ejecutar ciclos de pintado aleatorio disperso.
 - La configuración de auto farm se guarda en `localStorage` y se puede iniciar rápido con **Shift+F** después de configurarla una vez.
 - Versión del userscript distribuido actualizada en `dist.user.js` para instalación directa.
+- Se agregaron guardas de compatibilidad que definen un fallback seguro para `fp_assemble_injection` cuando wrappers de terceros lo invocan antes de estar definido.
+- Se agregó manejo seguro de autoplay para evitar rechazos no capturados `NotAllowedError: play() failed` antes de la interacción del usuario.
 
 ### Instalación
 

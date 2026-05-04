@@ -57,6 +57,44 @@ export type Me = {
 }
 
 const SAVE_VERSION = 2
+
+function installCompatibilityGuards() {
+  const globalAny = globalThis as typeof globalThis & {
+    fp_assemble_injection?: () => unknown
+    __kgmMediaPlayPatched?: boolean
+    __kgmUnhandledRejectionPatched?: boolean
+  }
+
+  if (typeof globalAny.fp_assemble_injection !== 'function')
+    globalAny.fp_assemble_injection = () => ({})
+
+  if (!globalAny.__kgmUnhandledRejectionPatched) {
+    globalAny.__kgmUnhandledRejectionPatched = true
+    globalAny.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason
+      const message = reason instanceof Error ? reason.message : String(reason ?? '')
+      if (reason?.name === 'NotAllowedError' && message.includes('play() failed')) event.preventDefault()
+    })
+  }
+
+  if (!globalAny.__kgmMediaPlayPatched && 'HTMLMediaElement' in globalAny) {
+    globalAny.__kgmMediaPlayPatched = true
+    const originalPlay = globalAny.HTMLMediaElement.prototype.play
+    globalAny.HTMLMediaElement.prototype.play = function playWithUserGestureFallback() {
+      const result = originalPlay.call(this)
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        return (result as Promise<void>).catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error ?? '')
+          if ((error as { name?: string })?.name === 'NotAllowedError' && message.includes('play() failed')) {
+            return undefined
+          }
+          throw error
+        })
+      }
+      return result
+    }
+  }
+}
 const BOT_LOG_PREFIX = '[KGM]'
 const ACCESS_KEY_STORAGE_KEY = 'kglacer-macro:access-ok'
 const ACCESS_SERIAL_B64 = 'S0dNLXlZUjhTMW81bEhVemVjS1RFMEhxRVB4OVFkcjgxaEVz'
@@ -878,6 +916,8 @@ declare global {
   var kgm: KGlacerMacro
   var wbot: KGlacerMacro
 }
+
+installCompatibilityGuards()
 
 if (location.hostname.includes('hcaptcha.com')) initChallengeSolver()
 else {
