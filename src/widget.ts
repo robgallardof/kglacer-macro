@@ -711,7 +711,7 @@ export class Widget extends Base {
     </span>
   </label>
   <label class="kgm-switch-row">
-    <span data-i18n="shieldEnabled">Enable Script Shield (recommended)</span>
+    <span data-i18n="shieldEnabled">Enable Script Shield</span>
     <span class="kgm-switch">
       <input class="shield-enabled" type="checkbox" />
       <span class="kgm-switch-slider" aria-hidden="true"></span>
