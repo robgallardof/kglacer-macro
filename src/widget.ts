@@ -12,6 +12,7 @@ import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
+import { getShieldEnabled, setShieldEnabled } from './shield'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
@@ -275,6 +276,9 @@ export class Widget extends Base {
         save(this.bot, true)
         this.bot.updateTasks()
         this.update()
+        window.setTimeout(() => {
+          globalThis.location.reload()
+        }, 120)
       },
       () => {
         this.setDisabled('add-image', false)
@@ -684,6 +688,7 @@ export class Widget extends Base {
     <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
     <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
     <label><input class="proxy-enabled" type="checkbox" /> <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span></label>
+    <label><input class="shield-enabled" type="checkbox" /> <span data-i18n="shieldEnabled">Enable Script Shield (recommended)</span></label>
   </details>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
@@ -721,7 +726,9 @@ export class Widget extends Base {
     const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
     const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
     const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
+    const $shieldEnabled = $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
+    $shieldEnabled.checked = getShieldEnabled()
     $proxyHost.value = proxyConfig.host ?? ''
     $proxyPort.value = proxyConfig.port ?? ''
     $proxyUser.value = proxyConfig.username ?? ''
@@ -739,6 +746,9 @@ export class Widget extends Base {
       )
     }
     for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+    $shieldEnabled.addEventListener('change', () => {
+      setShieldEnabled($shieldEnabled.checked)
+    })
 $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()

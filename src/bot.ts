@@ -14,6 +14,7 @@ import { loadSave } from './save'
 // @ts-ignore
 import css from './style.css' with { type: 'text' }
 import { BotStrategy, Widget } from './widget'
+import { applyShield, ProxyConfig } from './shield'
 import {
   addFavoriteLocation,
   extractScreenPositionFromStar,
@@ -131,6 +132,8 @@ class KGlacerMacro {
       this.strategy = save.strategy
     }
 
+    const proxyConfig = JSON.parse(localStorage.getItem('kglacer-macro:proxy-config') ?? '{}') as ProxyConfig
+    applyShield(proxyConfig)
     this.registerFetchInterceptor()
     this.log('Fetch interceptor registered')
 
