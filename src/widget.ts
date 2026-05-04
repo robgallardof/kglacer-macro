@@ -7,12 +7,12 @@ import { applyTranslations, getLocale, setLocale, t } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
 import { save } from './save'
+import { getShieldEnabled, setShieldEnabled } from './shield'
 import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
 import { SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
-import { getShieldEnabled, setShieldEnabled } from './shield'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
@@ -253,17 +253,22 @@ export class Widget extends Base {
             opacity?: number
             name?: string
           }
-          if (!raw.image?.dataUrl) throw new Error('Invalid .wplace file: image.dataUrl missing')
+          if (!raw.image?.dataUrl)
+            throw new Error('Invalid .wplace file: image.dataUrl missing')
           const image = new Image()
           image.src = raw.image.dataUrl
           await promisifyEventSource(image, ['load'], ['error'])
           await this.waitForStableViewportProjection()
           botImage = new BotImage(
             this.bot,
-            WorldPosition.fromScreenPosition(this.bot, this.defaultImageScreenPosition()),
+            WorldPosition.fromScreenPosition(
+              this.bot,
+              this.defaultImageScreenPosition(),
+            ),
             new Pixels(this.bot, image),
           )
-          if (typeof raw.opacity === 'number') botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
+          if (typeof raw.opacity === 'number')
+            botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
         } else {
           const reader = new FileReader()
           reader.readAsDataURL(file)
@@ -695,6 +700,9 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
+  <div class="widget-actions">
+    <button type="button" class="challenge-button script-update"><i class="fa-solid fa-rotate"></i><span>Update script</span></button>
+  </div>
   <label class="kgm-switch-row">
     <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span>
     <span class="kgm-switch">
@@ -755,20 +763,42 @@ export class Widget extends Base {
     const $locale =
       $dialog.querySelector<HTMLSelectElement>('.settings-locale')!
     $locale.value = getLocale()
+    $dialog
+      .querySelector<HTMLButtonElement>('.script-update')!
+      .addEventListener('click', () => {
+        globalThis.open(
+          'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
+          '_blank',
+          'noopener,noreferrer',
+        )
+      })
     $locale.addEventListener('change', () => {
       this.applyLocaleToUI($locale.value as 'en' | 'es')
       applyTranslations($dialog)
     })
-        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
-    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
+    const proxyConfig = JSON.parse(
+      localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}',
+    ) as {
+      enabled?: boolean
+      host?: string
+      port?: string
+      username?: string
+      password?: string
+    }
+    const $proxyEnabled =
+      $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
     const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
     const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
     const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
     const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
-    const $shieldEnabled = $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
-        const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
-    const $shieldDetails = $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
-    const $shieldControls = $dialog.querySelector<HTMLDivElement>('.shield-controls')!
+    const $shieldEnabled =
+      $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
+    const $proxyDetails =
+      $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
+    const $shieldDetails =
+      $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
+    const $shieldControls =
+      $dialog.querySelector<HTMLDivElement>('.shield-controls')!
     const $proxyTest = $dialog.querySelector<HTMLButtonElement>('.proxy-test')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
@@ -791,7 +821,14 @@ export class Widget extends Base {
         }),
       )
     }
-    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+    for (const el of [
+      $proxyEnabled,
+      $proxyHost,
+      $proxyPort,
+      $proxyUser,
+      $proxyPass,
+    ])
+      el.addEventListener('change', persistProxy)
     $proxyEnabled.addEventListener('change', () => {
       $proxyDetails.open = $proxyEnabled.checked
     })
@@ -805,9 +842,11 @@ export class Widget extends Base {
       $shieldDetails.open = $shieldEnabled.checked
       this.renderShieldControls($shieldControls)
       setShieldEnabled($shieldEnabled.checked)
-      window.setTimeout(() => location.reload(), 120)
+      window.setTimeout(() => {
+        location.reload()
+      }, 120)
     })
-$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -817,62 +856,104 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
     $dialog.showModal()
   }
 
-
   protected renderShieldControls(container: HTMLDivElement) {
     const SETTINGS_KEY = '__afm_settings'
     const PROFILE_KEY = '__afm_profile'
     const PROFILE_EXPIRY_KEY = '__afm_profile_expiry'
     const featureLabels: Record<string, string> = {
-      navigator: t('shieldFeatureNavigator'), userAgentData: t('shieldFeatureUaData'), screen: t('shieldFeatureScreen'), timezone: t('shieldFeatureTimezone'), canvas: t('shieldFeatureCanvas'),
-      webgl: t('shieldFeatureWebgl'), audio: t('shieldFeatureAudio'), plugins: t('shieldFeaturePlugins'), mediaDevices: t('shieldFeatureMediaDevices'), storageEstimate: t('shieldFeatureStorage'),
-      battery: t('shieldFeatureBattery'), speechSynthesis: t('shieldFeatureSpeech'), fonts: t('shieldFeatureFonts'), matchMedia: t('shieldFeatureMatchMedia'), sharedArrayBuffer: t('shieldFeatureSharedArrayBuffer')
+      navigator: t('shieldFeatureNavigator'),
+      userAgentData: t('shieldFeatureUaData'),
+      screen: t('shieldFeatureScreen'),
+      timezone: t('shieldFeatureTimezone'),
+      canvas: t('shieldFeatureCanvas'),
+      webgl: t('shieldFeatureWebgl'),
+      audio: t('shieldFeatureAudio'),
+      plugins: t('shieldFeaturePlugins'),
+      mediaDevices: t('shieldFeatureMediaDevices'),
+      storageEstimate: t('shieldFeatureStorage'),
+      battery: t('shieldFeatureBattery'),
+      speechSynthesis: t('shieldFeatureSpeech'),
+      fonts: t('shieldFeatureFonts'),
+      matchMedia: t('shieldFeatureMatchMedia'),
+      sharedArrayBuffer: t('shieldFeatureSharedArrayBuffer'),
     }
-    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as { id?: string } | null
+    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as {
+      id?: string
+    } | null
     const PROFILE_CHOICES_KEY = '__afm_profile_choices'
     const expiryRaw = Number(localStorage.getItem(PROFILE_EXPIRY_KEY) ?? '0')
-    const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Record<string, boolean>
-    const profileChoices = JSON.parse(localStorage.getItem(PROFILE_CHOICES_KEY) ?? '[]') as Array<{id:string}>
-    const defaults = Object.fromEntries(Object.keys(featureLabels).map((k) => [k, true])) as Record<string, boolean>
+    const settings = JSON.parse(
+      localStorage.getItem(SETTINGS_KEY) ?? '{}',
+    ) as Record<string, boolean>
+    const profileChoices = JSON.parse(
+      localStorage.getItem(PROFILE_CHOICES_KEY) ?? '[]',
+    ) as { id: string }[]
+    const defaults = Object.fromEntries(
+      Object.keys(featureLabels).map((k) => [k, true]),
+    ) as Record<string, boolean>
     const merged = { ...defaults, ...settings }
 
     const fmtDate = expiryRaw > 0 ? new Date(expiryRaw).toLocaleString() : '—'
     const profileId = profile?.id ?? 'Auto'
-    
+
     const profileOptions = profileChoices
-      .map((item) => `<option value="${item.id}" ${item.id === profileId ? 'selected' : ''}>${item.id}</option>`)
+      .map(
+        (item) =>
+          `<option value="${item.id}" ${item.id === profileId ? 'selected' : ''}>${item.id}</option>`,
+      )
       .join('')
 
     const rows = Object.entries(featureLabels)
-      .map(([key, label]) => `<label class="kgm-switch-row"><span>${label}</span><span class="kgm-switch"><input type="checkbox" data-shield-key="${key}" ${merged[key] ? 'checked' : ''}/><span class="kgm-switch-slider" aria-hidden="true"></span></span></label>`)
+      .map(
+        ([key, label]) =>
+          `<label class="kgm-switch-row"><span>${label}</span><span class="kgm-switch"><input type="checkbox" data-shield-key="${key}" ${merged[key] ? 'checked' : ''}/><span class="kgm-switch-slider" aria-hidden="true"></span></span></label>`,
+      )
       .join('')
 
     container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-checker"><i class="fa-solid fa-shield-check"></i><span>Shield checker</span></button></div><div class="shield-checker-output" aria-live="polite"></div><div class="shield-control-grid">${rows}</div>`
 
-    container.querySelectorAll<HTMLInputElement>('input[data-shield-key]').forEach((input) => {
-      input.addEventListener('change', () => {
-        const key = input.dataset.shieldKey!
-        merged[key] = input.checked
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged))
-        window.setTimeout(() => location.reload(), 120)
+    container
+      .querySelectorAll<HTMLInputElement>('input[data-shield-key]')
+      .forEach((input) => {
+        input.addEventListener('change', () => {
+          const key = input.dataset.shieldKey!
+          merged[key] = input.checked
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged))
+          window.setTimeout(() => {
+            location.reload()
+          }, 120)
+        })
       })
-    })
-    container.querySelector<HTMLSelectElement>('.shield-profile-select')?.addEventListener('change', (event) => {
-      const selected = (event.currentTarget as HTMLSelectElement).value
-      if (!selected) localStorage.removeItem(PROFILE_KEY)
-      else localStorage.setItem(PROFILE_KEY, JSON.stringify({ id: selected }))
-      location.reload()
-    })
-    container.querySelector<HTMLButtonElement>('.shield-checker')?.addEventListener('click', () => {
-      const output = container.querySelector<HTMLDivElement>('.shield-checker-output')
-      if (!output) return
-      const checks = this.runShieldChecker()
-      output.innerHTML = checks.map((check) => `<div class="${check.ok ? 'ok' : 'fail'}">${check.ok ? '✅' : '❌'} ${check.label}</div>`).join('')
-    })
-    container.querySelector<HTMLButtonElement>('.shield-refresh-profile')?.addEventListener('click', () => {
-      localStorage.removeItem(PROFILE_KEY)
-      localStorage.removeItem(PROFILE_EXPIRY_KEY)
-      location.reload()
-    })
+    container
+      .querySelector<HTMLSelectElement>('.shield-profile-select')
+      ?.addEventListener('change', (event) => {
+        const selected = (event.currentTarget as HTMLSelectElement).value
+        if (!selected) localStorage.removeItem(PROFILE_KEY)
+        else localStorage.setItem(PROFILE_KEY, JSON.stringify({ id: selected }))
+        location.reload()
+      })
+    container
+      .querySelector<HTMLButtonElement>('.shield-checker')
+      ?.addEventListener('click', () => {
+        const output = container.querySelector<HTMLDivElement>(
+          '.shield-checker-output',
+        )
+        if (!output) return
+        const checks = this.runShieldChecker()
+        output.innerHTML = checks
+          .map(
+            (check) =>
+              `<div class="${check.ok ? 'ok' : 'fail'}">${check.ok ? '✅' : '❌'} ${check.label}</div>`,
+          )
+          .join('')
+      })
+    container
+      .querySelector<HTMLButtonElement>('.shield-refresh-profile')
+      ?.addEventListener('click', () => {
+        localStorage.removeItem(PROFILE_KEY)
+        localStorage.removeItem(PROFILE_EXPIRY_KEY)
+        location.reload()
+      })
   }
 
   protected async testProxyConnection(host: string, port: string) {
@@ -887,10 +968,26 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
 
   protected runShieldChecker() {
     return [
-      { label: 'Injected script present', ok: Boolean(document.getElementById('kgm-shield-full')) },
-      { label: 'Settings stored', ok: Boolean(localStorage.getItem('__afm_settings')) },
-      { label: 'Profile resolved', ok: Boolean(localStorage.getItem('__afm_profile')) || Boolean(localStorage.getItem('__afm_profile_expiry')) },
-      { label: 'Navigator spoofing active', ok: navigator.hardwareConcurrency !== 0 && typeof navigator.platform === 'string' },
+      {
+        label: 'Injected script present',
+        ok: Boolean(document.getElementById('kgm-shield-full')),
+      },
+      {
+        label: 'Settings stored',
+        ok: Boolean(localStorage.getItem('__afm_settings')),
+      },
+      {
+        label: 'Profile resolved',
+        ok:
+          Boolean(localStorage.getItem('__afm_profile')) ||
+          Boolean(localStorage.getItem('__afm_profile_expiry')),
+      },
+      {
+        label: 'Navigator spoofing active',
+        ok:
+          navigator.hardwareConcurrency !== 0 &&
+          typeof navigator.platform === 'string',
+      },
     ]
   }
 
@@ -1175,7 +1272,7 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
         $dialog.close()
         $dialog.remove()
       }
-$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -1249,7 +1346,7 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
         $dialog.close()
         $dialog.remove()
       }
-$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -1431,9 +1528,7 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
     const buttons = selectors.flatMap((selector) =>
       Array.from(document.querySelectorAll<HTMLButtonElement>(selector)),
     )
-    return buttons.find((button) =>
-      /pintar|paint/i.test(button.textContent ?? ''),
-    )
+    return buttons.find((button) => /pintar|paint/i.test(button.textContent))
   }
 
   protected triggerNativePaintClick(button: HTMLButtonElement) {
@@ -1553,6 +1648,7 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
     )
     const modalChallengeVisible = openModal?.querySelector(challengeSelector)
     if (modalChallengeVisible) {
+      if (!openModal) return false
       const modalHasToken = Array.from(
         openModal.querySelectorAll<HTMLTextAreaElement>(
           'textarea[name="h-captcha-response"], textarea[name^="h-captcha-response-"]',

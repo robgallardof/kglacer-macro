@@ -65,10 +65,8 @@ export class Pixels {
     this.canvas.height = this.height
     this.colors.clear()
     const colorCache = new Map<string, [number, number]>() // cache for already processed colors
-    for (let index = 1; index < 64; index++) {
-      if (this.exactColor || !this.bot.unavailableColors.has(index))
-        colorCache.set(COLORS_RGB[index]!, [index, index])
-    }
+    for (let index = 1; index < 64; index++)
+      colorCache.set(COLORS_RGB[index]!, [index, index])
 
     this.context.imageSmoothingEnabled = false
     this.context.imageSmoothingQuality = 'low'
@@ -120,10 +118,7 @@ export class Pixels {
           for (let colorIndex = 0; colorIndex < COLORS.length; colorIndex++) {
             const color = COLORS[colorIndex]!
             const delta = deltaE2000(rgbToOklab(rr, gg, bb), color, 0)
-            if (
-              !this.bot.unavailableColors.has(colorIndex) &&
-              delta < minDelta
-            ) {
+            if (delta < minDelta) {
               minDelta = delta
               min = colorIndex
             }
@@ -149,7 +144,7 @@ export class Pixels {
         if (stat) stat.amount++
         else {
           this.colors.set(minReal, {
-            color: min,
+            color: minReal,
             amount: 1,
             realColor: minReal,
           })

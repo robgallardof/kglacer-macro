@@ -1797,7 +1797,7 @@ export function setShieldEnabled(enabled: boolean) {
 }
 
 function applyProxyHints(proxy?: ProxyConfig) {
-  const value = `\${proxy?.host ?? ''} \${proxy?.username ?? ''}`.toLowerCase()
+  const value = `${proxy?.host ?? ''} ${proxy?.username ?? ''}`.toLowerCase()
   const hint = /(mx|mex|mexico)/.test(value) ? 'MX' : 'AUTO'
   localStorage.setItem('__afm_proxy_hint', hint)
 }
@@ -1810,6 +1810,6 @@ export function applyShield(proxy?: ProxyConfig) {
   const script = document.createElement('script')
   script.id = 'kgm-shield-full'
   script.textContent = FULL_SHIELD_SOURCE
-  ;(document.documentElement || document.head || document.body).append(script)
+  document.documentElement.append(script)
   script.remove()
 }

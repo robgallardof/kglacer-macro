@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { KGlacerMacro } from './bot'
 import { LEGACY_STORAGE_KEYS, STORAGE_KEY } from './version'
@@ -18,15 +17,23 @@ export function loadSave() {
   const item = readStoredJSON()
   if (!item) return undefined
 
-  let save: ReturnType<KGlacerMacro['toJSON']> | undefined
+  type LegacySave = ReturnType<KGlacerMacro['toJSON']> & {
+    widget?: {
+      images: ReturnType<KGlacerMacro['toJSON']>['images']
+      strategy: ReturnType<KGlacerMacro['toJSON']>['strategy']
+    }
+  }
+  let save: LegacySave | undefined
   try {
     save = JSON.parse(item.json)
     if (typeof save !== 'object') throw new Error('NOT VALID SAVE')
     if (save.version === 1) {
-      const _save = save
-      save.images = _save.widget.images
-      save.strategy = _save.widget.strategy
-      delete _save.widget
+      const legacyWidget = save.widget
+      if (legacyWidget) {
+        save.images = legacyWidget.images
+        save.strategy = legacyWidget.strategy
+        delete save.widget
+      }
     }
     if (item.key !== STORAGE_KEY) localStorage.setItem(STORAGE_KEY, item.json)
   } catch {

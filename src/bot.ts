@@ -11,10 +11,10 @@ import {
 import { BotImage, DrawTask } from './image'
 import { Pixels } from './pixels'
 import { loadSave } from './save'
+import { applyShield, ProxyConfig } from './shield'
 // @ts-ignore
 import css from './style.css' with { type: 'text' }
 import { BotStrategy, Widget } from './widget'
-import { applyShield, ProxyConfig } from './shield'
 import {
   addFavoriteLocation,
   extractScreenPositionFromStar,
@@ -70,29 +70,49 @@ function installCompatibilityGuards() {
 
   if (!globalAny.__kgmUnhandledRejectionPatched) {
     globalAny.__kgmUnhandledRejectionPatched = true
-    globalAny.addEventListener('unhandledrejection', (event) => {
-      const reason = event.reason
-      const message = reason instanceof Error ? reason.message : String(reason ?? '')
-      if (reason?.name === 'NotAllowedError' && message.includes('play() failed')) event.preventDefault()
+    globalAny.addEventListener('unhandledrejection', (event: Event) => {
+      const reason: unknown = (event as PromiseRejectionEvent).reason
+      const reasonName =
+        typeof reason === 'object' &&
+        reason !== null &&
+        'name' in reason &&
+        typeof reason.name === 'string'
+          ? reason.name
+          : ''
+      const message =
+        reason instanceof Error ? reason.message : (reason as string)
+      if (reasonName === 'NotAllowedError' && message.includes('play() failed'))
+        event.preventDefault()
     })
   }
 
   if (!globalAny.__kgmMediaPlayPatched && 'HTMLMediaElement' in globalAny) {
     globalAny.__kgmMediaPlayPatched = true
-    const originalPlay = globalAny.HTMLMediaElement.prototype.play
-    globalAny.HTMLMediaElement.prototype.play = function playWithUserGestureFallback() {
-      const result = originalPlay.call(this)
-      if (result && typeof (result as Promise<void>).catch === 'function') {
-        return (result as Promise<void>).catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error ?? '')
-          if ((error as { name?: string })?.name === 'NotAllowedError' && message.includes('play() failed')) {
+    const originalPlay = Reflect.get(
+      globalAny.HTMLMediaElement.prototype,
+      'play',
+    )
+    globalAny.HTMLMediaElement.prototype.play =
+      function playWithUserGestureFallback() {
+        const result = Reflect.apply(originalPlay, this, [])
+        return result.catch((error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : (error as string)
+          const errorName =
+            typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            typeof error.name === 'string'
+              ? error.name
+              : ''
+          if (
+            errorName === 'NotAllowedError' &&
+            message.includes('play() failed')
+          )
             return undefined
-          }
           throw error
         })
       }
-      return result
-    }
   }
 }
 const BOT_LOG_PREFIX = '[KGM]'
@@ -104,7 +124,7 @@ const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
  * Main class. Initializes everything.
  * Used to interact with wplace
  * */
-class KGlacerMacro {
+export class KGlacerMacro {
   /** Colors that can be bought */
   public unavailableColors = new Set<number>()
 
@@ -170,7 +190,9 @@ class KGlacerMacro {
       this.strategy = save.strategy
     }
 
-    const proxyConfig = JSON.parse(localStorage.getItem('kglacer-macro:proxy-config') ?? '{}') as ProxyConfig
+    const proxyConfig = JSON.parse(
+      localStorage.getItem('kglacer-macro:proxy-config') ?? '{}',
+    ) as ProxyConfig
     applyShield(proxyConfig)
     this.registerFetchInterceptor()
     this.log('Fetch interceptor registered')
@@ -223,7 +245,7 @@ class KGlacerMacro {
         // Load images
         if (save)
           for (let index = 0; index < save.images.length; index++) {
-            const image = await BotImage.fromJSON(this, save.images[index])
+            const image = await BotImage.fromJSON(this, save.images[index]!)
             this.images.push(image)
             image.update()
           }
@@ -900,7 +922,7 @@ class KGlacerMacro {
   }
 
   /** Update tasks of all images */
-  protected updateTasks() {
+  public updateTasks() {
     for (let index = 0; index < this.images.length; index++)
       this.images[index]!.updateTasks()
   }

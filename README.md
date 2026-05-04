@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.4)
+### Highlights (v4.4.5)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -21,6 +21,8 @@ Macro/UI to support pixel painting on **wplace.live**.
 - Added compatibility guards that define a safe `fp_assemble_injection` fallback when third-party wrappers call it before definition.
 - Added media autoplay-safe handling to avoid noisy uncaught `NotAllowedError: play() failed` promise rejections before user interaction.
 - Restored legacy paint-check logic from `wplace-bot-main`: Draw now only paints pixels that are still different on the map, so rerunning Draw no longer repaints already-correct areas.
+- Removed color replacement targeting from Draw flow to keep strict source-color checks and avoid repaint loops.
+- Added a new **Update script** button in Settings that opens the direct userscript URL.
 
 ### Install
 
@@ -53,7 +55,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.4)
+### Novedades (v4.4.5)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
@@ -66,6 +68,8 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Se agregaron guardas de compatibilidad que definen un fallback seguro para `fp_assemble_injection` cuando wrappers de terceros lo invocan antes de estar definido.
 - Se agregó manejo seguro de autoplay para evitar rechazos no capturados `NotAllowedError: play() failed` antes de la interacción del usuario.
 - Se restauró la lógica clásica de pintado de `wplace-bot-main`: Draw ahora solo pinta píxeles que siguen diferentes en el mapa, evitando repintar zonas ya correctas al volver a ejecutar Draw.
+- Se eliminó la lógica de reemplazo de colores en Draw para mantener comparación estricta con los colores de origen y evitar repintados en bucle.
+- Se agregó un botón **Update script** en Settings que abre la URL directa del userscript.
 
 ### Instalación
 
