@@ -1696,11 +1696,24 @@ export class Widget extends Base {
   protected openExternalTool(
     tool: 'colorConverter' | 'samuelArchive' | 'eralyonArchive',
   ) {
-    globalThis.open(
-      this.buildExternalToolUrl(tool),
-      '_blank',
-      'noopener,noreferrer',
-    )
+    this.openUrlInNewTab(this.buildExternalToolUrl(tool))
+  }
+
+  protected openUrlInNewTab(url: string) {
+    const openedWindow = globalThis.open(url, '_blank', 'noopener')
+    if (openedWindow) {
+      openedWindow.opener = null
+      return
+    }
+
+    const link = document.createElement('a')
+    link.href = url
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    link.style.display = 'none'
+    document.body.append(link)
+    link.click()
+    link.remove()
   }
 
   /** Disable/enable element by class name */

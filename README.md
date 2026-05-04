@@ -8,13 +8,15 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.12)
+### Highlights (v4.4.13)
 
 - Refined the overlay image option rows so their labels stay centered, readable, and aligned with their switches.
 - Replaced the three overlay option SVGs with same-size colorful icons that better match transparency, color order, and available-color behavior.
 - Added an **External tools** section with animated buttons for the Wplace color converter, Samuel archive, and Eralyon archive.
 - External archive buttons now reuse the current Wplace `lat`/`lng`/`zoom` URL zone when opening supported archive tools.
 - Added quick shortcuts: **Shift+1** color converter, **Shift+2** Samuel archive, and **Shift+3** Eralyon archive.
+- Fixed external tool shortcuts on shifted number-key layouts, including keys that emit `!`, `@`, or `#`.
+- Centered the external tool button labels and added a new-tab fallback for opening tool URLs.
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -69,13 +71,15 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.12)
+### Novedades (v4.4.13)
 
 - Se ajustaron las filas de opciones de imagen para que las etiquetas queden centradas, legibles y alineadas con sus interruptores.
 - Se reemplazaron los tres SVG de esas opciones por iconos coloridos del mismo tamaño y más relacionados con transparencia, orden de colores y colores disponibles.
 - Se agregó una sección **Herramientas externas** con botones animados para el convertidor de color de Wplace, el archivo Samuel y el archivo Eralyon.
 - Los botones de archivo externo ahora reutilizan la zona actual de la URL de Wplace (`lat`/`lng`/`zoom`) al abrir herramientas compatibles.
 - Se agregaron atajos rápidos: **Shift+1** convertidor de color, **Shift+2** archivo Samuel y **Shift+3** archivo Eralyon.
+- Se corrigieron los atajos de herramientas externas en distribuciones donde los números con Shift emiten `!`, `@` o `#`.
+- Se centraron las etiquetas de los botones externos y se agregó fallback para abrir URLs en una pestaña nueva.
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
