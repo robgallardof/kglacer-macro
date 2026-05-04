@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.1)
+### Highlights (v4.4.2)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -53,7 +53,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.1)
+### Novedades (v4.4.2)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
