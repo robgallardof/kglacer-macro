@@ -678,6 +678,20 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
+  <label class="kgm-switch-row">
+    <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span>
+    <span class="kgm-switch">
+      <input class="proxy-enabled" type="checkbox" />
+      <span class="kgm-switch-slider" aria-hidden="true"></span>
+    </span>
+  </label>
+  <label class="kgm-switch-row">
+    <span data-i18n="shieldEnabled">Enable Script Shield (recommended)</span>
+    <span class="kgm-switch">
+      <input class="shield-enabled" type="checkbox" />
+      <span class="kgm-switch-slider" aria-hidden="true"></span>
+    </span>
+  </label>
   <details class="shortcuts proxy-settings">
     <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-network-wired"></i> <span data-i18n="proxyTitle">Proxy (Beta)</span></strong>
@@ -687,26 +701,12 @@ export class Widget extends Base {
     <label class="autofarm-label"><span>Port</span><input class="proxy-port" type="number" min="1" max="65535" placeholder="8080" /></label>
     <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
     <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
-    <label class="kgm-switch-row">
-      <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span>
-      <span class="kgm-switch">
-        <input class="proxy-enabled" type="checkbox" />
-        <span class="kgm-switch-slider" aria-hidden="true"></span>
-      </span>
-    </label>
   </details>
   <details class="shortcuts shield-settings">
     <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="shieldTitle">Shield</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
     </summary>
-    <label class="kgm-switch-row">
-      <span data-i18n="shieldEnabled">Enable Script Shield (recommended)</span>
-      <span class="kgm-switch">
-        <input class="shield-enabled" type="checkbox" />
-        <span class="kgm-switch-slider" aria-hidden="true"></span>
-      </span>
-    </label>
     <button type="button" class="challenge-button shield-config-open"><i class="fa-solid fa-sliders"></i><span data-i18n="shieldOpenConfig">Open Shield profile config</span></button>
   </details>
   <details class="shortcuts" open>
@@ -778,6 +778,7 @@ export class Widget extends Base {
       setShieldEnabled($shieldEnabled.checked)
     })
     $shieldOpenConfig.addEventListener('click', () => {
+      localStorage.setItem('__afm_ui_visible', 'true')
       const shieldButton = document.querySelector<HTMLElement>('[title="Anti-Fingerprint Merged Shield"]')
       shieldButton?.click()
     })

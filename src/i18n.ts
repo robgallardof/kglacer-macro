@@ -108,7 +108,7 @@ const MESSAGES = {
     enableAllColors: 'Enable all',
     disableAllColors: 'Disable all',
     replaceWith: 'Replace with',
-    smartReplaceMode: 'Smart similar-color replace',
+    smartReplaceMode: 'Show smart replacement suggestions',
     previewStrategy: 'Preview',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
@@ -278,7 +278,7 @@ const MESSAGES = {
     enableAllColors: 'Activar todos',
     disableAllColors: 'Desactivar todos',
     replaceWith: 'Reemplazar por',
-    smartReplaceMode: 'Reemplazo inteligente por color similar',
+    smartReplaceMode: 'Mostrar sugerencias inteligentes de reemplazo',
     previewStrategy: 'Vista',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:

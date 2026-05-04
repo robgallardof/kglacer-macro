@@ -314,14 +314,20 @@ export class BotImage extends Base {
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
-    this.registerEvent(this.$enableAllColors, 'click', () => {
+    this.registerEvent(this.$enableAllColors, 'change', () => {
+      if (!this.$enableAllColors.checked) return
       for (const color of this.colors) color.disabled = undefined
+      this.$enableAllColors.checked = false
+      this.$disableAllColors.checked = false
       this.updateTasks()
       this.updateColors()
       save(this.bot)
     })
-    this.registerEvent(this.$disableAllColors, 'click', () => {
+    this.registerEvent(this.$disableAllColors, 'change', () => {
+      if (!this.$disableAllColors.checked) return
       for (const color of this.colors) color.disabled = true
+      this.$enableAllColors.checked = false
+      this.$disableAllColors.checked = false
       this.updateTasks()
       this.updateColors()
       save(this.bot)
