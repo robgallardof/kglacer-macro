@@ -751,6 +751,29 @@
   color: #ffcf66;
 }
 
+.wwidget .external-tools-actions button {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.wwidget .tool-color-converter i {
+  color: #ff8bd1;
+}
+
+.wwidget .tool-samuel-archive i {
+  color: #a7f3d0;
+}
+
+.wwidget .tool-eralyon-archive i {
+  color: #93c5fd;
+}
+
+.wwidget .external-tools-help {
+  margin-top: 8px;
+  color: #aebcf1;
+  font-size: 11px;
+}
+
 .wform button,
 .wform input,
 .wform select,

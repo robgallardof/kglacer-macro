@@ -22,6 +22,9 @@ export const SHORTCUTS = {
   clickPaintWhenReady: { key: 'r', shift: true } satisfies Shortcut,
   startAutoFarm: { key: 'f', shift: true } satisfies Shortcut,
   stopAutoFarm: { key: 'g', shift: true } satisfies Shortcut,
+  openColorConverterTool: { key: '1', shift: true } satisfies Shortcut,
+  openSamuelArchiveTool: { key: '2', shift: true } satisfies Shortcut,
+  openEralyonArchiveTool: { key: '3', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {

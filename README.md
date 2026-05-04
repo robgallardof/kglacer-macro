@@ -8,7 +8,11 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.10)
+### Highlights (v4.4.11)
+
+- Added an **External tools** section with animated buttons for the Wplace color converter, Samuel archive, and Eralyon archive.
+- External archive buttons now reuse the current Wplace `lat`/`lng`/`zoom` URL zone when opening supported archive tools.
+- Added quick shortcuts: **Shift+1** color converter, **Shift+2** Samuel archive, and **Shift+3** Eralyon archive.
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -63,7 +67,11 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.10)
+### Novedades (v4.4.11)
+
+- Se agregó una sección **Herramientas externas** con botones animados para el convertidor de color de Wplace, el archivo Samuel y el archivo Eralyon.
+- Los botones de archivo externo ahora reutilizan la zona actual de la URL de Wplace (`lat`/`lng`/`zoom`) al abrir herramientas compatibles.
+- Se agregaron atajos rápidos: **Shift+1** convertidor de color, **Shift+2** archivo Samuel y **Shift+3** archivo Eralyon.
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.

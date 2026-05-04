@@ -170,4 +170,31 @@ describe('matchesShortcut', () => {
     } as KeyboardEvent
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.stopAutoFarm)).toBe(true)
   })
+
+  test('matches external tool shortcuts', () => {
+    const baseEvent = {
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    }
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '1' } as KeyboardEvent,
+        SHORTCUTS.openColorConverterTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '2' } as KeyboardEvent,
+        SHORTCUTS.openSamuelArchiveTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '3' } as KeyboardEvent,
+        SHORTCUTS.openEralyonArchiveTool,
+      ),
+    ).toBe(true)
+  })
 })
