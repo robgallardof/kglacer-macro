@@ -1135,23 +1135,39 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  overflow: visible;
+  box-sizing: border-box;
+  min-height: 48px;
   padding: 10px 12px;
   border: 1px solid rgb(143 162 255 / 24%);
   border-radius: 10px;
   background: linear-gradient(180deg, rgb(22 34 60 / 96%), rgb(17 26 46 / 96%));
+  text-align: left;
+  white-space: normal;
 }
 
 .kgm-switch-row .with-icon {
   display: inline-flex;
-  gap: 8px;
+  gap: 9px;
+  justify-content: flex-start;
   align-items: center;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.kgm-switch-row .with-icon span {
+  min-width: 0;
 }
 
 .kgm-switch-row .with-icon svg {
-  flex: 0 0 16px;
-  width: 16px;
-  height: 16px;
-  color: #93c5fd;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.kgm-switch-row .kgm-option-icon {
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgb(125 211 252 / 22%));
 }
 
 .kgm-switch {
@@ -1814,18 +1830,6 @@
 
 .wwidget .widget-section-progress .widget-section-title i {
   color: #67d0ff;
-}
-
-.kgm-switch-row:nth-of-type(1) .with-icon svg {
-  stroke: #ff7aa2;
-}
-
-.kgm-switch-row:nth-of-type(2) .with-icon svg {
-  stroke: #7dd3fc;
-}
-
-.kgm-switch-row:nth-of-type(3) .with-icon svg {
-  stroke: #86efac;
 }
 
 .shield-profile-row {
