@@ -1279,8 +1279,13 @@
 }
 
 .colors-dialog .replacement-select {
-  max-width: 130px;
-  font-size: 10px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid rgb(143 162 255 / 34%);
+  background: #1d2a49;
+  color: #e6ecff;
+  font-size: 11px;
 }
 
 .colors-dialog .color-chip .replacement {
@@ -1404,6 +1409,44 @@
   padding: 3px 6px;
   border-radius: 6px;
   font-size: 10px;
+}
+
+.replacement-dialog {
+  width: min(620px, 92vw);
+}
+
+.replacement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  max-height: 58dvh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.replacement-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid rgb(143 162 255 / 24%);
+  border-radius: 8px;
+  background: #17233f;
+  color: #ebf1ff;
+}
+
+.replacement-option .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  background: var(--option-color);
+}
+
+.replacement-option.active {
+  border-color: rgb(95 227 154 / 70%);
+  box-shadow: 0 0 0 1px rgb(95 227 154 / 45%) inset;
 }
 
 .wtopbar {
