@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.7)
+### Highlights (v4.4.8)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -24,6 +24,9 @@ Macro/UI to support pixel painting on **wplace.live**.
 - Removed color replacement targeting from Draw flow to keep strict source-color checks and avoid repaint loops.
 - Added a new **Update script** button in Settings that opens the direct userscript URL.
 - Improved Shield Canvas spoofing so noise is applied only to export copies (toDataURL/toBlob) without mutating the live drawing canvas.
+- Settings buttons for **Update script**, **Refresh profile**, **Shield checker**, **Shield info**, and **Test proxy** now share the same animated button style.
+- Added a Shield info modal that shows the injected Shield diagnostics/profile data from storage/runtime.
+- Shield checker and proxy test now render inline pass/fail output instead of relying on browser alerts.
 
 ### Install
 
@@ -56,7 +59,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.7)
+### Novedades (v4.4.8)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
@@ -72,6 +75,9 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Se eliminó la lógica de reemplazo de colores en Draw para mantener comparación estricta con los colores de origen y evitar repintados en bucle.
 - Se agregó un botón **Update script** en Settings que abre la URL directa del userscript.
 - Se mejoró el spoof de Canvas del Shield: ahora el ruido se aplica en una copia de exportación (toDataURL/toBlob) sin mutar el canvas activo de pintado.
+- Los botones de configuración **Actualizar script**, **Refrescar perfil**, **Shield checker**, **Info Shield** y **Test proxy** ahora comparten el mismo estilo animado.
+- Se agregó un modal de Info Shield que muestra la data/perfil inyectado del Shield desde storage/runtime.
+- Shield checker y Test proxy ahora muestran resultados inline de éxito/error sin depender de alerts del navegador.
 
 ### Instalación
 

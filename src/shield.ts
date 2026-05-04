@@ -97,6 +97,7 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
         const SETTINGS_KEY = PREFIX + "settings";
         const PROFILE_KEY = PREFIX + "profile";
         const PROFILE_EXPIRY_KEY = PREFIX + "profile_expiry";
+        const PROFILE_CHOICES_KEY = PREFIX + "profile_choices";
         const ENABLED_KEY = PREFIX + "enabled";
         const UI_POSITION_KEY = PREFIX + "ui_position";
         const UI_VISIBLE_KEY = PREFIX + "ui_visible";
@@ -611,18 +612,66 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
             const now = Date.now();
             const expiry = Number(storageGet(PROFILE_EXPIRY_KEY) || "0");
             const savedProfile = safeJson(storageGet(PROFILE_KEY), null);
+            const profiles = getCompatibleProfiles();
+
+            storageSet(PROFILE_CHOICES_KEY, JSON.stringify(profiles));
 
             if (savedProfile && now <= expiry) {
-                return savedProfile;
+                if (savedProfile.id && !savedProfile.userAgent) {
+                    const selected = browserProfiles.find(item => item.id === savedProfile.id) || profiles.find(item => item.id === savedProfile.id);
+
+                    if (selected) {
+                        storageSet(PROFILE_KEY, JSON.stringify(selected));
+                        return selected;
+                    }
+                }
+
+                if (savedProfile.id && savedProfile.userAgent) {
+                    return savedProfile;
+                }
             }
 
-            const profiles = getCompatibleProfiles();
             const profile = profiles[Math.floor(Math.random() * profiles.length)];
 
             storageSet(PROFILE_KEY, JSON.stringify(profile));
             storageSet(PROFILE_EXPIRY_KEY, String(now + PROFILE_DURATION_MS));
 
             return profile;
+        }
+
+        /**
+         * Publishes shield diagnostics for the KGlacer Macro settings modal.
+         *
+         * @param {BrowserProfile} profile Active profile.
+         * @param {SpoofSettings} settings Active settings.
+         * @returns {void}
+         */
+        function publishShieldInfo(profile, settings) {
+            const enabled = storageGet(ENABLED_KEY) !== "false";
+            const info = {
+                injected: true,
+                enabled,
+                profile,
+                profileId: profile.id,
+                expiresAt: Number(storageGet(PROFILE_EXPIRY_KEY) || "0"),
+                detectedBrowser: detectFamily(),
+                proxyHint: storageGet(PREFIX + "proxy_hint") || "AUTO",
+                compatibleProfiles: getCompatibleProfiles().map(item => item.id),
+                settings
+            };
+
+            storageSet(PROFILE_CHOICES_KEY, JSON.stringify(getCompatibleProfiles()));
+
+            try {
+                Object.defineProperty(window, "__kgmShieldInfo", {
+                    configurable: true,
+                    enumerable: false,
+                    value: info,
+                    writable: true
+                });
+            } catch (_) {
+                window.__kgmShieldInfo = info;
+            }
         }
 
         /**
@@ -1349,6 +1398,8 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
             const enabled = storageGet(ENABLED_KEY) !== "false";
             const settings = loadSettings();
             const profile = getCurrentProfile();
+
+            publishShieldInfo(profile, settings);
 
             if (!enabled) {
                 return;

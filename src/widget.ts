@@ -701,7 +701,7 @@ export class Widget extends Base {
     </div>
   </label>
   <div class="widget-actions">
-    <button type="button" class="challenge-button script-update"><i class="fa-solid fa-rotate"></i><span>Update script</span></button>
+    <button type="button" class="challenge-button script-update"><i class="fa-solid fa-rotate"></i><span data-i18n="scriptUpdate">Update script</span></button>
   </div>
   <label class="kgm-switch-row">
     <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span>
@@ -726,9 +726,10 @@ export class Widget extends Base {
     <label class="autofarm-label"><span>Port</span><input class="proxy-port" type="number" min="1" max="65535" placeholder="8080" /></label>
     <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
     <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
-    <div class="widget-actions">
-      <button type="button" class="challenge-button proxy-test"><i class="fa-solid fa-plug-circle-check"></i><span>Test connection</span></button>
+    <div class="widget-actions kgm-button-grid">
+      <button type="button" class="challenge-button proxy-test"><i class="fa-solid fa-plug-circle-check"></i><span data-i18n="proxyTest">Test proxy</span></button>
     </div>
+    <div class="shield-checker-output proxy-test-output" aria-live="polite"></div>
   </details>
   <details class="shortcuts shield-settings">
     <summary class="shortcuts-summary">
@@ -800,6 +801,8 @@ export class Widget extends Base {
     const $shieldControls =
       $dialog.querySelector<HTMLDivElement>('.shield-controls')!
     const $proxyTest = $dialog.querySelector<HTMLButtonElement>('.proxy-test')!
+    const $proxyOutput =
+      $dialog.querySelector<HTMLDivElement>('.proxy-test-output')
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyDetails.open = $proxyEnabled.checked
@@ -833,10 +836,17 @@ export class Widget extends Base {
       $proxyDetails.open = $proxyEnabled.checked
     })
     $proxyTest.addEventListener('click', async () => {
+      persistProxy()
       const host = $proxyHost.value.trim()
       const port = $proxyPort.value.trim()
+      $proxyTest.disabled = true
+      if ($proxyOutput)
+        $proxyOutput.innerHTML = `<div class="pending">⏳ ${t('proxyTesting')}</div>`
       const ok = await this.testProxyConnection(host, port)
-      alert(ok ? 'Proxy OK' : 'Proxy test failed')
+      if ($proxyOutput)
+        $proxyOutput.innerHTML = `<div class="${ok ? 'ok' : 'fail'}">${ok ? '✅' : '❌'} ${ok ? t('proxyOk') : t('proxyFail')}</div>`
+      else alert(ok ? t('proxyOk') : t('proxyFail'))
+      $proxyTest.disabled = false
     })
     $shieldEnabled.addEventListener('change', () => {
       $shieldDetails.open = $shieldEnabled.checked
@@ -910,7 +920,7 @@ export class Widget extends Base {
       )
       .join('')
 
-    container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-checker"><i class="fa-solid fa-shield-check"></i><span>Shield checker</span></button></div><div class="shield-checker-output" aria-live="polite"></div><div class="shield-control-grid">${rows}</div>`
+    container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp shield-expiry-line">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions kgm-button-grid"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-checker"><i class="fa-solid fa-shield-check"></i><span>${t('shieldChecker')}</span></button><button type="button" class="challenge-button shield-info"><i class="fa-solid fa-circle-info"></i><span>${t('shieldInfo')}</span></button></div><div class="shield-checker-output" aria-live="polite"></div><div class="shield-control-grid">${rows}</div>`
 
     container
       .querySelectorAll<HTMLInputElement>('input[data-shield-key]')
@@ -929,7 +939,15 @@ export class Widget extends Base {
       ?.addEventListener('change', (event) => {
         const selected = (event.currentTarget as HTMLSelectElement).value
         if (!selected) localStorage.removeItem(PROFILE_KEY)
-        else localStorage.setItem(PROFILE_KEY, JSON.stringify({ id: selected }))
+        else {
+          const selectedProfile = profileChoices.find(
+            (item) => item.id === selected,
+          )
+          localStorage.setItem(
+            PROFILE_KEY,
+            JSON.stringify(selectedProfile ?? { id: selected }),
+          )
+        }
         location.reload()
       })
     container
@@ -948,12 +966,137 @@ export class Widget extends Base {
           .join('')
       })
     container
+      .querySelector<HTMLButtonElement>('.shield-info')
+      ?.addEventListener('click', () => {
+        this.openShieldInfoModal()
+      })
+    container
       .querySelector<HTMLButtonElement>('.shield-refresh-profile')
       ?.addEventListener('click', () => {
         localStorage.removeItem(PROFILE_KEY)
         localStorage.removeItem(PROFILE_EXPIRY_KEY)
         location.reload()
       })
+  }
+
+  protected getShieldInfo() {
+    const profile = JSON.parse(
+      localStorage.getItem('__afm_profile') ?? 'null',
+    ) as Record<string, unknown> | null
+    const settings = JSON.parse(
+      localStorage.getItem('__afm_settings') ?? '{}',
+    ) as Record<string, boolean>
+    const choices = JSON.parse(
+      localStorage.getItem('__afm_profile_choices') ?? '[]',
+    ) as { id: string }[]
+    const injectedInfo = (
+      globalThis as typeof globalThis & {
+        __kgmShieldInfo?: Record<string, unknown>
+      }
+    ).__kgmShieldInfo
+
+    return {
+      injectedInfo,
+      profile,
+      settings,
+      choices,
+      expiry: Number(localStorage.getItem('__afm_profile_expiry') ?? '0'),
+      enabled: localStorage.getItem('__afm_enabled') !== 'false',
+      proxyHint: localStorage.getItem('__afm_proxy_hint') ?? 'AUTO',
+    }
+  }
+
+  protected openShieldInfoModal() {
+    const info = this.getShieldInfo()
+    const injectedProfile = info.injectedInfo?.profile
+    const profile =
+      typeof injectedProfile === 'object' && injectedProfile !== null
+        ? (injectedProfile as Record<string, unknown>)
+        : info.profile
+    const settings =
+      (info.injectedInfo?.settings as Record<string, boolean> | undefined) ??
+      info.settings
+    const expiry = Number(info.injectedInfo?.expiresAt ?? info.expiry)
+    const profileValue = (key: string, fallback = '—') =>
+      this.stringifyShieldValue(profile?.[key], fallback)
+    const screenValue = profile
+      ? `${profileValue('screenWidth')}×${profileValue('screenHeight')} @${profileValue('devicePixelRatio')}`
+      : '—'
+    const webglValue = profile
+      ? `${profileValue('webglVendor')} / ${profileValue('webglRenderer')}`
+      : '—'
+    const rows = [
+      [
+        t('shieldInfoInjected'),
+        info.injectedInfo ? t('enabled') : t('disabled'),
+      ],
+      [t('shieldInfoEnabled'), info.enabled ? t('enabled') : t('disabled')],
+      [t('shieldProfile'), profileValue('id')],
+      [
+        t('shieldExpires'),
+        expiry > 0 ? new Date(expiry).toLocaleString() : '—',
+      ],
+      [
+        t('shieldInfoBrowser'),
+        this.stringifyShieldValue(info.injectedInfo?.detectedBrowser),
+      ],
+      [
+        t('shieldInfoProxyHint'),
+        this.stringifyShieldValue(info.injectedInfo?.proxyHint, info.proxyHint),
+      ],
+      [
+        t('shieldInfoProfiles'),
+        info.choices.length > 0 ? String(info.choices.length) : '—',
+      ],
+      ['User-Agent', profileValue('userAgent', navigator.userAgent)],
+      ['Platform', profileValue('platform', navigator.platform)],
+      ['Language', profileValue('language', navigator.language)],
+      ['Screen', screenValue],
+      ['WebGL', webglValue],
+    ]
+    const enabledModules = Object.entries(settings)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => key)
+      .join(', ')
+    const $dialog = document.createElement('dialog')
+    $dialog.className = 'kgm-modal shield-info-dialog'
+    $dialog.innerHTML = `<div class="kgm-modal-head"><strong>${t('shieldInfoTitle')}</strong><button type="button" class="modal-close" aria-label="${t('close')}"><span class="icon">×</span></button></div><div class="shield-info-grid">${rows
+      .map(
+        ([label, value]) =>
+          `<div class="shield-info-card"><span>${this.escapeHtml(label)}</span><strong>${this.escapeHtml(value)}</strong></div>`,
+      )
+      .join(
+        '',
+      )}</div><div class="shield-info-modules"><span>${t('shieldInfoModules')}</span><p>${this.escapeHtml(enabledModules.length > 0 ? enabledModules : '—')}</p></div>`
+    document.body.append($dialog)
+    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+      $dialog.close()
+      $dialog.remove()
+    }
+    $dialog.addEventListener('close', () => {
+      $dialog.remove()
+    })
+    $dialog.showModal()
+  }
+
+  protected stringifyShieldValue(value: unknown, fallback = '—') {
+    if (value === undefined || value === null || value === '') return fallback
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    )
+      return String(value)
+    return JSON.stringify(value)
+  }
+
+  protected escapeHtml(value: unknown) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;')
   }
 
   protected async testProxyConnection(host: string, port: string) {
@@ -967,23 +1110,28 @@ export class Widget extends Base {
   }
 
   protected runShieldChecker() {
+    const info = this.getShieldInfo()
+    const profile = info.profile
+    const injected = Boolean(info.injectedInfo ?? profile)
     return [
       {
-        label: 'Injected script present',
-        ok: Boolean(document.getElementById('kgm-shield-full')),
+        label: t('shieldCheckInjected'),
+        ok: injected,
       },
       {
-        label: 'Settings stored',
-        ok: Boolean(localStorage.getItem('__afm_settings')),
+        label: t('shieldCheckSettings'),
+        ok: Object.keys(info.settings).length > 0,
       },
       {
-        label: 'Profile resolved',
-        ok:
-          Boolean(localStorage.getItem('__afm_profile')) ||
-          Boolean(localStorage.getItem('__afm_profile_expiry')),
+        label: t('shieldCheckProfile'),
+        ok: Boolean(profile?.id ?? info.injectedInfo?.profileId),
       },
       {
-        label: 'Navigator spoofing active',
+        label: t('shieldCheckChoices'),
+        ok: info.choices.length > 0,
+      },
+      {
+        label: t('shieldCheckNavigator'),
         ok:
           navigator.hardwareConcurrency !== 0 &&
           typeof navigator.platform === 'string',
