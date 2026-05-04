@@ -1293,21 +1293,6 @@
   margin-bottom: 10px;
 }
 
-.colors-dialog .replacement-select {
-  min-height: 28px;
-  padding: 0 8px;
-  border-radius: 7px;
-  border: 1px solid rgb(143 162 255 / 34%);
-  background: #1d2a49;
-  color: #e6ecff;
-  font-size: 11px;
-}
-
-.colors-dialog .color-chip .replacement {
-  color: #b9c8ff;
-  font-size: 10px;
-}
-
 .colors-dialog-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

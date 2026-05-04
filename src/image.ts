@@ -19,7 +19,6 @@ export type DrawTask = {
 export type ImageColorSetting = {
   color: number
   disabled?: boolean
-  replacementColor?: number
 }
 
 export enum ImageStrategy {
@@ -85,7 +84,6 @@ export class BotImage extends Base {
       data.drawTransparentPixels,
       data.drawColorsInOrder,
       data.skipUnavailableColors,
-      data.smartReplaceMode,
       data.colors,
       data.lock,
     )
@@ -120,7 +118,6 @@ export class BotImage extends Base {
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
   protected readonly $skipUnavailable!: HTMLInputElement
-  protected readonly $smartReplaceMode!: HTMLInputElement
   protected readonly $export!: HTMLDivElement
   protected readonly $lock!: HTMLButtonElement
   protected readonly $opacity!: HTMLInputElement
@@ -148,7 +145,6 @@ export class BotImage extends Base {
     number
   >()
   protected readonly previewAnimationHandles = new Set<number>()
-  protected $replacementDialog?: HTMLDialogElement
 
   public constructor(
     protected bot: KGlacerMacro,
@@ -166,12 +162,10 @@ export class BotImage extends Base {
     public drawColorsInOrder = false,
     /** Skip premium colors if unavailable */
     public skipUnavailableColors = true,
-    public smartReplaceMode = false,
     /** Colors settings */
     public colors: {
       realColor: number
       disabled?: boolean
-      replacementColor?: number
     }[] = [],
     /** Stop accidental image edit */
     public lock = false,
@@ -196,7 +190,6 @@ export class BotImage extends Base {
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
       $skipUnavailable: '.skip-unavailable',
-      $smartReplaceMode: '.smart-replace-mode',
       $export: '.export',
       $lock: '.lock',
       $opacity: '.opacity',
@@ -355,7 +348,6 @@ export class BotImage extends Base {
       drawTransparentPixels: this.drawTransparentPixels,
       drawColorsInOrder: this.drawColorsInOrder,
       skipUnavailableColors: this.skipUnavailableColors,
-      smartReplaceMode: this.smartReplaceMode,
       colors: this.colors,
       lock: this.lock,
     }
@@ -411,7 +403,6 @@ export class BotImage extends Base {
     this.$drawTransparent.checked = this.drawTransparentPixels
     this.$drawColorsInOrder.checked = this.drawColorsInOrder
     this.$skipUnavailable.checked = this.skipUnavailableColors
-    this.$smartReplaceMode.checked = this.smartReplaceMode
     const maxTasks = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const doneTasks = Math.max(0, maxTasks - this.tasks.length)
     const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
@@ -970,63 +961,6 @@ export class BotImage extends Base {
 
 
 
-  protected colorFamily(realColor: number) {
-    const [r = 0, g = 0, b = 0] = (COLORS_RGB[realColor] ?? '0,0,0').split(',').map((v) => Number.parseInt(v, 10))
-    if (r > g + 35 && r > b + 35) return 'red'
-    if (g > r + 25 && g > b + 20) return r > 90 ? 'olive' : 'green'
-    if (b > r + 25 && b > g + 25) return 'blue'
-    if (r > 120 && b > 120) return 'wine'
-    return 'neutral'
-  }
-
-  protected replacementCandidates(realColor: number) {
-    const family = this.colorFamily(realColor)
-    return Array.from({ length: COLORS_RGB.length - 1 }, (_, idx) => idx + 1).filter((i) => !this.bot.unavailableColors.has(i) && this.colorFamily(i) === family)
-  }
-
-  protected openReplacementPicker(
-    drawColor: { replacementColor?: number; realColor: number },
-    realColor: number,
-  ) {
-    this.$replacementDialog?.remove()
-    const $dialog = document.createElement('dialog')
-    $dialog.className = 'kgm-modal replacement-dialog'
-    const sourceColor = this.pixels.colors.get(realColor)?.color ?? realColor
-    const replacement = drawColor.replacementColor ?? sourceColor
-    const palette = this.smartReplaceMode
-      ? this.replacementCandidates(realColor)
-      : Array.from({ length: COLORS_RGB.length - 1 }, (_, idx) => idx + 1)
-    const options = palette
-      .filter((color) => !this.bot.unavailableColors.has(color))
-      .map((color) => {
-        const hex = this.colorHex(color).toUpperCase()
-        return `<button type="button" class="replacement-option ${color === replacement ? 'active' : ''}" data-color="${color}" style="--option-color:${colorToCSS(color)}"><span class="dot"></span><span>#${color}</span><span>${hex}</span></button>`
-      })
-      .join('')
-    $dialog.innerHTML = `<div class="kgm-modal-head"><strong>${t('replaceWith')}</strong><button class="modal-close" type="button" aria-label="${t('close')}"><i class="icon fa-solid fa-xmark" aria-hidden="true"></i></button></div><div class="replacement-grid">${options}</div>`
-    document.body.append($dialog)
-    this.$replacementDialog = $dialog
-    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
-      $dialog.close()
-      $dialog.remove()
-    }
-    for (const button of $dialog.querySelectorAll<HTMLButtonElement>(
-      '.replacement-option',
-    )) {
-      button.onclick = () => {
-        const color = Number.parseInt(button.dataset.color ?? '0', 10)
-        if (!color) return
-        drawColor.replacementColor = color
-        this.updateTasks()
-        this.updateColors()
-        save(this.bot)
-        $dialog.close()
-        $dialog.remove()
-      }
-    }
-    $dialog.showModal()
-  }
-
   /** Update colors array */
   public updateColors() {
     this.$colorsDialogList.innerHTML = ''
@@ -1049,7 +983,6 @@ export class BotImage extends Base {
         .map((color) => ({
           realColor: color.realColor,
           disabled: previous.get(color.realColor)?.disabled,
-          replacementColor: previous.get(color.realColor)?.replacementColor,
         }))
       save(this.bot)
     }
@@ -1060,7 +993,7 @@ export class BotImage extends Base {
       const color = this.pixels.colors.get(drawColor.realColor)!
       let draggingChip = false
       const isPremium = color.realColor !== color.color
-      if (this.skipUnavailableColors && isPremium && drawColor.replacementColor === undefined) drawColor.disabled = true
+      if (this.skipUnavailableColors && isPremium) drawColor.disabled = true
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
@@ -1079,8 +1012,6 @@ export class BotImage extends Base {
         'aria-label',
         `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
       )
-      const replacement = drawColor.replacementColor ?? color.color
-      const replacementLabel = `#${replacement} ${this.colorHex(replacement).toUpperCase()}`
       $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
 <span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
 <span class="swatch"></span>
@@ -1088,7 +1019,6 @@ export class BotImage extends Base {
   <span class="coverage">${width.toFixed(1)}%</span>
   <span class="hex">${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
-  <span class="replacement">${t('replaceWith')}: ${replacementLabel}</span>
 </span>
 <span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
       $chip
@@ -1131,17 +1061,6 @@ export class BotImage extends Base {
         save(this.bot)
         this.updateColors()
       })
-      if (true) {
-        const $replacement = document.createElement('button')
-        $replacement.className = 'replacement-select'
-        $replacement.type = 'button'
-        $replacement.textContent = `🎨 ${t('replaceWith')}`
-        $replacement.addEventListener('click', (event) => {
-          event.stopPropagation()
-          this.openReplacementPicker(drawColor, color.realColor)
-        })
-        $chip.append($replacement)
-      }
       if (true) {
         const $buy = document.createElement('button')
         $buy.textContent = t('buy')
