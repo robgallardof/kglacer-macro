@@ -25,6 +25,11 @@ const PUBLIC_IP_CHECK_ENDPOINTS = [
 ] as const
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
+const COLOR_CONVERTER_URL =
+  'https://pepoafonso.github.io/color_converter_wplace/es/index.html'
+const SAMUEL_ARCHIVE_URL = 'https://wplace.samuelscheit.com/'
+const ERALYON_ARCHIVE_URL = 'https://wplace.eralyon.net/'
+const ERALYON_ARCHIVE_VERSION = 'v69.051'
 
 type AutoFarmUnit = 'seconds' | 'minutes' | 'hours'
 
@@ -76,6 +81,9 @@ export class Widget extends Base {
   protected readonly $drawAndPaint!: HTMLButtonElement
   protected readonly $addImage!: HTMLButtonElement
   protected readonly $captureTemplate!: HTMLButtonElement
+  protected readonly $toolColorConverter!: HTMLButtonElement
+  protected readonly $toolSamuelArchive!: HTMLButtonElement
+  protected readonly $toolEralyonArchive!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $autofarmConfig!: HTMLButtonElement
   protected readonly $autofarmStart!: HTMLButtonElement
@@ -124,6 +132,9 @@ export class Widget extends Base {
       $drawAndPaint: '.draw-and-paint',
       $addImage: '.add-image',
       $captureTemplate: '.capture-template',
+      $toolColorConverter: '.tool-color-converter',
+      $toolSamuelArchive: '.tool-samuel-archive',
+      $toolEralyonArchive: '.tool-eralyon-archive',
       $toggleOverlay: '.toggle-overlay',
       $autofarmConfig: '.autofarm-config',
       $autofarmStart: '.autofarm-start',
@@ -154,6 +165,15 @@ export class Widget extends Base {
     })
     this.$captureTemplate.addEventListener('click', () => {
       void this.captureTemplate()
+    })
+    this.$toolColorConverter.addEventListener('click', () => {
+      this.openExternalTool('colorConverter')
+    })
+    this.$toolSamuelArchive.addEventListener('click', () => {
+      this.openExternalTool('samuelArchive')
+    })
+    this.$toolEralyonArchive.addEventListener('click', () => {
+      this.openExternalTool('eralyonArchive')
     })
     this.$toggleOverlay.addEventListener('click', () => {
       this.toggleOverlay()
@@ -769,6 +789,9 @@ export class Widget extends Base {
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-hourglass-half"></i><span data-i18n="shortcutClickPaintWhenReady">Wait + click Paint</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>R</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-play"></i><span data-i18n="shortcutStartAutoFarm">Start auto farm</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>F</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-stop"></i><span data-i18n="shortcutStopAutoFarm">Stop auto farm</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>G</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-droplet"></i><span data-i18n="shortcutColorConverter">Color converter</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>1</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-clock-rotate-left"></i><span data-i18n="shortcutSamuelArchive">Samuel archive</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>2</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-map-location-dot"></i><span data-i18n="shortcutEralyonArchive">Eralyon archive</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>3</kbd></span></li>
     </ul>
   </details>
 </form>`
@@ -1609,6 +1632,77 @@ export class Widget extends Base {
     $dialog.showModal()
   }
 
+  protected getCurrentWplaceLocation() {
+    const sources = [globalThis.location.search, globalThis.location.hash]
+    for (const source of sources) {
+      const params = new URLSearchParams(
+        source.replace(/^#/, '').replace(/^\?/, ''),
+      )
+      const lat = Number.parseFloat(params.get('lat') ?? '')
+      const lng = Number.parseFloat(params.get('lng') ?? '')
+      const zoom = Number.parseFloat(params.get('zoom') ?? '')
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom))
+        return { lat, lng, zoom }
+    }
+
+    const hashMatch =
+      /#?\/?(?<zoom>-?\d+(?:\.\d+)?)\/(?<lat>-?\d+(?:\.\d+)?)\/(?<lng>-?\d+(?:\.\d+)?)/.exec(
+        globalThis.location.hash,
+      )
+    if (!hashMatch?.groups) return
+    const { lat: hashLat, lng: hashLng, zoom: hashZoom } = hashMatch.groups
+    if (!hashLat || !hashLng || !hashZoom) return
+    const lat = Number.parseFloat(hashLat)
+    const lng = Number.parseFloat(hashLng)
+    const zoom = Number.parseFloat(hashZoom)
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(zoom)
+    )
+      return
+    return { lat, lng, zoom }
+  }
+
+  protected buildExternalToolUrl(
+    tool: 'colorConverter' | 'samuelArchive' | 'eralyonArchive',
+  ) {
+    const position = this.getCurrentWplaceLocation()
+    if (tool === 'colorConverter') return COLOR_CONVERTER_URL
+    if (!position) {
+      if (tool === 'samuelArchive') return SAMUEL_ARCHIVE_URL
+      const url = new URL(ERALYON_ARCHIVE_URL)
+      url.searchParams.set('lat', '0.000000')
+      url.searchParams.set('lng', '0.000000')
+      url.searchParams.set('zoom', '2.00')
+      url.searchParams.set('version', ERALYON_ARCHIVE_VERSION)
+      return url.toString()
+    }
+
+    if (tool === 'samuelArchive') {
+      const url = new URL(SAMUEL_ARCHIVE_URL)
+      url.hash = `${position.zoom.toFixed(2)}/${position.lat.toFixed(6)}/${position.lng.toFixed(6)}`
+      return url.toString()
+    }
+
+    const url = new URL(ERALYON_ARCHIVE_URL)
+    url.searchParams.set('lat', position.lat.toFixed(6))
+    url.searchParams.set('lng', position.lng.toFixed(6))
+    url.searchParams.set('zoom', position.zoom.toFixed(2))
+    url.searchParams.set('version', ERALYON_ARCHIVE_VERSION)
+    return url.toString()
+  }
+
+  protected openExternalTool(
+    tool: 'colorConverter' | 'samuelArchive' | 'eralyonArchive',
+  ) {
+    globalThis.open(
+      this.buildExternalToolUrl(tool),
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
+
   /** Disable/enable element by class name */
   public setDisabled(name: string, disabled: boolean) {
     this.element.querySelector<HTMLButtonElement>('.' + name)!.disabled =
@@ -1708,6 +1802,21 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.stopAutoFarm)) {
       event.preventDefault()
       this.stopAutoFarm()
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openColorConverterTool)) {
+      event.preventDefault()
+      this.openExternalTool('colorConverter')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openSamuelArchiveTool)) {
+      event.preventDefault()
+      this.openExternalTool('samuelArchive')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openEralyonArchiveTool)) {
+      event.preventDefault()
+      this.openExternalTool('eralyonArchive')
       return
     }
     if (
