@@ -89,3 +89,14 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 4. `bun run lint`
 5. `bun test`
 6. `bun start`
+
+
+## Shield and profile updates
+- Settings now include profile selector, refresh, and shield+proxy test button.
+- Removed external `Open Shield settings` button from config modal.
+- Added i18n labels for Shield feature names and profile controls.
+- Color tool icons are now highlighted and replace flow is always available from color chips.
+
+- Fixed color modal bulk actions: Enable all / Disable all now work as direct action buttons.
+
+- Fixed repaint loop by comparing against mapped target palette color and defaulting unavailable colors to disabled unless user sets replacement.
