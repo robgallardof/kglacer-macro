@@ -386,7 +386,13 @@
          */
         function loadSettings() {
             const saved = safeJson(storageGet(SETTINGS_KEY), {});
-            return Object.assign({}, defaultSettings, saved);
+            const settings = Object.assign({}, defaultSettings, saved);
+
+            // Persist merged defaults so the UI checker can confirm settings storage even
+            // before the user toggles an individual Shield module.
+            storageSet(SETTINGS_KEY, JSON.stringify(settings));
+
+            return settings;
         }
 
         /**

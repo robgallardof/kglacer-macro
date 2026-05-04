@@ -47,6 +47,28 @@ describe('matchesShortcut', () => {
     expect(matchesShortcut(keyboardEvent, SHORTCUTS.minimizeWidget)).toBe(true)
   })
 
+  test('matches shift+s show panel shortcut', () => {
+    const keyboardEvent = {
+      key: 'S',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.showWidgetPanel)).toBe(true)
+  })
+
+  test('matches shift+h hide panel shortcut', () => {
+    const keyboardEvent = {
+      key: 'H',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent
+    expect(matchesShortcut(keyboardEvent, SHORTCUTS.hideWidgetPanel)).toBe(true)
+  })
+
   test('matches shift+/ show shortcuts shortcut', () => {
     const keyboardEvent = {
       key: '/',

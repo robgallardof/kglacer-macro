@@ -18,6 +18,11 @@ const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
 const AUTO_OVERLAY_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-overlay-config'
 const PROXY_CONFIG_STORAGE_KEY = 'kglacer-macro:proxy-config'
+const SHIELD_PROXY_HINT_STORAGE_KEY = '__afm_proxy_hint'
+const PUBLIC_IP_CHECK_ENDPOINTS = [
+  'https://api.ipify.org?format=json',
+  'https://icanhazip.com',
+] as const
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 
@@ -726,6 +731,11 @@ export class Widget extends Base {
     <label class="autofarm-label"><span>Port</span><input class="proxy-port" type="number" min="1" max="65535" placeholder="8080" /></label>
     <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
     <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
+    <div class="shield-ip-card">
+      <span data-i18n="publicIpTitle">Public IP</span>
+      <strong class="public-ip-value">—</strong>
+      <small class="public-ip-route">—</small>
+    </div>
     <div class="widget-actions kgm-button-grid">
       <button type="button" class="challenge-button proxy-test"><i class="fa-solid fa-plug-circle-check"></i><span data-i18n="proxyTest">Test proxy</span></button>
     </div>
@@ -745,6 +755,9 @@ export class Widget extends Base {
     </summary>
     <ul class="shortcut-list">
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-table-cells-large"></i><span data-i18n="shortcutToggleWidget">Toggle widget</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>B</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-compress"></i><span data-i18n="shortcutMinimizePanel">Minimize panel</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>M</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-eye"></i><span data-i18n="shortcutShowPanel">Show panel</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>S</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-eye-slash"></i><span data-i18n="shortcutHidePanel">Hide panel</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>H</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-layer-group"></i><span data-i18n="shortcutToggleOverlay">Toggle overlays</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>V</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-pen-nib"></i><span data-i18n="shortcutDraw">Draw</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-image"></i><span data-i18n="shortcutAddImage">Add image</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>I</kbd></span></li>
@@ -803,6 +816,10 @@ export class Widget extends Base {
     const $proxyTest = $dialog.querySelector<HTMLButtonElement>('.proxy-test')!
     const $proxyOutput =
       $dialog.querySelector<HTMLDivElement>('.proxy-test-output')
+    const $publicIpValue =
+      $dialog.querySelector<HTMLElement>('.public-ip-value')
+    const $publicIpRoute =
+      $dialog.querySelector<HTMLElement>('.public-ip-route')
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyDetails.open = $proxyEnabled.checked
@@ -813,16 +830,38 @@ export class Widget extends Base {
     $proxyUser.value = proxyConfig.username ?? ''
     $proxyPass.value = proxyConfig.password ?? ''
     const persistProxy = () => {
+      const proxyEnabled = $proxyEnabled.checked
+      const proxyHost = $proxyHost.value.trim()
+      const proxyPort = $proxyPort.value.trim()
       localStorage.setItem(
         PROXY_CONFIG_STORAGE_KEY,
         JSON.stringify({
-          enabled: $proxyEnabled.checked,
-          host: $proxyHost.value.trim(),
-          port: $proxyPort.value.trim(),
+          enabled: proxyEnabled,
+          host: proxyHost,
+          port: proxyPort,
           username: $proxyUser.value.trim(),
           password: $proxyPass.value,
         }),
       )
+      localStorage.setItem(
+        SHIELD_PROXY_HINT_STORAGE_KEY,
+        proxyEnabled && proxyHost && proxyPort
+          ? `${proxyHost}:${proxyPort}`
+          : 'DIRECT/SHIELD',
+      )
+    }
+    const refreshPublicIpCard = async () => {
+      if ($publicIpValue) $publicIpValue.textContent = t('publicIpChecking')
+      if ($publicIpRoute) {
+        $publicIpRoute.textContent = this.getPublicIpRouteLabel({
+          enabled: $proxyEnabled.checked,
+          host: $proxyHost.value.trim(),
+          port: $proxyPort.value.trim(),
+        })
+      }
+      const publicIp = await this.fetchPublicIp()
+      if ($publicIpValue)
+        $publicIpValue.textContent = publicIp ?? t('publicIpUnavailable')
     }
     for (const el of [
       $proxyEnabled,
@@ -831,10 +870,15 @@ export class Widget extends Base {
       $proxyUser,
       $proxyPass,
     ])
-      el.addEventListener('change', persistProxy)
+      el.addEventListener('change', () => {
+        persistProxy()
+        void refreshPublicIpCard()
+      })
     $proxyEnabled.addEventListener('change', () => {
       $proxyDetails.open = $proxyEnabled.checked
     })
+    persistProxy()
+    void refreshPublicIpCard()
     $proxyTest.addEventListener('click', async () => {
       persistProxy()
       const host = $proxyHost.value.trim()
@@ -843,6 +887,7 @@ export class Widget extends Base {
       if ($proxyOutput)
         $proxyOutput.innerHTML = `<div class="pending">⏳ ${t('proxyTesting')}</div>`
       const ok = await this.testProxyConnection(host, port)
+      await refreshPublicIpCard()
       if ($proxyOutput)
         $proxyOutput.innerHTML = `<div class="${ok ? 'ok' : 'fail'}">${ok ? '✅' : '❌'} ${ok ? t('proxyOk') : t('proxyFail')}</div>`
       else alert(ok ? t('proxyOk') : t('proxyFail'))
@@ -887,17 +932,20 @@ export class Widget extends Base {
       matchMedia: t('shieldFeatureMatchMedia'),
       sharedArrayBuffer: t('shieldFeatureSharedArrayBuffer'),
     }
-    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as {
-      id?: string
-    } | null
+    const profile = this.readStorageJson<{ id?: string } | null>(
+      PROFILE_KEY,
+      null,
+    )
     const PROFILE_CHOICES_KEY = '__afm_profile_choices'
     const expiryRaw = Number(localStorage.getItem(PROFILE_EXPIRY_KEY) ?? '0')
-    const settings = JSON.parse(
-      localStorage.getItem(SETTINGS_KEY) ?? '{}',
-    ) as Record<string, boolean>
-    const profileChoices = JSON.parse(
-      localStorage.getItem(PROFILE_CHOICES_KEY) ?? '[]',
-    ) as { id: string }[]
+    const settings = this.readStorageJson<Record<string, boolean>>(
+      SETTINGS_KEY,
+      {},
+    )
+    const profileChoices = this.readStorageJson<{ id: string }[]>(
+      PROFILE_CHOICES_KEY,
+      [],
+    )
     const defaults = Object.fromEntries(
       Object.keys(featureLabels).map((k) => [k, true]),
     ) as Record<string, boolean>
@@ -980,15 +1028,18 @@ export class Widget extends Base {
   }
 
   protected getShieldInfo() {
-    const profile = JSON.parse(
-      localStorage.getItem('__afm_profile') ?? 'null',
-    ) as Record<string, unknown> | null
-    const settings = JSON.parse(
-      localStorage.getItem('__afm_settings') ?? '{}',
-    ) as Record<string, boolean>
-    const choices = JSON.parse(
-      localStorage.getItem('__afm_profile_choices') ?? '[]',
-    ) as { id: string }[]
+    const profile = this.readStorageJson<Record<string, unknown> | null>(
+      '__afm_profile',
+      null,
+    )
+    const settings = this.readStorageJson<Record<string, boolean>>(
+      '__afm_settings',
+      {},
+    )
+    const choices = this.readStorageJson<{ id: string }[]>(
+      '__afm_profile_choices',
+      [],
+    )
     const injectedInfo = (
       globalThis as typeof globalThis & {
         __kgmShieldInfo?: Record<string, unknown>
@@ -1002,8 +1053,49 @@ export class Widget extends Base {
       choices,
       expiry: Number(localStorage.getItem('__afm_profile_expiry') ?? '0'),
       enabled: localStorage.getItem('__afm_enabled') !== 'false',
-      proxyHint: localStorage.getItem('__afm_proxy_hint') ?? 'AUTO',
+      proxyHint: localStorage.getItem(SHIELD_PROXY_HINT_STORAGE_KEY) ?? 'AUTO',
     }
+  }
+
+  protected readStorageJson<T>(key: string, fallback: T): T {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return fallback
+      return JSON.parse(raw) as T
+    } catch {
+      return fallback
+    }
+  }
+
+  protected getPublicIpRouteLabel(proxyConfig: {
+    enabled?: boolean
+    host?: string
+    port?: string
+  }) {
+    if (proxyConfig.enabled && proxyConfig.host && proxyConfig.port)
+      return `${t('publicIpProxyRoute')} (${proxyConfig.host}:${proxyConfig.port})`
+    return t('publicIpShieldRoute')
+  }
+
+  protected async fetchPublicIp() {
+    for (const endpoint of PUBLIC_IP_CHECK_ENDPOINTS) {
+      try {
+        const response = await fetch(endpoint, { cache: 'no-store' })
+        if (!response.ok) continue
+        const contentType = response.headers.get('content-type') ?? ''
+        if (contentType.includes('application/json')) {
+          const payload = (await response.json()) as { ip?: unknown }
+          if (typeof payload.ip === 'string' && payload.ip.trim())
+            return payload.ip.trim()
+        } else {
+          const text = (await response.text()).trim()
+          if (text) return text
+        }
+      } catch {
+        // Try the next endpoint.
+      }
+    }
+    return undefined
   }
 
   protected openShieldInfoModal() {
@@ -1044,6 +1136,7 @@ export class Widget extends Base {
         t('shieldInfoProxyHint'),
         this.stringifyShieldValue(info.injectedInfo?.proxyHint, info.proxyHint),
       ],
+      [t('publicIpTitle'), t('publicIpChecking')],
       [
         t('shieldInfoProfiles'),
         info.choices.length > 0 ? String(info.choices.length) : '—',
@@ -1063,12 +1156,19 @@ export class Widget extends Base {
     $dialog.innerHTML = `<div class="kgm-modal-head"><strong>${t('shieldInfoTitle')}</strong><button type="button" class="modal-close" aria-label="${t('close')}"><span class="icon">×</span></button></div><div class="shield-info-grid">${rows
       .map(
         ([label, value]) =>
-          `<div class="shield-info-card"><span>${this.escapeHtml(label)}</span><strong>${this.escapeHtml(value)}</strong></div>`,
+          `<div class="shield-info-card"><span>${this.escapeHtml(label)}</span><strong${label === t('publicIpTitle') ? ' class="shield-info-public-ip"' : ''}>${this.escapeHtml(value)}</strong></div>`,
       )
       .join(
         '',
       )}</div><div class="shield-info-modules"><span>${t('shieldInfoModules')}</span><p>${this.escapeHtml(enabledModules.length > 0 ? enabledModules : '—')}</p></div>`
     document.body.append($dialog)
+    void this.fetchPublicIp().then((publicIp) => {
+      const $publicIp = $dialog.querySelector<HTMLElement>(
+        '.shield-info-public-ip',
+      )
+      if ($publicIp)
+        $publicIp.textContent = publicIp ?? t('publicIpUnavailable')
+    })
     $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
@@ -1112,6 +1212,11 @@ export class Widget extends Base {
   protected runShieldChecker() {
     const info = this.getShieldInfo()
     const profile = info.profile
+    const injectedSettings = info.injectedInfo?.settings
+    const settings =
+      typeof injectedSettings === 'object' && injectedSettings !== null
+        ? (injectedSettings as Record<string, boolean>)
+        : info.settings
     const injected = Boolean(info.injectedInfo ?? profile)
     return [
       {
@@ -1120,7 +1225,7 @@ export class Widget extends Base {
       },
       {
         label: t('shieldCheckSettings'),
-        ok: Object.keys(info.settings).length > 0,
+        ok: Object.keys(settings).length > 0,
       },
       {
         label: t('shieldCheckProfile'),
@@ -1542,6 +1647,21 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
       event.preventDefault()
       this.open = !this.open
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.minimizeWidget)) {
+      event.preventDefault()
+      this.open = false
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.showWidgetPanel)) {
+      event.preventDefault()
+      this.open = true
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
+      event.preventDefault()
+      this.open = false
       return
     }
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
