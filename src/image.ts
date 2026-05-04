@@ -386,7 +386,11 @@ export class BotImage extends Base {
       position.globalX = this.position.globalX + x
       position.globalY = this.position.globalY + y
       const mapColor = position.getMapColor()
-      if (color !== mapColor && (this.drawTransparentPixels || color !== 0))
+      const acceptableMapColors = new Set([color, mappedColor, sourceColor])
+      if (
+        !acceptableMapColors.has(mapColor) &&
+        (this.drawTransparentPixels || color !== 0)
+      )
         this.tasks.push({
           position: position.clone(),
           color,
