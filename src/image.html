@@ -114,9 +114,21 @@
       Color #1 paints first.
     </p>
     <div class="color-tools">
-      <label><input type="checkbox" class="smart-replace-mode" /> <span data-i18n="smartReplaceMode">Smart similar-color replace</span></label>
-      <button class="enable-all-colors" type="button" data-i18n="enableAllColors">Enable all</button>
-      <button class="disable-all-colors" type="button" data-i18n="disableAllColors">Disable all</button>
+      <label><input type="checkbox" class="smart-replace-mode" /> <span data-i18n="smartReplaceMode">Smart replacement suggestions</span></label>
+      <label class="kgm-switch-row">
+        <span data-i18n="enableAllColors">Enable all</span>
+        <span class="kgm-switch">
+          <input type="checkbox" class="enable-all-colors" />
+          <span class="kgm-switch-slider" aria-hidden="true"></span>
+        </span>
+      </label>
+      <label class="kgm-switch-row">
+        <span data-i18n="disableAllColors">Disable all</span>
+        <span class="kgm-switch">
+          <input type="checkbox" class="disable-all-colors" />
+          <span class="kgm-switch-slider" aria-hidden="true"></span>
+        </span>
+      </label>
     </div>
     <input class="color-search" type="search" data-i18n-placeholder="searchColors" placeholder="Search color by hex, English or Spanish"/>
     <div class="colors-dialog-list"></div>
