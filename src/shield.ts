@@ -465,7 +465,7 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
             userAgentData: true,
             screen: true,
             timezone: true,
-            canvas: true,
+            canvas: false,
             webgl: true,
             audio: true,
             plugins: true,
@@ -981,50 +981,45 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
             }
 
             const baseSeed = hashString(location.hostname + profile.id + "canvas");
-
-            patchMethod(CanvasRenderingContext2D && CanvasRenderingContext2D.prototype, "getImageData", original => function getImageData(x, y, width, height) {
-                const imageData = original.call(this, x, y, width, height);
-                const data = imageData.data;
-
-                for (let i = 0; i < data.length; i += 4) {
-                    const noise = Math.round(stableNoise(baseSeed + i, 1));
-                    data[i] = clampByte(data[i] + noise);
-                    data[i + 1] = clampByte(data[i + 1] + noise);
-                    data[i + 2] = clampByte(data[i + 2] + noise);
-                }
-
-                return imageData;
-            });
-
             patchMethod(HTMLCanvasElement && HTMLCanvasElement.prototype, "toDataURL", original => function toDataURL() {
-                applyCanvasPixelNoise(this, baseSeed);
-                return original.apply(this, arguments);
+                const source = this;
+                const noisyCanvas = buildNoisyCanvasCopy(source, baseSeed);
+                return original.apply(noisyCanvas || source, arguments);
             });
 
             patchMethod(HTMLCanvasElement && HTMLCanvasElement.prototype, "toBlob", original => function toBlob() {
-                applyCanvasPixelNoise(this, baseSeed);
-                return original.apply(this, arguments);
+                const source = this;
+                const noisyCanvas = buildNoisyCanvasCopy(source, baseSeed);
+                return original.apply(noisyCanvas || source, arguments);
             });
         }
 
         /**
-         * Applies deterministic pixel noise to a canvas before export.
+         * Creates a detached canvas copy with deterministic, low-amplitude pixel noise.
          *
-         * @param {HTMLCanvasElement} canvas Target canvas.
+         * @param {HTMLCanvasElement} canvas Source canvas.
          * @param {number} seed Base noise seed.
-         * @returns {void}
+         * @returns {HTMLCanvasElement|null} Noisy clone or null when unavailable.
          */
-        function applyCanvasPixelNoise(canvas, seed) {
+        function buildNoisyCanvasCopy(canvas, seed) {
             try {
-                const context = canvas.getContext("2d");
-
-                if (!context || !canvas.width || !canvas.height) {
-                    return;
+                if (!canvas.width || !canvas.height) {
+                    return null;
                 }
 
+                const clone = document.createElement("canvas");
+                clone.width = canvas.width;
+                clone.height = canvas.height;
+                const cloneContext = clone.getContext("2d");
+
+                if (!cloneContext) {
+                    return null;
+                }
+
+                cloneContext.drawImage(canvas, 0, 0);
                 const width = Math.min(canvas.width, 16);
                 const height = Math.min(canvas.height, 16);
-                const imageData = context.getImageData(0, 0, width, height);
+                const imageData = cloneContext.getImageData(0, 0, width, height);
 
                 for (let i = 0; i < imageData.data.length; i += 4) {
                     const noise = Math.round(stableNoise(seed + i, 1));
@@ -1033,9 +1028,11 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
                     imageData.data[i + 2] = clampByte(imageData.data[i + 2] + noise);
                 }
 
-                context.putImageData(imageData, 0, 0);
+                cloneContext.putImageData(imageData, 0, 0);
+                return clone;
             } catch (_) {
                 // Ignore tainted canvas errors.
+                return null;
             }
         }
 
@@ -1783,12 +1780,12 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
 
 export function getShieldEnabled() {
   const raw = localStorage.getItem(SHIELD_CONFIG_KEY)
-  if (!raw) return true
+  if (!raw) return false
   try {
     const parsed = JSON.parse(raw) as { enabled?: boolean }
     return parsed.enabled !== false
   } catch {
-    return true
+    return false
   }
 }
 
