@@ -718,6 +718,9 @@ export class Widget extends Base {
     <label class="autofarm-label"><span>Port</span><input class="proxy-port" type="number" min="1" max="65535" placeholder="8080" /></label>
     <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
     <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
+    <div class="widget-actions">
+      <button type="button" class="challenge-button proxy-test"><i class="fa-solid fa-plug-circle-check"></i><span>Test connection</span></button>
+    </div>
   </details>
   <details class="shortcuts shield-settings">
     <summary class="shortcuts-summary">
@@ -725,7 +728,6 @@ export class Widget extends Base {
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
     </summary>
     <div class="shield-controls"></div>
-    
   </details>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
@@ -767,6 +769,7 @@ export class Widget extends Base {
         const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
     const $shieldDetails = $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
     const $shieldControls = $dialog.querySelector<HTMLDivElement>('.shield-controls')!
+    const $proxyTest = $dialog.querySelector<HTMLButtonElement>('.proxy-test')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyDetails.open = $proxyEnabled.checked
@@ -791,6 +794,12 @@ export class Widget extends Base {
     for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
     $proxyEnabled.addEventListener('change', () => {
       $proxyDetails.open = $proxyEnabled.checked
+    })
+    $proxyTest.addEventListener('click', async () => {
+      const host = $proxyHost.value.trim()
+      const port = $proxyPort.value.trim()
+      const ok = await this.testProxyConnection(host, port)
+      alert(ok ? 'Proxy OK' : 'Proxy test failed')
     })
     $shieldEnabled.addEventListener('change', () => {
       $shieldDetails.open = $shieldEnabled.checked
@@ -837,7 +846,7 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       .map(([key, label]) => `<label class="kgm-switch-row"><span>${label}</span><span class="kgm-switch"><input type="checkbox" data-shield-key="${key}" ${merged[key] ? 'checked' : ''}/><span class="kgm-switch-slider" aria-hidden="true"></span></span></label>`)
       .join('')
 
-    container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-test"><i class="fa-solid fa-vial-circle-check"></i><span>${t('shieldTest')}</span></button></div><div class="shield-control-grid">${rows}</div>`
+    container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-checker"><i class="fa-solid fa-shield-check"></i><span>Shield checker</span></button></div><div class="shield-checker-output" aria-live="polite"></div><div class="shield-control-grid">${rows}</div>`
 
     container.querySelectorAll<HTMLInputElement>('input[data-shield-key]').forEach((input) => {
       input.addEventListener('change', () => {
@@ -853,14 +862,36 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       else localStorage.setItem(PROFILE_KEY, JSON.stringify({ id: selected }))
       location.reload()
     })
-    container.querySelector<HTMLButtonElement>('.shield-test')?.addEventListener('click', () => {
-      alert(`${t('shieldTest')} OK`)
+    container.querySelector<HTMLButtonElement>('.shield-checker')?.addEventListener('click', () => {
+      const output = container.querySelector<HTMLDivElement>('.shield-checker-output')
+      if (!output) return
+      const checks = this.runShieldChecker()
+      output.innerHTML = checks.map((check) => `<div class="${check.ok ? 'ok' : 'fail'}">${check.ok ? '✅' : '❌'} ${check.label}</div>`).join('')
     })
     container.querySelector<HTMLButtonElement>('.shield-refresh-profile')?.addEventListener('click', () => {
       localStorage.removeItem(PROFILE_KEY)
       localStorage.removeItem(PROFILE_EXPIRY_KEY)
       location.reload()
     })
+  }
+
+  protected async testProxyConnection(host: string, port: string) {
+    if (!host || !port) return false
+    try {
+      await fetch(`http://${host}:${port}`, { method: 'HEAD', mode: 'no-cors' })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  protected runShieldChecker() {
+    return [
+      { label: 'Injected script present', ok: Boolean(document.getElementById('kgm-shield-full')) },
+      { label: 'Settings stored', ok: Boolean(localStorage.getItem('__afm_settings')) },
+      { label: 'Profile resolved', ok: Boolean(localStorage.getItem('__afm_profile')) || Boolean(localStorage.getItem('__afm_profile_expiry')) },
+      { label: 'Navigator spoofing active', ok: navigator.hardwareConcurrency !== 0 && typeof navigator.platform === 'string' },
+    ]
   }
 
   protected refreshAutoFarmStatusText() {

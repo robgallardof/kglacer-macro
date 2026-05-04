@@ -192,6 +192,15 @@ export class WorldPosition {
     ]![this.x]!
   }
 
+  /** Set map color in local cache at this position */
+  public setMapColor(color: number) {
+    const tile = this.bot.mapsCache.get(this.tileX + '/' + this.tileY)
+    if (!tile) return
+    const row = tile.pixels[this.y]
+    if (!row) return
+    row[this.x] = color
+  }
+
   /** Scroll screen to this position */
   public scrollScreenTo() {
     const { x, y } = this.toScreenPosition()
