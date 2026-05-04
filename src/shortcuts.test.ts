@@ -180,20 +180,26 @@ describe('matchesShortcut', () => {
     }
     expect(
       matchesShortcut(
-        { ...baseEvent, key: '1' } as KeyboardEvent,
+        { ...baseEvent, key: '!', code: 'Digit1' } as KeyboardEvent,
         SHORTCUTS.openColorConverterTool,
       ),
     ).toBe(true)
     expect(
       matchesShortcut(
-        { ...baseEvent, key: '2' } as KeyboardEvent,
+        { ...baseEvent, key: '@', code: 'Digit2' } as KeyboardEvent,
         SHORTCUTS.openSamuelArchiveTool,
       ),
     ).toBe(true)
     expect(
       matchesShortcut(
-        { ...baseEvent, key: '3' } as KeyboardEvent,
+        { ...baseEvent, key: '#', code: 'Digit3' } as KeyboardEvent,
         SHORTCUTS.openEralyonArchiveTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '1' } as KeyboardEvent,
+        SHORTCUTS.openColorConverterTool,
       ),
     ).toBe(true)
   })

@@ -30,10 +30,19 @@ export const SHORTCUTS = {
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
   const shortcutKey = shortcut.key.toLowerCase()
   const eventKey = event.key.toLowerCase()
+  const eventCode = ((event as { code?: string }).code ?? '').toLowerCase()
   const slashShortcutPressed =
     shortcutKey === '/' &&
-    (eventKey === '/' || eventKey === '?' || event.code === 'Slash')
-  const keyMatches = slashShortcutPressed || eventKey === shortcutKey
+    (eventKey === '/' || eventKey === '?' || eventCode === 'slash')
+  const shiftedNumberShortcutPressed =
+    shortcut.shift === true &&
+    /^\d$/.test(shortcutKey) &&
+    (eventCode === `digit${shortcutKey}` ||
+      eventCode === `numpad${shortcutKey}`)
+  const keyMatches =
+    slashShortcutPressed ||
+    shiftedNumberShortcutPressed ||
+    eventKey === shortcutKey
   const ctrlMatches =
     shortcut.ctrl === true ? event.ctrlKey || event.metaKey : !event.ctrlKey
   const metaMatches =
