@@ -637,6 +637,7 @@ class KGlacerMacro {
         cancelable: true,
       }),
     )
+    task.position.setMapColor(task.color)
   }
 
   public async paintRandomPixelInViewport() {

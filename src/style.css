@@ -1426,17 +1426,15 @@
   font-size: 10px;
 }
 
-.replacement-dialog {
-  width: min(620px, 92vw);
-}
+.replacement-dialog { width: min(760px, 96vw); }
 
 .replacement-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  max-height: 58dvh;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  max-height: 62dvh;
   overflow: auto;
-  padding-right: 4px;
+  padding: 6px 4px 2px;
 }
 
 .replacement-option {
@@ -1444,7 +1442,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid rgb(143 162 255 / 24%);
   border-radius: 8px;
   background: #17233f;
@@ -1811,9 +1809,11 @@
 .kgm-switch-row:nth-of-type(2) .with-icon svg{stroke:#7dd3fc;}
 .kgm-switch-row:nth-of-type(3) .with-icon svg{stroke:#86efac;}
 .shield-profile-row{display:grid;gap:6px;margin:8px 0;}
-.shield-profile-select{width:100%;padding:8px;border-radius:8px;background:#111a2e;color:#fff;border:1px solid #334;}.shield-refresh-profile i,.shield-test i{color:#8fd8ff;margin-right:6px;}
+.shield-profile-select{width:100%;padding:8px;border-radius:8px;background:#111a2e;color:#fff;border:1px solid #334;}.shield-refresh-profile i,.shield-checker i{color:#8fd8ff;margin-right:6px;}
 
-.color-tool-btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:8px;border:1px solid var(--border);border-radius:10px;background:#1a2032;color:#dbe6ff;font-weight:600;cursor:pointer;}
-.color-tool-btn:hover{background:#24304d;}
-.color-tool-btn.enable-all-colors i{color:#86efac;}
-.color-tool-btn.disable-all-colors i{color:#fda4af;}
+.color-tool-btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:8px 12px;border:1px solid rgb(143 162 255 / 30%);border-radius:10px;background:linear-gradient(180deg,#1d2947,#152039);color:#dbe6ff;font-weight:700;cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease;}
+.color-tool-btn:hover{background:linear-gradient(180deg,#25365c,#1a2745);border-color:rgb(143 216 255 / 46%);transform:translateY(-1px);}
+.color-tool-btn i{color:#8fd8ff;}
+.shield-checker-output{display:grid;gap:6px;margin-bottom:10px;font-size:12px;color:#dce8ff;}
+.shield-checker-output .ok{color:#9bf2c5;}
+.shield-checker-output .fail{color:#ffb4bc;}
