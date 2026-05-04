@@ -1203,6 +1203,24 @@
   margin-bottom: 10px;
 }
 
+.color-tools {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.colors-dialog .replacement-select {
+  max-width: 130px;
+  font-size: 10px;
+}
+
+.colors-dialog .color-chip .replacement {
+  color: #b9c8ff;
+  font-size: 10px;
+}
+
 .colors-dialog-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

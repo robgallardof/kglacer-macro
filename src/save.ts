@@ -23,7 +23,7 @@ export function loadSave() {
     save = JSON.parse(item.json)
     if (typeof save !== 'object') throw new Error('NOT VALID SAVE')
     if (save.version === 1) {
-      const _save = save as any
+      const _save = save
       save.images = _save.widget.images
       save.strategy = _save.widget.strategy
       delete _save.widget

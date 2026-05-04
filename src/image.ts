@@ -19,6 +19,7 @@ export type DrawTask = {
 export type ImageColorSetting = {
   color: number
   disabled?: boolean
+  replacementColor?: number
 }
 
 export enum ImageStrategy {
@@ -83,6 +84,7 @@ export class BotImage extends Base {
       data.opacity,
       data.drawTransparentPixels,
       data.drawColorsInOrder,
+      data.skipUnavailableColors,
       data.colors,
       data.lock,
     )
@@ -109,11 +111,14 @@ export class BotImage extends Base {
   protected readonly $colorSearch!: HTMLInputElement
   protected readonly $openColors!: HTMLButtonElement
   protected readonly $openPreview!: HTMLButtonElement
+  protected readonly $enableAllColors!: HTMLButtonElement
+  protected readonly $disableAllColors!: HTMLButtonElement
   protected readonly $closeColors!: HTMLButtonElement
   protected readonly $closePreview!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
+  protected readonly $skipUnavailable!: HTMLInputElement
   protected readonly $export!: HTMLDivElement
   protected readonly $lock!: HTMLButtonElement
   protected readonly $opacity!: HTMLInputElement
@@ -156,8 +161,14 @@ export class BotImage extends Base {
     public drawTransparentPixels = false,
     /** Should bot draw colors in order */
     public drawColorsInOrder = false,
+    /** Skip premium colors if unavailable */
+    public skipUnavailableColors = false,
     /** Colors settings */
-    public colors: { realColor: number; disabled?: boolean }[] = [],
+    public colors: {
+      realColor: number
+      disabled?: boolean
+      replacementColor?: number
+    }[] = [],
     /** Stop accidental image edit */
     public lock = false,
   ) {
@@ -173,11 +184,14 @@ export class BotImage extends Base {
       $colorSearch: '.color-search',
       $openColors: '.open-colors',
       $openPreview: '.open-preview',
+      $enableAllColors: '.enable-all-colors',
+      $disableAllColors: '.disable-all-colors',
       $closeColors: '.close-colors',
       $closePreview: '.close-preview',
       $delete: '.delete',
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
+      $skipUnavailable: '.skip-unavailable',
       $export: '.export',
       $lock: '.lock',
       $opacity: '.opacity',
@@ -225,6 +239,12 @@ export class BotImage extends Base {
     // drawTransparent
     this.registerEvent(this.$drawTransparent, 'click', () => {
       this.drawTransparentPixels = this.$drawTransparent.checked
+      save(this.bot)
+    })
+
+    this.registerEvent(this.$skipUnavailable, 'click', () => {
+      this.skipUnavailableColors = this.$skipUnavailable.checked
+      this.updateTasks()
       save(this.bot)
     })
 
@@ -290,6 +310,18 @@ export class BotImage extends Base {
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
+    this.registerEvent(this.$enableAllColors, 'click', () => {
+      for (const color of this.colors) color.disabled = undefined
+      this.updateTasks()
+      this.updateColors()
+      save(this.bot)
+    })
+    this.registerEvent(this.$disableAllColors, 'click', () => {
+      for (const color of this.colors) color.disabled = true
+      this.updateTasks()
+      this.updateColors()
+      save(this.bot)
+    })
 
     // Export
     this.registerEvent(this.$export, 'click', this.export.bind(this))
@@ -317,6 +349,7 @@ export class BotImage extends Base {
       opacity: this.opacity,
       drawTransparentPixels: this.drawTransparentPixels,
       drawColorsInOrder: this.drawColorsInOrder,
+      skipUnavailableColors: this.skipUnavailableColors,
       colors: this.colors,
       lock: this.lock,
     }
@@ -331,11 +364,18 @@ export class BotImage extends Base {
     for (let index = 0; index < this.colors.length; index++) {
       const drawColor = this.colors[index]!
       if (drawColor.disabled) skipColors.add(drawColor.realColor)
-      colorsOrderMap.set(drawColor.realColor, index)
+      colorsOrderMap.set(
+        drawColor.replacementColor ?? drawColor.realColor,
+        index,
+      )
     }
     for (const { x, y } of this.strategyPositionIterator()) {
-      const color = this.pixels.pixels[y]![x]!
-      if (skipColors.has(color)) continue
+      const sourceColor = this.pixels.pixels[y]![x]!
+      const drawColorCfg = this.colors.find(
+        (item) => item.realColor === sourceColor,
+      )
+      const color = drawColorCfg?.replacementColor ?? sourceColor
+      if (skipColors.has(sourceColor)) continue
       position.globalX = this.position.globalX + x
       position.globalY = this.position.globalY + y
       const mapColor = position.getMapColor()
@@ -371,6 +411,7 @@ export class BotImage extends Base {
     this.$opacity.valueAsNumber = this.opacity
     this.$drawTransparent.checked = this.drawTransparentPixels
     this.$drawColorsInOrder.checked = this.drawColorsInOrder
+    this.$skipUnavailable.checked = this.skipUnavailableColors
     const maxTasks = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const doneTasks = Math.max(0, maxTasks - this.tasks.length)
     const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
@@ -939,13 +980,17 @@ export class BotImage extends Base {
       this.colors.length !== this.pixels.colors.size ||
       this.colors.some((x) => !this.pixels.colors.has(x.realColor))
     ) {
+      const previous = new Map(
+        this.colors.map((item) => [item.realColor, item]),
+      )
       this.colors = this.pixels.colors
         .values()
         .toArray()
         .sort((a, b) => b.amount - a.amount)
         .map((color) => ({
           realColor: color.realColor,
-          disabled: false,
+          disabled: previous.get(color.realColor)?.disabled,
+          replacementColor: previous.get(color.realColor)?.replacementColor,
         }))
       save(this.bot)
     }
@@ -956,6 +1001,7 @@ export class BotImage extends Base {
       const color = this.pixels.colors.get(drawColor.realColor)!
       let draggingChip = false
       const isPremium = color.realColor !== color.color
+      if (this.skipUnavailableColors && isPremium) drawColor.disabled = true
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
@@ -974,6 +1020,8 @@ export class BotImage extends Base {
         'aria-label',
         `${t('overlayColors')} #${index + 1}: ${hex.toUpperCase()}`,
       )
+      const replacement = drawColor.replacementColor ?? color.color
+      const replacementLabel = `#${replacement} ${this.colorHex(replacement).toUpperCase()}`
       $chip.innerHTML = `<span class="order-index">#${index + 1}</span>
 <span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
 <span class="swatch"></span>
@@ -981,6 +1029,7 @@ export class BotImage extends Base {
   <span class="coverage">${width.toFixed(1)}%</span>
   <span class="hex">${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
+  <span class="replacement">${t('replaceWith')}: ${replacementLabel}</span>
 </span>
 <span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
       $chip
@@ -992,6 +1041,7 @@ export class BotImage extends Base {
           return
         }
         toggleDisabled()
+        this.updateTasks()
       })
       $chip.addEventListener('dragstart', (event) => {
         draggingChip = true
@@ -1022,6 +1072,30 @@ export class BotImage extends Base {
         save(this.bot)
         this.updateColors()
       })
+      if (isPremium) {
+        const $replacement = document.createElement('select')
+        $replacement.className = 'replacement-select'
+        for (let i = 1; i < COLORS_RGB.length; i++) {
+          if (this.bot.unavailableColors.has(i)) continue
+          const option = document.createElement('option')
+          option.value = String(i)
+          option.textContent = `#${i} ${this.colorHex(i).toUpperCase()}`
+          if (i === replacement) option.selected = true
+          $replacement.append(option)
+        }
+        $replacement.addEventListener('click', (event) => {
+          event.stopPropagation()
+        })
+        $replacement.addEventListener('change', () => {
+          drawColor.replacementColor =
+            $replacement.valueAsNumber ||
+            Number.parseInt($replacement.value, 10)
+          this.updateTasks()
+          this.updateColors()
+          save(this.bot)
+        })
+        $chip.append($replacement)
+      }
       if (isPremium) {
         const $buy = document.createElement('button')
         $buy.textContent = t('buy')
