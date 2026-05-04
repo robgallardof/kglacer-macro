@@ -367,30 +367,24 @@ export class BotImage extends Base {
     const position = this.position.clone()
     const skipColors = new Set<number>()
     const colorsOrderMap = new Map<number, number>()
+    const colorConfigBySource = new Map<number, ImageColorSetting>()
     for (let index = 0; index < this.colors.length; index++) {
       const drawColor = this.colors[index]!
-      if (drawColor.disabled) skipColors.add(drawColor.realColor)
-      colorsOrderMap.set(
-        drawColor.replacementColor ?? drawColor.realColor,
-        index,
-      )
+      const pixelColor = this.pixels.colors.get(drawColor.realColor)
+      const sourceColor = pixelColor?.color ?? drawColor.realColor
+      colorConfigBySource.set(sourceColor, drawColor)
+      if (drawColor.disabled) skipColors.add(sourceColor)
+      colorsOrderMap.set(drawColor.replacementColor ?? sourceColor, index)
     }
     for (const { x, y } of this.strategyPositionIterator()) {
       const sourceColor = this.pixels.pixels[y]![x]!
-      const drawColorCfg = this.colors.find(
-        (item) => item.realColor === sourceColor,
-      )
-      const mappedColor = this.pixels.colors.get(sourceColor)?.color ?? sourceColor
-      const color = drawColorCfg?.replacementColor ?? mappedColor
+      const drawColorCfg = colorConfigBySource.get(sourceColor)
+      const color = drawColorCfg?.replacementColor ?? sourceColor
       if (skipColors.has(sourceColor)) continue
       position.globalX = this.position.globalX + x
       position.globalY = this.position.globalY + y
       const mapColor = position.getMapColor()
-      const acceptableMapColors = new Set([color, mappedColor, sourceColor])
-      if (
-        !acceptableMapColors.has(mapColor) &&
-        (this.drawTransparentPixels || color !== 0)
-      )
+      if (mapColor !== color && (this.drawTransparentPixels || color !== 0))
         this.tasks.push({
           position: position.clone(),
           color,
