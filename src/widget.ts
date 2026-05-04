@@ -678,7 +678,7 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
-  <details class="shortcuts">
+  <details class="shortcuts proxy-settings">
     <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-network-wired"></i> <span data-i18n="proxyTitle">Proxy (Beta)</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
@@ -695,7 +695,7 @@ export class Widget extends Base {
       </span>
     </label>
   </details>
-  <details class="shortcuts" open>
+  <details class="shortcuts shield-settings">
     <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="shieldTitle">Shield</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
@@ -747,8 +747,12 @@ export class Widget extends Base {
     const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
     const $shieldEnabled = $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
     const $shieldOpenConfig = $dialog.querySelector<HTMLButtonElement>('.shield-config-open')!
+    const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
+    const $shieldDetails = $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
+    $proxyDetails.open = $proxyEnabled.checked
+    $shieldDetails.open = $shieldEnabled.checked
     $proxyHost.value = proxyConfig.host ?? ''
     $proxyPort.value = proxyConfig.port ?? ''
     $proxyUser.value = proxyConfig.username ?? ''
@@ -766,7 +770,11 @@ export class Widget extends Base {
       )
     }
     for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+    $proxyEnabled.addEventListener('change', () => {
+      $proxyDetails.open = $proxyEnabled.checked
+    })
     $shieldEnabled.addEventListener('change', () => {
+      $shieldDetails.open = $shieldEnabled.checked
       setShieldEnabled($shieldEnabled.checked)
     })
     $shieldOpenConfig.addEventListener('click', () => {

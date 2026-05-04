@@ -1501,6 +1501,7 @@ const FULL_SHIELD_SOURCE = `// ==UserScript==
             }));
 
             const details = document.createElement("details");
+            details.open = true;
             details.style.cssText = "margin-top:10px";
 
             const summary = document.createElement("summary");
