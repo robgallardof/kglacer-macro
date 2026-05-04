@@ -231,7 +231,7 @@ export class Widget extends Base {
         await this.bot.updateColors()
         const input = document.createElement('input')
         input.type = 'file'
-        input.accept = `image/*,.${SETTINGS_EXTENSION}`
+        input.accept = `image/*,.${SETTINGS_EXTENSION},.wplace`
         input.click()
         await promisifyEventSource(input, ['change'], ['cancel', 'error'])
         const file = input.files?.[0]
@@ -247,6 +247,23 @@ export class Widget extends Base {
             this.bot,
             JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
           )
+        } else if (file.name.endsWith('.wplace')) {
+          const raw = JSON.parse(await file.text()) as {
+            image?: { dataUrl?: string }
+            opacity?: number
+            name?: string
+          }
+          if (!raw.image?.dataUrl) throw new Error('Invalid .wplace file: image.dataUrl missing')
+          const image = new Image()
+          image.src = raw.image.dataUrl
+          await promisifyEventSource(image, ['load'], ['error'])
+          await this.waitForStableViewportProjection()
+          botImage = new BotImage(
+            this.bot,
+            WorldPosition.fromScreenPosition(this.bot, this.defaultImageScreenPosition()),
+            new Pixels(this.bot, image),
+          )
+          if (typeof raw.opacity === 'number') botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
         } else {
           const reader = new FileReader()
           reader.readAsDataURL(file)
@@ -708,7 +725,7 @@ export class Widget extends Base {
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
     </summary>
     <div class="shield-controls"></div>
-    <button type="button" class="challenge-button shield-config-open"><i class="fa-solid fa-up-right-from-square"></i><span data-i18n="shieldOpenConfig">Open Shield settings</span></button>
+    
   </details>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
@@ -747,8 +764,7 @@ export class Widget extends Base {
     const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
     const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
     const $shieldEnabled = $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
-    const $shieldOpenConfig = $dialog.querySelector<HTMLButtonElement>('.shield-config-open')!
-    const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
+        const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
     const $shieldDetails = $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
     const $shieldControls = $dialog.querySelector<HTMLDivElement>('.shield-controls')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
@@ -778,13 +794,9 @@ export class Widget extends Base {
     })
     $shieldEnabled.addEventListener('change', () => {
       $shieldDetails.open = $shieldEnabled.checked
-    this.renderShieldControls($shieldControls)
+      this.renderShieldControls($shieldControls)
       setShieldEnabled($shieldEnabled.checked)
-    })
-    $shieldOpenConfig.addEventListener('click', () => {
-      localStorage.setItem('__afm_ui_visible', 'true')
-      const shieldButton = document.querySelector<HTMLElement>('[title="Anti-Fingerprint Merged Shield"]')
-      shieldButton?.click()
+      window.setTimeout(() => location.reload(), 120)
     })
 $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
@@ -802,30 +814,47 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
     const PROFILE_KEY = '__afm_profile'
     const PROFILE_EXPIRY_KEY = '__afm_profile_expiry'
     const featureLabels: Record<string, string> = {
-      navigator: 'Navigator', userAgentData: 'UA-Data', screen: 'Screen', timezone: 'Timezone', canvas: 'Canvas',
-      webgl: 'WebGL', audio: 'Audio', plugins: 'Plugins', mediaDevices: 'Media devices', storageEstimate: 'Storage',
-      battery: 'Battery', speechSynthesis: 'Speech', fonts: 'Fonts', matchMedia: 'Match media', sharedArrayBuffer: 'SharedArrayBuffer'
+      navigator: t('shieldFeatureNavigator'), userAgentData: t('shieldFeatureUaData'), screen: t('shieldFeatureScreen'), timezone: t('shieldFeatureTimezone'), canvas: t('shieldFeatureCanvas'),
+      webgl: t('shieldFeatureWebgl'), audio: t('shieldFeatureAudio'), plugins: t('shieldFeaturePlugins'), mediaDevices: t('shieldFeatureMediaDevices'), storageEstimate: t('shieldFeatureStorage'),
+      battery: t('shieldFeatureBattery'), speechSynthesis: t('shieldFeatureSpeech'), fonts: t('shieldFeatureFonts'), matchMedia: t('shieldFeatureMatchMedia'), sharedArrayBuffer: t('shieldFeatureSharedArrayBuffer')
     }
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as { id?: string } | null
+    const PROFILE_CHOICES_KEY = '__afm_profile_choices'
     const expiryRaw = Number(localStorage.getItem(PROFILE_EXPIRY_KEY) ?? '0')
     const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Record<string, boolean>
+    const profileChoices = JSON.parse(localStorage.getItem(PROFILE_CHOICES_KEY) ?? '[]') as Array<{id:string}>
     const defaults = Object.fromEntries(Object.keys(featureLabels).map((k) => [k, true])) as Record<string, boolean>
     const merged = { ...defaults, ...settings }
 
     const fmtDate = expiryRaw > 0 ? new Date(expiryRaw).toLocaleString() : '—'
     const profileId = profile?.id ?? 'Auto'
+    
+    const profileOptions = profileChoices
+      .map((item) => `<option value="${item.id}" ${item.id === profileId ? 'selected' : ''}>${item.id}</option>`)
+      .join('')
+
     const rows = Object.entries(featureLabels)
       .map(([key, label]) => `<label class="kgm-switch-row"><span>${label}</span><span class="kgm-switch"><input type="checkbox" data-shield-key="${key}" ${merged[key] ? 'checked' : ''}/><span class="kgm-switch-slider" aria-hidden="true"></span></span></label>`)
       .join('')
 
-    container.innerHTML = `<div class="wp">Profile: <strong>${profileId}</strong></div><div class="wp">Expires: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile">Refresh profile</button></div><div class="shield-control-grid">${rows}</div>`
+    container.innerHTML = `<div class="shield-profile-row"><label>${t('shieldProfile')}</label><select class="shield-profile-select"><option value="">${t('shieldProfileAuto')}</option>${profileOptions}</select></div><div class="wp">${t('shieldExpires')}: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile"><i class="fa-solid fa-rotate"></i><span>${t('shieldRefreshProfile')}</span></button><button type="button" class="challenge-button shield-test"><i class="fa-solid fa-vial-circle-check"></i><span>${t('shieldTest')}</span></button></div><div class="shield-control-grid">${rows}</div>`
 
     container.querySelectorAll<HTMLInputElement>('input[data-shield-key]').forEach((input) => {
       input.addEventListener('change', () => {
         const key = input.dataset.shieldKey!
         merged[key] = input.checked
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged))
+        window.setTimeout(() => location.reload(), 120)
       })
+    })
+    container.querySelector<HTMLSelectElement>('.shield-profile-select')?.addEventListener('change', (event) => {
+      const selected = (event.currentTarget as HTMLSelectElement).value
+      if (!selected) localStorage.removeItem(PROFILE_KEY)
+      else localStorage.setItem(PROFILE_KEY, JSON.stringify({ id: selected }))
+      location.reload()
+    })
+    container.querySelector<HTMLButtonElement>('.shield-test')?.addEventListener('click', () => {
+      alert(`${t('shieldTest')} OK`)
     })
     container.querySelector<HTMLButtonElement>('.shield-refresh-profile')?.addEventListener('click', () => {
       localStorage.removeItem(PROFILE_KEY)
