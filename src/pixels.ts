@@ -21,12 +21,7 @@ export class Pixels {
           .then((X) => URL.createObjectURL(X))
       : data.url
     await promisifyEventSource(image, ['load'], ['error'])
-    return new Pixels(
-      bot,
-      image,
-      data.width,
-      data.exactColor,
-    )
+    return new Pixels(bot, image, data.width, data.exactColor)
   }
 
   public canvas = document.createElement('canvas')
@@ -124,11 +119,7 @@ export class Pixels {
           let minDeltaReal = Infinity
           for (let colorIndex = 0; colorIndex < COLORS.length; colorIndex++) {
             const color = COLORS[colorIndex]!
-            const delta = deltaE2000(
-              rgbToOklab(rr, gg, bb),
-              color,
-              0,
-            )
+            const delta = deltaE2000(rgbToOklab(rr, gg, bb), color, 0)
             if (
               !this.bot.unavailableColors.has(colorIndex) &&
               delta < minDelta

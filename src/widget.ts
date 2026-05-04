@@ -16,6 +16,7 @@ import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
 const AUTO_OVERLAY_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-overlay-config'
+const PROXY_CONFIG_STORAGE_KEY = 'kglacer-macro:proxy-config'
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
 
@@ -182,7 +183,6 @@ export class Widget extends Base {
     this.loadAutoOverlayConfigFromStorage()
     this.refreshAutoFarmStatusText()
     this.refreshAutoOverlayStatusText()
-    this.startChallengeWatcher()
     this.statusRefreshIntervalId = window.setInterval(() => {
       this.refreshAutoFarmStatusText()
       this.refreshAutoOverlayStatusText()
@@ -203,7 +203,9 @@ export class Widget extends Base {
       })
     }
 
-    this.challengeWatcherObserver = new MutationObserver(() => tick())
+    this.challengeWatcherObserver = new MutationObserver(() => {
+      tick()
+    })
     this.challengeWatcherObserver.observe(document.documentElement, {
       childList: true,
       subtree: true,
@@ -273,7 +275,6 @@ export class Widget extends Base {
         save(this.bot, true)
         this.bot.updateTasks()
         this.update()
-        globalThis.location.reload()
       },
       () => {
         this.setDisabled('add-image', false)
@@ -675,6 +676,17 @@ export class Widget extends Base {
   </label>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
+      <strong class="shortcuts-summary-title"><i class="fa-solid fa-network-wired"></i> <span data-i18n="proxyTitle">Proxy (Beta)</span></strong>
+      <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
+    </summary>
+    <label class="autofarm-label"><span>Host</span><input class="proxy-host" type="text" placeholder="127.0.0.1" /></label>
+    <label class="autofarm-label"><span>Port</span><input class="proxy-port" type="number" min="1" max="65535" placeholder="8080" /></label>
+    <label class="autofarm-label"><span>User</span><input class="proxy-user" type="text" placeholder="optional" /></label>
+    <label class="autofarm-label"><span>Pass</span><input class="proxy-pass" type="password" placeholder="optional" /></label>
+    <label><input class="proxy-enabled" type="checkbox" /> <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span></label>
+  </details>
+  <details class="shortcuts" open>
+    <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-keyboard"></i> <span data-i18n="keyboardShortcuts">Shortcuts</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
     </summary>
@@ -703,7 +715,31 @@ export class Widget extends Base {
       this.applyLocaleToUI($locale.value as 'en' | 'es')
       applyTranslations($dialog)
     })
-    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
+    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
+    const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
+    const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
+    const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
+    const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
+    $proxyEnabled.checked = Boolean(proxyConfig.enabled)
+    $proxyHost.value = proxyConfig.host ?? ''
+    $proxyPort.value = proxyConfig.port ?? ''
+    $proxyUser.value = proxyConfig.username ?? ''
+    $proxyPass.value = proxyConfig.password ?? ''
+    const persistProxy = () => {
+      localStorage.setItem(
+        PROXY_CONFIG_STORAGE_KEY,
+        JSON.stringify({
+          enabled: $proxyEnabled.checked,
+          host: $proxyHost.value.trim(),
+          port: $proxyPort.value.trim(),
+          username: $proxyUser.value.trim(),
+          password: $proxyPass.value,
+        }),
+      )
+    }
+    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -994,7 +1030,31 @@ export class Widget extends Base {
         $dialog.close()
         $dialog.remove()
       }
-    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
+    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
+    const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
+    const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
+    const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
+    const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
+    $proxyEnabled.checked = Boolean(proxyConfig.enabled)
+    $proxyHost.value = proxyConfig.host ?? ''
+    $proxyPort.value = proxyConfig.port ?? ''
+    $proxyUser.value = proxyConfig.username ?? ''
+    $proxyPass.value = proxyConfig.password ?? ''
+    const persistProxy = () => {
+      localStorage.setItem(
+        PROXY_CONFIG_STORAGE_KEY,
+        JSON.stringify({
+          enabled: $proxyEnabled.checked,
+          host: $proxyHost.value.trim(),
+          port: $proxyPort.value.trim(),
+          username: $proxyUser.value.trim(),
+          password: $proxyPass.value,
+        }),
+      )
+    }
+    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -1068,7 +1128,31 @@ export class Widget extends Base {
         $dialog.close()
         $dialog.remove()
       }
-    $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
+        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
+    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
+    const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
+    const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
+    const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
+    const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
+    $proxyEnabled.checked = Boolean(proxyConfig.enabled)
+    $proxyHost.value = proxyConfig.host ?? ''
+    $proxyPort.value = proxyConfig.port ?? ''
+    $proxyUser.value = proxyConfig.username ?? ''
+    $proxyPass.value = proxyConfig.password ?? ''
+    const persistProxy = () => {
+      localStorage.setItem(
+        PROXY_CONFIG_STORAGE_KEY,
+        JSON.stringify({
+          enabled: $proxyEnabled.checked,
+          host: $proxyHost.value.trim(),
+          port: $proxyPort.value.trim(),
+          username: $proxyUser.value.trim(),
+          password: $proxyPass.value,
+        }),
+      )
+    }
+    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
+$dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
     }
@@ -1360,7 +1444,8 @@ export class Widget extends Base {
     const visibleChallengeElements = challengeElements.filter((element) => {
       if (element.closest('dialog')?.matches('dialog:not([open])')) return false
       const style = globalThis.getComputedStyle(element)
-      if (style.display === 'none' || style.visibility === 'hidden') return false
+      if (style.display === 'none' || style.visibility === 'hidden')
+        return false
       const rect = element.getBoundingClientRect()
       return rect.width > 0 && rect.height > 0
     })

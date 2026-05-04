@@ -81,6 +81,8 @@ const MESSAGES = {
     language: 'Language',
     openConfig: 'Config',
     settingsModalTitle: 'Settings',
+    proxyTitle: 'Proxy (Beta)',
+    proxyEnabled: 'Enable proxy for web requests (beta)',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
     expandPanel: 'Expand panel',
@@ -99,6 +101,10 @@ const MESSAGES = {
     colorPanelHelp:
       'Turn colors on/off with a click. Drag blocks in the strip or cards in this panel to set which color paints first.',
     colorPanelOrderHint: 'Color #1 is painted first.',
+    skipUnavailableColors: 'Skip unavailable premium colors',
+    enableAllColors: 'Enable all',
+    disableAllColors: 'Disable all',
+    replaceWith: 'Replace with',
     previewStrategy: 'Preview',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
@@ -241,6 +247,8 @@ const MESSAGES = {
     language: 'Idioma',
     openConfig: 'Config',
     settingsModalTitle: 'Configuración',
+    proxyTitle: 'Proxy (Beta)',
+    proxyEnabled: 'Habilitar proxy para solicitudes web (beta)',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',
     expandPanel: 'Expandir panel',
@@ -259,6 +267,10 @@ const MESSAGES = {
     colorPanelHelp:
       'Activa o desactiva colores con un clic. Arrastra bloques en la barra o tarjetas en este panel para definir qué color se pinta primero.',
     colorPanelOrderHint: 'El color #1 se pinta primero.',
+    skipUnavailableColors: 'Omitir colores premium no disponibles',
+    enableAllColors: 'Activar todos',
+    disableAllColors: 'Desactivar todos',
+    replaceWith: 'Reemplazar por',
     previewStrategy: 'Vista',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:
