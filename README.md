@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.2)
+### Highlights (v4.4.3)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -20,7 +20,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 - Updated distributed userscript version in `dist.user.js` for direct install.
 - Added compatibility guards that define a safe `fp_assemble_injection` fallback when third-party wrappers call it before definition.
 - Added media autoplay-safe handling to avoid noisy uncaught `NotAllowedError: play() failed` promise rejections before user interaction.
-- Avoids repaint loops by treating mapped, replacement, and source palette matches as already-correct pixels.
+- Restored legacy paint-check logic from `wplace-bot-main`: Draw now only paints pixels that are still different on the map, so rerunning Draw no longer repaints already-correct areas.
 
 ### Install
 
@@ -53,7 +53,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.2)
+### Novedades (v4.4.3)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
@@ -65,7 +65,7 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Versión del userscript distribuido actualizada en `dist.user.js` para instalación directa.
 - Se agregaron guardas de compatibilidad que definen un fallback seguro para `fp_assemble_injection` cuando wrappers de terceros lo invocan antes de estar definido.
 - Se agregó manejo seguro de autoplay para evitar rechazos no capturados `NotAllowedError: play() failed` antes de la interacción del usuario.
-- Evita bucles de repintado considerando como correctos los matches de color mapeado, reemplazo y color fuente.
+- Se restauró la lógica clásica de pintado de `wplace-bot-main`: Draw ahora solo pinta píxeles que siguen diferentes en el mapa, evitando repintar zonas ya correctas al volver a ejecutar Draw.
 
 ### Instalación
 
@@ -101,4 +101,4 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 
 - Fixed color modal bulk actions: Enable all / Disable all now work as direct action buttons.
 
-- Fixed repaint loop by comparing against mapped target palette color and defaulting unavailable colors to disabled unless user sets replacement.
+- Restored legacy draw task comparison to use only source image colors vs current map color (replacement mapping no longer participates in paint targeting).
