@@ -707,7 +707,8 @@ export class Widget extends Base {
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="shieldTitle">Shield</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
     </summary>
-    <button type="button" class="challenge-button shield-config-open"><i class="fa-solid fa-sliders"></i><span data-i18n="shieldOpenConfig">Open Shield profile config</span></button>
+    <div class="shield-controls"></div>
+    <button type="button" class="challenge-button shield-config-open"><i class="fa-solid fa-up-right-from-square"></i><span data-i18n="shieldOpenConfig">Open Shield settings</span></button>
   </details>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
@@ -749,10 +750,12 @@ export class Widget extends Base {
     const $shieldOpenConfig = $dialog.querySelector<HTMLButtonElement>('.shield-config-open')!
     const $proxyDetails = $dialog.querySelector<HTMLDetailsElement>('.proxy-settings')!
     const $shieldDetails = $dialog.querySelector<HTMLDetailsElement>('.shield-settings')!
+    const $shieldControls = $dialog.querySelector<HTMLDivElement>('.shield-controls')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyDetails.open = $proxyEnabled.checked
     $shieldDetails.open = $shieldEnabled.checked
+    this.renderShieldControls($shieldControls)
     $proxyHost.value = proxyConfig.host ?? ''
     $proxyPort.value = proxyConfig.port ?? ''
     $proxyUser.value = proxyConfig.username ?? ''
@@ -775,6 +778,7 @@ export class Widget extends Base {
     })
     $shieldEnabled.addEventListener('change', () => {
       $shieldDetails.open = $shieldEnabled.checked
+    this.renderShieldControls($shieldControls)
       setShieldEnabled($shieldEnabled.checked)
     })
     $shieldOpenConfig.addEventListener('click', () => {
@@ -790,6 +794,44 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.remove()
     })
     $dialog.showModal()
+  }
+
+
+  protected renderShieldControls(container: HTMLDivElement) {
+    const SETTINGS_KEY = '__afm_settings'
+    const PROFILE_KEY = '__afm_profile'
+    const PROFILE_EXPIRY_KEY = '__afm_profile_expiry'
+    const featureLabels: Record<string, string> = {
+      navigator: 'Navigator', userAgentData: 'UA-Data', screen: 'Screen', timezone: 'Timezone', canvas: 'Canvas',
+      webgl: 'WebGL', audio: 'Audio', plugins: 'Plugins', mediaDevices: 'Media devices', storageEstimate: 'Storage',
+      battery: 'Battery', speechSynthesis: 'Speech', fonts: 'Fonts', matchMedia: 'Match media', sharedArrayBuffer: 'SharedArrayBuffer'
+    }
+    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as { id?: string } | null
+    const expiryRaw = Number(localStorage.getItem(PROFILE_EXPIRY_KEY) ?? '0')
+    const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Record<string, boolean>
+    const defaults = Object.fromEntries(Object.keys(featureLabels).map((k) => [k, true])) as Record<string, boolean>
+    const merged = { ...defaults, ...settings }
+
+    const fmtDate = expiryRaw > 0 ? new Date(expiryRaw).toLocaleString() : '—'
+    const profileId = profile?.id ?? 'Auto'
+    const rows = Object.entries(featureLabels)
+      .map(([key, label]) => `<label class="kgm-switch-row"><span>${label}</span><span class="kgm-switch"><input type="checkbox" data-shield-key="${key}" ${merged[key] ? 'checked' : ''}/><span class="kgm-switch-slider" aria-hidden="true"></span></span></label>`)
+      .join('')
+
+    container.innerHTML = `<div class="wp">Profile: <strong>${profileId}</strong></div><div class="wp">Expires: <strong>${fmtDate}</strong></div><div class="widget-actions"><button type="button" class="challenge-button shield-refresh-profile">Refresh profile</button></div><div class="shield-control-grid">${rows}</div>`
+
+    container.querySelectorAll<HTMLInputElement>('input[data-shield-key]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const key = input.dataset.shieldKey!
+        merged[key] = input.checked
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged))
+      })
+    })
+    container.querySelector<HTMLButtonElement>('.shield-refresh-profile')?.addEventListener('click', () => {
+      localStorage.removeItem(PROFILE_KEY)
+      localStorage.removeItem(PROFILE_EXPIRY_KEY)
+      location.reload()
+    })
   }
 
   protected refreshAutoFarmStatusText() {

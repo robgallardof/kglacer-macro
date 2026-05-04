@@ -362,6 +362,8 @@
   place-items: center;
   width: 30px;
   height: 30px;
+  padding: 0;
+  line-height: 1;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 8px;
   background: linear-gradient(180deg, #212b45, #1a2238);
@@ -1116,6 +1118,19 @@
   background: linear-gradient(180deg, rgb(22 34 60 / 96%), rgb(17 26 46 / 96%));
 }
 
+.kgm-switch-row .with-icon {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.kgm-switch-row .with-icon svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: #93c5fd;
+}
+
 .kgm-switch {
   position: relative;
   display: inline-flex;
@@ -1540,8 +1555,27 @@
 }
 
 .wwidget .images .image .image-controls button i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   font-size: 14px;
   line-height: 1;
+}
+
+.kgm-modal .shield-config-open i {
+  color: #8fd8ff;
+}
+
+.shield-control-grid {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.shield-controls .wp {
+  margin-bottom: 6px;
 }
 
 .wwidget .images .image .image-controls .delete {

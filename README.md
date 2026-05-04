@@ -8,13 +8,15 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.3.3)
+### Highlights (v4.3.7)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
 - Shortcuts section now has an internal scrollbar for long lists.
 - New **Auto farm** section with modal timer controls (seconds/minutes/hours) to trigger random sparse painting cycles.
 - Auto farm config is cached in `localStorage` and can be started quickly with **Shift+F** after first setup.
+- Color option labels now use compact proportional icons and switch-style toggles.
+- "Skip unavailable premium colors" was renamed to "Paint only available colors" to reflect real behavior.
 - Updated distributed userscript version in `dist.user.js` for direct install.
 - Added compatibility guards that define a safe `fp_assemble_injection` fallback when third-party wrappers call it before definition.
 - Added media autoplay-safe handling to avoid noisy uncaught `NotAllowedError: play() failed` promise rejections before user interaction.
@@ -50,13 +52,15 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.3.3)
+### Novedades (v4.3.7)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
 - La sección de atajos ahora tiene scrollbar interno para listas largas.
 - Nueva sección **Auto farm** con modal de temporizador (segundos/minutos/horas) para ejecutar ciclos de pintado aleatorio disperso.
 - La configuración de auto farm se guarda en `localStorage` y se puede iniciar rápido con **Shift+F** después de configurarla una vez.
+- Las opciones de color ahora usan iconos proporcionales y toggles tipo switch.
+- "Omitir colores premium no disponibles" ahora se llama "Pintar solo colores disponibles" para reflejar el comportamiento real.
 - Versión del userscript distribuido actualizada en `dist.user.js` para instalación directa.
 - Se agregaron guardas de compatibilidad que definen un fallback seguro para `fp_assemble_injection` cuando wrappers de terceros lo invocan antes de estar definido.
 - Se agregó manejo seguro de autoplay para evitar rechazos no capturados `NotAllowedError: play() failed` antes de la interacción del usuario.
