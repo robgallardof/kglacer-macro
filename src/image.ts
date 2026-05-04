@@ -21,6 +21,24 @@ export type ImageColorSetting = {
   disabled?: boolean
 }
 
+export function computePendingPixels(params: {
+  pixels: number[][]
+  drawTransparentPixels: boolean
+  disabledColors: Set<number>
+  iterate: Iterable<Position>
+  readMapColor: (x: number, y: number) => number
+}) {
+  const result: { x: number; y: number; color: number }[] = []
+  for (const { x, y } of params.iterate) {
+    const color = params.pixels[y]?.[x] ?? 0
+    if (params.disabledColors.has(color)) continue
+    const mapColor = params.readMapColor(x, y)
+    if (color !== mapColor && (params.drawTransparentPixels || color !== 0))
+      result.push({ x, y, color })
+  }
+  return result
+}
+
 export enum ImageStrategy {
   RANDOM = 'RANDOM',
   HUMANIZED = 'HUMANIZED',
@@ -364,17 +382,25 @@ export class BotImage extends Base {
       if (drawColor.disabled) skipColors.add(drawColor.realColor)
       colorsOrderMap.set(drawColor.realColor, index)
     }
-    for (const { x, y } of this.strategyPositionIterator()) {
-      const color = this.pixels.pixels[y]![x]!
-      if (skipColors.has(color)) continue
-      position.globalX = this.position.globalX + x
-      position.globalY = this.position.globalY + y
-      const mapColor = position.getMapColor()
-      if (color !== mapColor && (this.drawTransparentPixels || color !== 0))
-        this.tasks.push({
-          position: position.clone(),
-          color,
-        })
+    const pendingPixels = computePendingPixels({
+      pixels: this.pixels.pixels,
+      drawTransparentPixels: this.drawTransparentPixels,
+      disabledColors: skipColors,
+      iterate: this.strategyPositionIterator(),
+      readMapColor: (x, y) => {
+        position.globalX = this.position.globalX + x
+        position.globalY = this.position.globalY + y
+        return position.getMapColor()
+      },
+    })
+    for (let index = 0; index < pendingPixels.length; index++) {
+      const pending = pendingPixels[index]!
+      position.globalX = this.position.globalX + pending.x
+      position.globalY = this.position.globalY + pending.y
+      this.tasks.push({
+        position: position.clone(),
+        color: pending.color,
+      })
     }
     if (this.drawColorsInOrder)
       this.tasks.sort(
@@ -959,8 +985,6 @@ export class BotImage extends Base {
     return ['brown', 'cafe', 'marron']
   }
 
-
-
   /** Update colors array */
   public updateColors() {
     this.$colorsDialogList.innerHTML = ''
@@ -992,8 +1016,6 @@ export class BotImage extends Base {
       const drawColor = this.colors[index]!
       const color = this.pixels.colors.get(drawColor.realColor)!
       let draggingChip = false
-      const isPremium = color.realColor !== color.color
-      if (this.skipUnavailableColors && isPremium) drawColor.disabled = true
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
@@ -1020,7 +1042,7 @@ export class BotImage extends Base {
   <span class="hex">${hex.toUpperCase()}</span>
   <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
 </span>
-<span class="premium ${isPremium ? 'on' : ''}">${isPremium ? t('premium') : ''}</span>`
+<span class="premium"></span>`
       $chip
         .querySelector<HTMLElement>('.swatch')!
         .style.setProperty('--swatch-color', colorToCSS(color.realColor))
@@ -1061,16 +1083,14 @@ export class BotImage extends Base {
         save(this.bot)
         this.updateColors()
       })
-      if (true) {
-        const $buy = document.createElement('button')
-        $buy.textContent = t('buy')
-        $buy.className = 'buy-chip'
-        $buy.addEventListener('click', (event) => {
-          event.stopPropagation()
-          document.getElementById('color-' + color.realColor)?.click()
-        })
-        $chip.append($buy)
-      }
+      const $buy = document.createElement('button')
+      $buy.textContent = t('buy')
+      $buy.className = 'buy-chip'
+      $buy.addEventListener('click', (event) => {
+        event.stopPropagation()
+        document.getElementById('color-' + color.realColor)?.click()
+      })
+      $chip.append($buy)
       const searchTokens = `${hex} ${keywords.join(' ')} ${color.realColor} ${COLORS_RGB[color.realColor]}`
       if (!searchValue || searchTokens.toLowerCase().includes(searchValue))
         this.$colorsDialogList.append($chip)

@@ -363,12 +363,12 @@
   width: 30px;
   height: 30px;
   padding: 0;
-  line-height: 1;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 8px;
   background: linear-gradient(180deg, #212b45, #1a2238);
   color: #d9e3ff;
   font-size: 14px;
+  line-height: 1;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -1085,10 +1085,10 @@
 }
 
 .autofarm-dialog {
+  overflow: auto;
   width: min(520px, 94vw);
   max-height: min(88dvh, 760px);
   padding: 14px;
-  overflow: auto;
 }
 
 .autofarm-form {
@@ -1125,9 +1125,9 @@
 }
 
 .kgm-switch-row .with-icon svg {
+  flex: 0 0 16px;
   width: 16px;
   height: 16px;
-  flex: 0 0 16px;
   color: #93c5fd;
 }
 
@@ -1154,7 +1154,9 @@
   border-radius: 999px;
   background: #233357;
   box-shadow: inset 0 2px 4px rgb(3 8 18 / 38%);
-  transition: background 0.22s ease, border-color 0.22s ease;
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease;
 }
 
 .kgm-switch-slider::after {
@@ -1411,22 +1413,24 @@
   font-size: 10px;
 }
 
-.replacement-dialog { width: min(760px, 96vw); }
+.replacement-dialog {
+  width: min(760px, 96vw);
+}
 
 .replacement-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
-  max-height: 62dvh;
   overflow: auto;
+  max-height: 62dvh;
   padding: 6px 4px 2px;
 }
 
 .replacement-option {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  justify-content: space-between;
+  align-items: center;
   min-height: 44px;
   border: 1px solid rgb(143 162 255 / 24%);
   border-radius: 8px;
@@ -1437,8 +1441,8 @@
 .replacement-option .dot {
   width: 14px;
   height: 14px;
-  border-radius: 4px;
   border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 4px;
   background: var(--option-color);
 }
 
@@ -1539,8 +1543,8 @@
 
 .wwidget .images .image .image-controls button i {
   display: inline-flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   width: 14px;
   height: 14px;
   font-size: 14px;
@@ -1789,16 +1793,79 @@
   color: #67d0ff;
 }
 
-.kgm-switch-row .with-icon svg{stroke:#8fd8ff;fill:none;stroke-width:1.8;}
-.kgm-switch-row:nth-of-type(1) .with-icon svg{stroke:#ff7aa2;}
-.kgm-switch-row:nth-of-type(2) .with-icon svg{stroke:#7dd3fc;}
-.kgm-switch-row:nth-of-type(3) .with-icon svg{stroke:#86efac;}
-.shield-profile-row{display:grid;gap:6px;margin:8px 0;}
-.shield-profile-select{width:100%;padding:8px;border-radius:8px;background:#111a2e;color:#fff;border:1px solid #334;}.shield-refresh-profile i,.shield-checker i{color:#8fd8ff;margin-right:6px;}
+.kgm-switch-row:nth-of-type(1) .with-icon svg {
+  stroke: #ff7aa2;
+}
 
-.color-tool-btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:8px 12px;border:1px solid rgb(143 162 255 / 30%);border-radius:10px;background:linear-gradient(180deg,#1d2947,#152039);color:#dbe6ff;font-weight:700;cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease;}
-.color-tool-btn:hover{background:linear-gradient(180deg,#25365c,#1a2745);border-color:rgb(143 216 255 / 46%);transform:translateY(-1px);}
-.color-tool-btn i{color:#8fd8ff;}
-.shield-checker-output{display:grid;gap:6px;margin-bottom:10px;font-size:12px;color:#dce8ff;}
-.shield-checker-output .ok{color:#9bf2c5;}
-.shield-checker-output .fail{color:#ffb4bc;}
+.kgm-switch-row:nth-of-type(2) .with-icon svg {
+  stroke: #7dd3fc;
+}
+
+.kgm-switch-row:nth-of-type(3) .with-icon svg {
+  stroke: #86efac;
+}
+
+.shield-profile-row {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.shield-profile-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #334;
+  border-radius: 8px;
+  background: #111a2e;
+  color: #fff;
+}
+
+.shield-refresh-profile i,
+.shield-checker i {
+  margin-right: 6px;
+  color: #8fd8ff;
+}
+
+.color-tool-btn {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid rgb(143 162 255 / 30%);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1d2947, #152039);
+  color: #dbe6ff;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.color-tool-btn:hover {
+  border-color: rgb(143 216 255 / 46%);
+  background: linear-gradient(180deg, #25365c, #1a2745);
+  transform: translateY(-1px);
+}
+
+.color-tool-btn i {
+  color: #8fd8ff;
+}
+
+.shield-checker-output {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #dce8ff;
+  font-size: 12px;
+}
+
+.shield-checker-output .ok {
+  color: #9bf2c5;
+}
+
+.shield-checker-output .fail {
+  color: #ffb4bc;
+}
