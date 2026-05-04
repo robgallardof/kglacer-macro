@@ -678,7 +678,7 @@ export class Widget extends Base {
       </select>
     </div>
   </label>
-  <details class="shortcuts" open>
+  <details class="shortcuts">
     <summary class="shortcuts-summary">
       <strong class="shortcuts-summary-title"><i class="fa-solid fa-network-wired"></i> <span data-i18n="proxyTitle">Proxy (Beta)</span></strong>
       <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
@@ -694,6 +694,12 @@ export class Widget extends Base {
         <span class="kgm-switch-slider" aria-hidden="true"></span>
       </span>
     </label>
+  </details>
+  <details class="shortcuts" open>
+    <summary class="shortcuts-summary">
+      <strong class="shortcuts-summary-title"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="shieldTitle">Shield</span></strong>
+      <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
+    </summary>
     <label class="kgm-switch-row">
       <span data-i18n="shieldEnabled">Enable Script Shield (recommended)</span>
       <span class="kgm-switch">
@@ -701,6 +707,7 @@ export class Widget extends Base {
         <span class="kgm-switch-slider" aria-hidden="true"></span>
       </span>
     </label>
+    <button type="button" class="challenge-button shield-config-open"><i class="fa-solid fa-sliders"></i><span data-i18n="shieldOpenConfig">Open Shield profile config</span></button>
   </details>
   <details class="shortcuts" open>
     <summary class="shortcuts-summary">
@@ -739,6 +746,7 @@ export class Widget extends Base {
     const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
     const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
     const $shieldEnabled = $dialog.querySelector<HTMLInputElement>('.shield-enabled')!
+    const $shieldOpenConfig = $dialog.querySelector<HTMLButtonElement>('.shield-config-open')!
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyHost.value = proxyConfig.host ?? ''
@@ -760,6 +768,10 @@ export class Widget extends Base {
     for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
     $shieldEnabled.addEventListener('change', () => {
       setShieldEnabled($shieldEnabled.checked)
+    })
+    $shieldOpenConfig.addEventListener('click', () => {
+      const shieldButton = document.querySelector<HTMLElement>('[title="Anti-Fingerprint Merged Shield"]')
+      shieldButton?.click()
     })
 $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
@@ -1052,30 +1064,6 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
         $dialog.close()
         $dialog.remove()
       }
-        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
-    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
-    const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
-    const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
-    const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
-    const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
-    $proxyEnabled.checked = Boolean(proxyConfig.enabled)
-    $proxyHost.value = proxyConfig.host ?? ''
-    $proxyPort.value = proxyConfig.port ?? ''
-    $proxyUser.value = proxyConfig.username ?? ''
-    $proxyPass.value = proxyConfig.password ?? ''
-    const persistProxy = () => {
-      localStorage.setItem(
-        PROXY_CONFIG_STORAGE_KEY,
-        JSON.stringify({
-          enabled: $proxyEnabled.checked,
-          host: $proxyHost.value.trim(),
-          port: $proxyPort.value.trim(),
-          username: $proxyUser.value.trim(),
-          password: $proxyPass.value,
-        }),
-      )
-    }
-    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
 $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
@@ -1150,30 +1138,6 @@ $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
         $dialog.close()
         $dialog.remove()
       }
-        const proxyConfig = JSON.parse(localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}') as { enabled?: boolean; host?: string; port?: string; username?: string; password?: string }
-    const $proxyEnabled = $dialog.querySelector<HTMLInputElement>('.proxy-enabled')!
-    const $proxyHost = $dialog.querySelector<HTMLInputElement>('.proxy-host')!
-    const $proxyPort = $dialog.querySelector<HTMLInputElement>('.proxy-port')!
-    const $proxyUser = $dialog.querySelector<HTMLInputElement>('.proxy-user')!
-    const $proxyPass = $dialog.querySelector<HTMLInputElement>('.proxy-pass')!
-    $proxyEnabled.checked = Boolean(proxyConfig.enabled)
-    $proxyHost.value = proxyConfig.host ?? ''
-    $proxyPort.value = proxyConfig.port ?? ''
-    $proxyUser.value = proxyConfig.username ?? ''
-    $proxyPass.value = proxyConfig.password ?? ''
-    const persistProxy = () => {
-      localStorage.setItem(
-        PROXY_CONFIG_STORAGE_KEY,
-        JSON.stringify({
-          enabled: $proxyEnabled.checked,
-          host: $proxyHost.value.trim(),
-          port: $proxyPort.value.trim(),
-          username: $proxyUser.value.trim(),
-          password: $proxyPass.value,
-        }),
-      )
-    }
-    for (const el of [$proxyEnabled, $proxyHost, $proxyPort, $proxyUser, $proxyPass]) el.addEventListener('change', persistProxy)
 $dialog.querySelector<HTMLButtonElement>('.modal-close')!.onclick = () => {
       $dialog.close()
       $dialog.remove()
