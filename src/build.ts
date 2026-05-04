@@ -10,11 +10,12 @@ const build = await Bun.build({
 for (const log of build.logs) console.log(log)
 let content = await build.outputs[0]!.text()
 content = content
-  // Some Bun bundles end with "export{...};" (no spaces/newline). Strip any terminal ESM export
-  // so the userscript can run as a classic script in Tampermonkey/Violentmonkey.
-  .replace(/(?:^|\n)export\s*\{[^}]*\};?\s*$/m, '')
-  .replace(/(?:^|\n)export\{[^}]*\};?\s*$/m, '')
-  .replace(/export\{[^}]+\};/g, '')
+  // Bun may emit ESM exports. Userscripts run as classic scripts, so any export
+  // statement must be removed from the final artifact.
+  .replace(/(?:^|\n)export\s*\{[^}]*\};?\s*$/gm, '')
+  .replace(/(?:^|\n)export\s+default\s+[^;]+;?\s*$/gm, '')
+  .replace(/(?:^|\n)export\s+(?:const|let|var|function|class)\s+/gm, '\n')
+  .replace(/export\{[^}]*\};?/g, '')
 const scriptHeader = readFileSync('./script.txt')
   .toString()
   .replaceAll('__APP_VERSION__', APP_VERSION)
