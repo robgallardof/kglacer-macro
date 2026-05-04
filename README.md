@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.8)
+### Highlights (v4.4.10)
 
 - Movable and freely resizable color modal (drag from the header).
 - Main brand logo now uses `src/img/logo.svg` with a glow style and **KGlacer** label.
@@ -27,6 +27,10 @@ Macro/UI to support pixel painting on **wplace.live**.
 - Settings buttons for **Update script**, **Refresh profile**, **Shield checker**, **Shield info**, and **Test proxy** now share the same animated button style.
 - Added a Shield info modal that shows the injected Shield diagnostics/profile data from storage/runtime.
 - Shield checker and proxy test now render inline pass/fail output instead of relying on browser alerts.
+- Fixed the Shield checker **Settings stored** state by persisting merged default Shield settings and reading runtime-injected settings when available.
+- Settings and Shield info now show the detected public IP plus whether the current browser route is direct/Shield-only or configured for the proxy route.
+- Modal action buttons (**Update script**, **Test proxy**, **Refresh profile**, **Shield checker**, and **Shield info**) now use the same wide outlined style as the main Draw action.
+- Added the missing shortcut rows and active key handlers for **Shift+M** minimize, **Shift+S** show panel, and **Shift+H** hide panel.
 
 ### Install
 
@@ -59,7 +63,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.8)
+### Novedades (v4.4.10)
 
 - Modal de colores movible y redimensionable libremente (arrastrando la cabecera).
 - El logo principal ahora usa `src/img/logo.svg` con estilo glow y etiqueta **KGlacer**.
@@ -78,6 +82,10 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Los botones de configuración **Actualizar script**, **Refrescar perfil**, **Shield checker**, **Info Shield** y **Test proxy** ahora comparten el mismo estilo animado.
 - Se agregó un modal de Info Shield que muestra la data/perfil inyectado del Shield desde storage/runtime.
 - Shield checker y Test proxy ahora muestran resultados inline de éxito/error sin depender de alerts del navegador.
+- Se corrigió el estado **Configuración guardada** del Shield checker persistiendo los valores por defecto combinados y leyendo la configuración inyectada en runtime cuando existe.
+- Configuración e Info Shield ahora muestran la IP pública detectada y si la ruta actual del navegador va directa/solo Shield o por la ruta proxy configurada.
+- Los botones dentro de modales (**Actualizar script**, **Test proxy**, **Refrescar perfil**, **Shield checker** e **Info Shield**) ahora usan el mismo estilo ancho con borde que la acción principal Draw.
+- Se agregaron los atajos faltantes en la lista y sus handlers activos: **Shift+M** minimizar, **Shift+S** mostrar panel y **Shift+H** ocultar panel.
 
 ### Instalación
 
