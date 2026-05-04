@@ -165,7 +165,7 @@ export class BotImage extends Base {
     /** Should bot draw colors in order */
     public drawColorsInOrder = false,
     /** Skip premium colors if unavailable */
-    public skipUnavailableColors = false,
+    public skipUnavailableColors = true,
     public smartReplaceMode = false,
     /** Colors settings */
     public colors: {
@@ -315,20 +315,14 @@ export class BotImage extends Base {
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
-    this.registerEvent(this.$enableAllColors, 'change', () => {
-      if (!this.$enableAllColors.checked) return
+    this.registerEvent(this.$enableAllColors, 'click', () => {
       for (const color of this.colors) color.disabled = undefined
-      this.$enableAllColors.checked = false
-      this.$disableAllColors.checked = false
       this.updateTasks()
       this.updateColors()
       save(this.bot)
     })
-    this.registerEvent(this.$disableAllColors, 'change', () => {
-      if (!this.$disableAllColors.checked) return
+    this.registerEvent(this.$disableAllColors, 'click', () => {
       for (const color of this.colors) color.disabled = true
-      this.$enableAllColors.checked = false
-      this.$disableAllColors.checked = false
       this.updateTasks()
       this.updateColors()
       save(this.bot)
@@ -386,7 +380,8 @@ export class BotImage extends Base {
       const drawColorCfg = this.colors.find(
         (item) => item.realColor === sourceColor,
       )
-      const color = drawColorCfg?.replacementColor ?? sourceColor
+      const mappedColor = this.pixels.colors.get(sourceColor)?.color ?? sourceColor
+      const color = drawColorCfg?.replacementColor ?? mappedColor
       if (skipColors.has(sourceColor)) continue
       position.globalX = this.position.globalX + x
       position.globalY = this.position.globalY + y
@@ -1073,7 +1068,7 @@ export class BotImage extends Base {
       const color = this.pixels.colors.get(drawColor.realColor)!
       let draggingChip = false
       const isPremium = color.realColor !== color.color
-      if (this.skipUnavailableColors && isPremium) drawColor.disabled = true
+      if (this.skipUnavailableColors && isPremium && drawColor.replacementColor === undefined) drawColor.disabled = true
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
@@ -1144,7 +1139,7 @@ export class BotImage extends Base {
         save(this.bot)
         this.updateColors()
       })
-      if (isPremium || this.smartReplaceMode) {
+      if (true) {
         const $replacement = document.createElement('button')
         $replacement.className = 'replacement-select'
         $replacement.type = 'button'
@@ -1155,7 +1150,7 @@ export class BotImage extends Base {
         })
         $chip.append($replacement)
       }
-      if (isPremium || this.smartReplaceMode) {
+      if (true) {
         const $buy = document.createElement('button')
         $buy.textContent = t('buy')
         $buy.className = 'buy-chip'

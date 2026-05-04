@@ -1805,3 +1805,15 @@
 .wwidget .widget-section-progress .widget-section-title i {
   color: #67d0ff;
 }
+
+.kgm-switch-row .with-icon svg{stroke:#8fd8ff;fill:none;stroke-width:1.8;}
+.kgm-switch-row:nth-of-type(1) .with-icon svg{stroke:#ff7aa2;}
+.kgm-switch-row:nth-of-type(2) .with-icon svg{stroke:#7dd3fc;}
+.kgm-switch-row:nth-of-type(3) .with-icon svg{stroke:#86efac;}
+.shield-profile-row{display:grid;gap:6px;margin:8px 0;}
+.shield-profile-select{width:100%;padding:8px;border-radius:8px;background:#111a2e;color:#fff;border:1px solid #334;}.shield-refresh-profile i,.shield-test i{color:#8fd8ff;margin-right:6px;}
+
+.color-tool-btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:8px;border:1px solid var(--border);border-radius:10px;background:#1a2032;color:#dbe6ff;font-weight:600;cursor:pointer;}
+.color-tool-btn:hover{background:#24304d;}
+.color-tool-btn.enable-all-colors i{color:#86efac;}
+.color-tool-btn.disable-all-colors i{color:#fda4af;}
