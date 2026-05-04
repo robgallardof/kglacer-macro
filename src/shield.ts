@@ -1,4 +1,15 @@
-// ==UserScript==
+const SHIELD_CONFIG_KEY = 'kglacer-macro:shield-config'
+
+export type ProxyConfig = {
+  enabled?: boolean
+  host?: string
+  port?: string
+  username?: string
+  password?: string
+}
+
+// Full shield engine is now first-party code maintained in this repository.
+const FULL_SHIELD_SOURCE = `// ==UserScript==
 // @name         Anti-Fingerprint Merged Shield
 // @namespace    https://chatgpt.local/anti-fingerprint-merged-shield
 // @version      1.1.0
@@ -1606,4 +1617,37 @@
 
     (document.documentElement || document.head || document).prepend(pageScript);
     pageScript.remove();
-})();
+})();`
+
+export function getShieldEnabled() {
+  const raw = localStorage.getItem(SHIELD_CONFIG_KEY)
+  if (!raw) return true
+  try {
+    const parsed = JSON.parse(raw) as { enabled?: boolean }
+    return parsed.enabled !== false
+  } catch {
+    return true
+  }
+}
+
+export function setShieldEnabled(enabled: boolean) {
+  localStorage.setItem(SHIELD_CONFIG_KEY, JSON.stringify({ enabled }))
+}
+
+function applyProxyHints(proxy?: ProxyConfig) {
+  const value = `\${proxy?.host ?? ''} \${proxy?.username ?? ''}`.toLowerCase()
+  const hint = /(mx|mex|mexico)/.test(value) ? 'MX' : 'AUTO'
+  localStorage.setItem('__afm_proxy_hint', hint)
+}
+
+export function applyShield(proxy?: ProxyConfig) {
+  if (!getShieldEnabled()) return
+  if (document.getElementById('kgm-shield-full')) return
+  applyProxyHints(proxy)
+
+  const script = document.createElement('script')
+  script.id = 'kgm-shield-full'
+  script.textContent = FULL_SHIELD_SOURCE
+  ;(document.documentElement || document.head || document.body).append(script)
+  script.remove()
+}

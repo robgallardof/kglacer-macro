@@ -83,6 +83,7 @@ const MESSAGES = {
     settingsModalTitle: 'Settings',
     proxyTitle: 'Proxy (Beta)',
     proxyEnabled: 'Enable proxy for web requests (beta)',
+    shieldEnabled: 'Enable Script Shield (recommended)',
     showShortcuts: 'Show shortcuts',
     minimize: 'Minimize panel',
     expandPanel: 'Expand panel',
@@ -105,6 +106,7 @@ const MESSAGES = {
     enableAllColors: 'Enable all',
     disableAllColors: 'Disable all',
     replaceWith: 'Replace with',
+    smartReplaceMode: 'Smart similar-color replace',
     previewStrategy: 'Preview',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
@@ -249,6 +251,7 @@ const MESSAGES = {
     settingsModalTitle: 'Configuración',
     proxyTitle: 'Proxy (Beta)',
     proxyEnabled: 'Habilitar proxy para solicitudes web (beta)',
+    shieldEnabled: 'Activar Script Shield (recomendado)',
     showShortcuts: 'Ver atajos',
     minimize: 'Minimizar panel',
     expandPanel: 'Expandir panel',
@@ -271,6 +274,7 @@ const MESSAGES = {
     enableAllColors: 'Activar todos',
     disableAllColors: 'Desactivar todos',
     replaceWith: 'Reemplazar por',
+    smartReplaceMode: 'Reemplazo inteligente por color similar',
     previewStrategy: 'Vista',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:

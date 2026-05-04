@@ -85,6 +85,7 @@ export class BotImage extends Base {
       data.drawTransparentPixels,
       data.drawColorsInOrder,
       data.skipUnavailableColors,
+      data.smartReplaceMode,
       data.colors,
       data.lock,
     )
@@ -119,6 +120,7 @@ export class BotImage extends Base {
   protected readonly $drawColorsInOrder!: HTMLInputElement
   protected readonly $drawTransparent!: HTMLInputElement
   protected readonly $skipUnavailable!: HTMLInputElement
+  protected readonly $smartReplaceMode!: HTMLInputElement
   protected readonly $export!: HTMLDivElement
   protected readonly $lock!: HTMLButtonElement
   protected readonly $opacity!: HTMLInputElement
@@ -163,6 +165,7 @@ export class BotImage extends Base {
     public drawColorsInOrder = false,
     /** Skip premium colors if unavailable */
     public skipUnavailableColors = false,
+    public smartReplaceMode = false,
     /** Colors settings */
     public colors: {
       realColor: number
@@ -192,6 +195,7 @@ export class BotImage extends Base {
       $drawColorsInOrder: '.draw-colors-in-order',
       $drawTransparent: '.draw-transparent',
       $skipUnavailable: '.skip-unavailable',
+      $smartReplaceMode: '.smart-replace-mode',
       $export: '.export',
       $lock: '.lock',
       $opacity: '.opacity',
@@ -350,6 +354,7 @@ export class BotImage extends Base {
       drawTransparentPixels: this.drawTransparentPixels,
       drawColorsInOrder: this.drawColorsInOrder,
       skipUnavailableColors: this.skipUnavailableColors,
+      smartReplaceMode: this.smartReplaceMode,
       colors: this.colors,
       lock: this.lock,
     }
@@ -412,6 +417,7 @@ export class BotImage extends Base {
     this.$drawTransparent.checked = this.drawTransparentPixels
     this.$drawColorsInOrder.checked = this.drawColorsInOrder
     this.$skipUnavailable.checked = this.skipUnavailableColors
+    this.$smartReplaceMode.checked = this.smartReplaceMode
     const maxTasks = this.pixels.pixels.length * this.pixels.pixels[0]!.length
     const doneTasks = Math.max(0, maxTasks - this.tasks.length)
     const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
@@ -968,6 +974,22 @@ export class BotImage extends Base {
     return ['brown', 'cafe', 'marron']
   }
 
+
+
+  protected colorFamily(realColor: number) {
+    const [r = 0, g = 0, b = 0] = (COLORS_RGB[realColor] ?? '0,0,0').split(',').map((v) => Number.parseInt(v, 10))
+    if (r > g + 35 && r > b + 35) return 'red'
+    if (g > r + 25 && g > b + 20) return r > 90 ? 'olive' : 'green'
+    if (b > r + 25 && b > g + 25) return 'blue'
+    if (r > 120 && b > 120) return 'wine'
+    return 'neutral'
+  }
+
+  protected replacementCandidates(realColor: number) {
+    const family = this.colorFamily(realColor)
+    return Array.from({ length: COLORS_RGB.length - 1 }, (_, idx) => idx + 1).filter((i) => !this.bot.unavailableColors.has(i) && this.colorFamily(i) === family)
+  }
+
   /** Update colors array */
   public updateColors() {
     this.$colorsDialogList.innerHTML = ''
@@ -1072,10 +1094,11 @@ export class BotImage extends Base {
         save(this.bot)
         this.updateColors()
       })
-      if (isPremium) {
+      if (isPremium || this.smartReplaceMode) {
         const $replacement = document.createElement('select')
         $replacement.className = 'replacement-select'
-        for (let i = 1; i < COLORS_RGB.length; i++) {
+        const palette = this.smartReplaceMode ? this.replacementCandidates(color.realColor) : Array.from({ length: COLORS_RGB.length - 1 }, (_, idx) => idx + 1)
+        for (const i of palette) {
           if (this.bot.unavailableColors.has(i)) continue
           const option = document.createElement('option')
           option.value = String(i)
@@ -1096,7 +1119,7 @@ export class BotImage extends Base {
         })
         $chip.append($replacement)
       }
-      if (isPremium) {
+      if (isPremium || this.smartReplaceMode) {
         const $buy = document.createElement('button')
         $buy.textContent = t('buy')
         $buy.className = 'buy-chip'

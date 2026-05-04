@@ -91,6 +91,9 @@
     <label>
       <input type="checkbox" class="draw-colors-in-order" />&nbsp;<span data-i18n="drawColorsInOrder">Draw colors in order</span>
     </label>
+    <label>
+      <input type="checkbox" class="skip-unavailable" />&nbsp;<span class="with-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h10v2H3zm12-5h6v2h-6zm0 10h6v2h-6zM7 7l2 2-2 2-2-2zm0 10 2 2-2 2-2-2z"/></svg><span data-i18n="skipUnavailableColors">Skip unavailable premium colors</span></span>
+    </label>
   </div>
   <dialog class="kgm-modal colors-dialog">
     <div class="kgm-modal-head colors-dialog-head">
@@ -111,7 +114,7 @@
       Color #1 paints first.
     </p>
     <div class="color-tools">
-      <label><input type="checkbox" class="skip-unavailable" /> <span data-i18n="skipUnavailableColors">Skip unavailable premium colors</span></label>
+      <label><input type="checkbox" class="smart-replace-mode" /> <span data-i18n="smartReplaceMode">Smart similar-color replace</span></label>
       <button class="enable-all-colors" type="button" data-i18n="enableAllColors">Enable all</button>
       <button class="disable-all-colors" type="button" data-i18n="disableAllColors">Disable all</button>
     </div>
