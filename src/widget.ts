@@ -1633,8 +1633,7 @@ export class Widget extends Base {
   }
 
   protected getCurrentWplaceLocation() {
-    const sources = [globalThis.location.search, globalThis.location.hash]
-    for (const source of sources) {
+    const parseParams = (source: string) => {
       const params = new URLSearchParams(
         source.replace(/^#/, '').replace(/^\?/, ''),
       )
@@ -1645,9 +1644,21 @@ export class Widget extends Base {
         return { lat, lng, zoom }
     }
 
+    const hash = globalThis.location.hash
+    const hashQuery = hash.includes('?')
+      ? hash.slice(hash.indexOf('?') + 1)
+      : ''
+    const sources = [globalThis.location.search, hash, hashQuery].filter(
+      Boolean,
+    )
+    for (const source of sources) {
+      const position = parseParams(source)
+      if (position) return position
+    }
+
     const hashMatch =
       /#?\/?(?<zoom>-?\d+(?:\.\d+)?)\/(?<lat>-?\d+(?:\.\d+)?)\/(?<lng>-?\d+(?:\.\d+)?)/.exec(
-        globalThis.location.hash,
+        hash,
       )
     if (!hashMatch?.groups) return
     const { lat: hashLat, lng: hashLng, zoom: hashZoom } = hashMatch.groups
