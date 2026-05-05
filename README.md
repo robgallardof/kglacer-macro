@@ -8,8 +8,10 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.14)
+### Highlights (v4.4.16)
 
+- Added bounded internal scrolling to expanded widget sections so Actions, Auto farm, External tools, Draw strategy, and Images remain usable when the panel gets crowded.
+- Improved small-screen behavior with fluid container-aware sizing for the widget, modal headers, image toolbar, and action buttons without adding excessive breakpoint rules.
 - Refined the overlay image option rows so their labels stay centered, readable, and aligned with their switches.
 - Replaced the three overlay option SVGs with same-size colorful icons that better match transparency, color order, and available-color behavior.
 - Added an **External tools** section with animated buttons for the Wplace color converter, Samuel archive, and Eralyon archive.
@@ -29,7 +31,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 - Updated distributed userscript version in `dist.user.js` for direct install.
 - Added compatibility guards that define a safe `fp_assemble_injection` fallback when third-party wrappers call it before definition.
 - Added media autoplay-safe handling to avoid noisy uncaught `NotAllowedError: play() failed` promise rejections before user interaction.
-- Restored legacy paint-check logic from `wplace-bot-main`: Draw now only paints pixels that are still different on the map, so rerunning Draw no longer repaints already-correct areas.
+- Restored legacy paint-check behavior: Draw now only paints pixels that are still different on the map, so rerunning Draw no longer repaints already-correct areas.
 - Removed color replacement targeting from Draw flow to keep strict source-color checks and avoid repaint loops.
 - Added a new **Update script** button in Settings that opens the direct userscript URL.
 - Improved Shield Canvas spoofing so noise is applied only to export copies (toDataURL/toBlob) without mutating the live drawing canvas.
@@ -72,8 +74,10 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.14)
+### Novedades (v4.4.16)
 
+- Se agregó scroll interno limitado en las secciones expandidas para que Acciones, Auto farm, Herramientas externas, Estrategia e Imágenes sigan usables cuando el panel se llena.
+- Se mejoró el responsive con tamaños fluidos basados en contenedor para el widget, cabeceras de modales, barra de imagen y botones de acción sin agregar demasiadas reglas por breakpoint.
 - Se ajustaron las filas de opciones de imagen para que las etiquetas queden centradas, legibles y alineadas con sus interruptores.
 - Se reemplazaron los tres SVG de esas opciones por iconos coloridos del mismo tamaño y más relacionados con transparencia, orden de colores y colores disponibles.
 - Se agregó una sección **Herramientas externas** con botones animados para el convertidor de color de Wplace, el archivo Samuel y el archivo Eralyon.
@@ -93,7 +97,7 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Versión del userscript distribuido actualizada en `dist.user.js` para instalación directa.
 - Se agregaron guardas de compatibilidad que definen un fallback seguro para `fp_assemble_injection` cuando wrappers de terceros lo invocan antes de estar definido.
 - Se agregó manejo seguro de autoplay para evitar rechazos no capturados `NotAllowedError: play() failed` antes de la interacción del usuario.
-- Se restauró la lógica clásica de pintado de `wplace-bot-main`: Draw ahora solo pinta píxeles que siguen diferentes en el mapa, evitando repintar zonas ya correctas al volver a ejecutar Draw.
+- Se restauró el comportamiento clásico de verificación de pintado: Draw ahora solo pinta píxeles que siguen diferentes en el mapa, evitando repintar zonas ya correctas al volver a ejecutar Draw.
 - Se eliminó la lógica de reemplazo de colores en Draw para mantener comparación estricta con los colores de origen y evitar repintados en bucle.
 - Se agregó un botón **Update script** en Settings que abre la URL directa del userscript.
 - Se mejoró el spoof de Canvas del Shield: ahora el ruido se aplica en una copia de exportación (toDataURL/toBlob) sin mutar el canvas activo de pintado.
