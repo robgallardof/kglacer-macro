@@ -126,8 +126,13 @@
       Color #1 paints first.
     </p>
     <div class="color-tools">
-      <button type="button" class="color-tool-btn enable-all-colors"><i class="fa-solid fa-toggle-on"></i><span data-i18n="enableAllColors">Enable all</span></button>
-      <button type="button" class="color-tool-btn disable-all-colors"><i class="fa-solid fa-toggle-off"></i><span data-i18n="disableAllColors">Disable all</span></button>
+      <label class="kgm-switch-row color-bulk-toggle">
+        <span class="with-icon"><i class="fa-solid fa-palette" aria-hidden="true"></i><span data-i18n="allColorsEnabled">All colors enabled</span></span>
+        <span class="kgm-switch">
+          <input type="checkbox" class="toggle-all-colors" checked />
+          <span class="kgm-switch-slider" aria-hidden="true"></span>
+        </span>
+      </label>
     </div>
     <input class="color-search" type="search" data-i18n-placeholder="searchColors" placeholder="Search color by hex, English or Spanish"/>
     <div class="colors-dialog-list"></div>

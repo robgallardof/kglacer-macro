@@ -128,8 +128,7 @@ export class BotImage extends Base {
   protected readonly $colorSearch!: HTMLInputElement
   protected readonly $openColors!: HTMLButtonElement
   protected readonly $openPreview!: HTMLButtonElement
-  protected readonly $enableAllColors!: HTMLButtonElement
-  protected readonly $disableAllColors!: HTMLButtonElement
+  protected readonly $toggleAllColors!: HTMLInputElement
   protected readonly $closeColors!: HTMLButtonElement
   protected readonly $closePreview!: HTMLButtonElement
   protected readonly $delete!: HTMLButtonElement
@@ -200,8 +199,7 @@ export class BotImage extends Base {
       $colorSearch: '.color-search',
       $openColors: '.open-colors',
       $openPreview: '.open-preview',
-      $enableAllColors: '.enable-all-colors',
-      $disableAllColors: '.disable-all-colors',
+      $toggleAllColors: '.toggle-all-colors',
       $closeColors: '.close-colors',
       $closePreview: '.close-preview',
       $delete: '.delete',
@@ -326,14 +324,10 @@ export class BotImage extends Base {
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
     })
-    this.registerEvent(this.$enableAllColors, 'click', () => {
-      for (const color of this.colors) color.disabled = undefined
-      this.updateTasks()
-      this.updateColors()
-      save(this.bot)
-    })
-    this.registerEvent(this.$disableAllColors, 'click', () => {
-      for (const color of this.colors) color.disabled = true
+    this.registerEvent(this.$toggleAllColors, 'change', () => {
+      const disabled = !this.$toggleAllColors.checked
+      for (const color of this.colors) color.disabled = disabled || undefined
+      this.syncColorBulkToggle()
       this.updateTasks()
       this.updateColors()
       save(this.bot)
@@ -1011,6 +1005,8 @@ export class BotImage extends Base {
       save(this.bot)
     }
 
+    this.syncColorBulkToggle()
+
     // Build colors UI
     for (let index = 0; index < this.colors.length; index++) {
       const drawColor = this.colors[index]!
@@ -1025,6 +1021,7 @@ export class BotImage extends Base {
         const $state = $chip.querySelector<HTMLElement>('.state')
         if ($state)
           $state.textContent = drawColor.disabled ? t('disabled') : t('enabled')
+        this.syncColorBulkToggle()
         save(this.bot)
       }
       const $chip = document.createElement('button')
@@ -1095,6 +1092,13 @@ export class BotImage extends Base {
       if (!searchValue || searchTokens.toLowerCase().includes(searchValue))
         this.$colorsDialogList.append($chip)
     }
+  }
+
+  protected syncColorBulkToggle() {
+    const enabledCount = this.colors.filter((color) => !color.disabled).length
+    const allEnabled = enabledCount === this.colors.length
+    this.$toggleAllColors.checked = allEnabled
+    this.$toggleAllColors.indeterminate = enabledCount > 0 && !allEnabled
   }
 
   /** Create iterator that generates positions based on strategy */
