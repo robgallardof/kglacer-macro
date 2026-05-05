@@ -1440,10 +1440,17 @@
 
 .color-tools {
   display: grid;
-  grid-template-columns: 1fr auto auto;
   gap: 6px;
-  align-items: center;
   margin-bottom: 10px;
+}
+
+.color-tools .kgm-switch-row {
+  margin: 0;
+}
+
+.color-tools .with-icon i {
+  color: #8fd8ff;
+  font-size: 17px;
 }
 
 .colors-dialog-list {
@@ -1973,34 +1980,6 @@
 .shield-refresh-profile i,
 .shield-checker i {
   margin-right: 6px;
-  color: #8fd8ff;
-}
-
-.color-tool-btn {
-  display: inline-flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1px solid rgb(143 162 255 / 30%);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #1d2947, #152039);
-  color: #dbe6ff;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background 0.16s ease,
-    border-color 0.16s ease,
-    transform 0.16s ease;
-}
-
-.color-tool-btn:hover {
-  border-color: rgb(143 216 255 / 46%);
-  background: linear-gradient(180deg, #25365c, #1a2745);
-  transform: translateY(-1px);
-}
-
-.color-tool-btn i {
   color: #8fd8ff;
 }
 

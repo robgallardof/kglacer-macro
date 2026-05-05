@@ -8,7 +8,9 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.16)
+### Highlights (v4.4.17)
+
+- Replaced the color modal's separate **Enable all** / **Disable all** action buttons with one standardized switch that is enabled by default, disables every overlay color when turned off, and re-enables every overlay color when turned back on.
 
 - Added bounded internal scrolling to expanded widget sections so Actions, Auto farm, External tools, Draw strategy, and Images remain usable when the panel gets crowded.
 - Improved small-screen behavior with fluid container-aware sizing for the widget, modal headers, image toolbar, and action buttons without adding excessive breakpoint rules.
@@ -74,7 +76,9 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.16)
+### Novedades (v4.4.17)
+
+- Se reemplazaron los botones separados **Activar todos** / **Desactivar todos** del modal de colores por un solo switch estandarizado que viene activo por defecto, desactiva todos los colores del overlay al apagarlo y los reactiva al encenderlo.
 
 - Se agregó scroll interno limitado en las secciones expandidas para que Acciones, Auto farm, Herramientas externas, Estrategia e Imágenes sigan usables cuando el panel se llena.
 - Se mejoró el responsive con tamaños fluidos basados en contenedor para el widget, cabeceras de modales, barra de imagen y botones de acción sin agregar demasiadas reglas por breakpoint.
@@ -141,6 +145,6 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 - Added i18n labels for Shield feature names and profile controls.
 - Color tool icons are now highlighted and replace flow is always available from color chips.
 
-- Fixed color modal bulk actions: Enable all / Disable all now work as direct action buttons.
+- Color modal bulk control is now a single default-on switch that toggles all overlay colors instead of two separate action buttons.
 
 - Restored legacy draw task comparison to use only source image colors vs current map color (replacement mapping no longer participates in paint targeting).
