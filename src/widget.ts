@@ -649,6 +649,7 @@ export class Widget extends Base {
 </button>
   <div class="image-controls">
     <button class="colors" title="Show colors"><i class="fa-solid fa-palette" aria-hidden="true"></i></button>
+    <button class="strategy-modal" title="Strategy modal"><i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
     <button class="preview-strategy" title="Preview strategy"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
     <button class="download" title="Download settings"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
     <button class="delete" title="Delete image"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
@@ -666,6 +667,12 @@ export class Widget extends Base {
         .addEventListener('click', () => {
           this.activeImageIndex = index
           image.openColorPanel()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.strategy-modal')!
+        .addEventListener('click', () => {
+          this.activeImageIndex = index
+          image.openPreviewPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.preview-strategy')!
