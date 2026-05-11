@@ -81,26 +81,6 @@
     <div class="wprogress"><div></div><span></span></div>
   </section>
 
-  <details class="widget-section widget-section-strategy">
-    <summary class="widget-section-summary">
-      <strong class="widget-section-title" data-i18n="strategySection">Draw strategy</strong>
-      <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-    </summary>
-    <label class="strategy-row">
-      <span data-i18n="strategy">Strategy</span>:&nbsp;
-      <span class="strategy-controls">
-        <select class="strategy">
-          <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
-          <option value="ALL" data-i18n="all">All</option>
-          <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
-        </select>
-        <button class="strategy-picker" type="button" title="Open strategy selector" aria-label="Open strategy selector">
-          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-        </button>
-      </span>
-    </label>
-  </details>
-
   <details class="widget-section widget-section-images" open>
     <summary class="widget-section-summary">
       <strong class="widget-section-title" data-i18n="imagesSection">Images</strong>
@@ -108,6 +88,24 @@
     </summary>
     <div class="widget-image-actions">
       <button class="add-image" disabled><i class="fa-solid fa-image"></i><span data-i18n="addImage">Add image</span></button>
+      <label class="strategy-row">
+        <span data-i18n="strategy">Strategy</span>:&nbsp;
+        <span class="strategy-controls">
+          <select class="strategy">
+            <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
+            <option value="ALL" data-i18n="all">All</option>
+            <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
+          </select>
+          <button
+            class="strategy-picker"
+            type="button"
+            title="Open strategy selector"
+            aria-label="Open strategy selector"
+          >
+            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+          </button>
+        </span>
+      </label>
     </div>
     <div class="images"></div>
   </details>

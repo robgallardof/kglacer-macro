@@ -142,6 +142,7 @@ export class BotImage extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $previewDialog!: HTMLDialogElement
   protected readonly $previewDialogList!: HTMLDivElement
+  protected readonly $previewStrategySelect!: HTMLSelectElement
   protected readonly $resetSize!: HTMLButtonElement
   protected readonly $resetSizeSpan!: HTMLSpanElement
   protected readonly $settings!: HTMLDivElement
@@ -213,6 +214,7 @@ export class BotImage extends Base {
       $progressText: '.wprogress span',
       $previewDialog: '.preview-dialog',
       $previewDialogList: '.preview-dialog-list',
+      $previewStrategySelect: '.preview-strategy-select',
       $resetSize: '.reset-size',
       $settings: '.wform',
       $strategy: '.strategy',
@@ -228,8 +230,13 @@ export class BotImage extends Base {
     // Strategy
     this.registerEvent(this.$strategy, 'change', () => {
       this.strategy = this.$strategy.value as ImageStrategy
+      this.$previewStrategySelect.value = this.strategy
       if (this.$previewDialog.open) this.renderStrategyPreviewSamples()
       save(this.bot)
+    })
+    this.registerEvent(this.$previewStrategySelect, 'change', () => {
+      this.$strategy.value = this.$previewStrategySelect.value
+      this.$strategy.dispatchEvent(new Event('change'))
     })
 
     // Opacity
@@ -468,6 +475,7 @@ export class BotImage extends Base {
   }
 
   public openPreviewPanel() {
+    this.syncPreviewStrategySelect()
     if (this.$previewDialog.open) {
       this.renderStrategyPreviewSamples()
       return
@@ -478,6 +486,20 @@ export class BotImage extends Base {
     this.$previewDialog.style.margin = 'auto'
     this.$previewDialog.showModal()
     this.renderStrategyPreviewSamples()
+  }
+
+  protected syncPreviewStrategySelect() {
+    if (!this.$previewStrategySelect.childElementCount) {
+      const fragment = document.createDocumentFragment()
+      for (const option of this.$strategy.options) {
+        const $option = document.createElement('option')
+        $option.value = option.value
+        $option.textContent = option.textContent
+        fragment.append($option)
+      }
+      this.$previewStrategySelect.append(fragment)
+    }
+    this.$previewStrategySelect.value = this.strategy
   }
 
   protected closeDialog(dialog: HTMLDialogElement) {
