@@ -757,10 +757,12 @@ export class Widget extends Base {
   }
 
   protected refreshOverlayToggleText() {
-    const stateLabel = document.body.classList.contains('overlay-hidden')
-      ? t('disabled')
-      : t('enabled')
-    this.$toggleOverlay.innerHTML = `<i class="fa-solid fa-layer-group"></i><span>${t('toggleOverlay')} (${stateLabel})</span>`
+    const isDisabled = document.body.classList.contains('overlay-hidden')
+    const stateLabel = isDisabled ? t('disabled') : t('enabled')
+    const stateIcon = isDisabled
+      ? '<i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>'
+      : '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>'
+    this.$toggleOverlay.innerHTML = `<i class="fa-solid fa-layer-group"></i><span>${t('toggleOverlay')} (${stateLabel})</span>${stateIcon}`
   }
 
   protected applyLocaleToUI(locale: 'en' | 'es') {
