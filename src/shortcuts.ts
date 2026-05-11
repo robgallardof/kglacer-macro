@@ -25,6 +25,11 @@ export const SHORTCUTS = {
   openColorConverterTool: { key: '1', shift: true } satisfies Shortcut,
   openSamuelArchiveTool: { key: '2', shift: true } satisfies Shortcut,
   openEralyonArchiveTool: { key: '3', shift: true } satisfies Shortcut,
+  openReceiveSmssTool: { key: '4', shift: true } satisfies Shortcut,
+  openEsimplusTool: { key: '5', shift: true } satisfies Shortcut,
+  openReceiveSmsFreeTool: { key: '6', shift: true } satisfies Shortcut,
+  openQuackrTool: { key: '7', shift: true } satisfies Shortcut,
+  openTextverifiedTool: { key: '8', shift: true } satisfies Shortcut,
 }
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {

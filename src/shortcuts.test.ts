@@ -202,5 +202,35 @@ describe('matchesShortcut', () => {
         SHORTCUTS.openColorConverterTool,
       ),
     ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '$', code: 'Digit4' } as KeyboardEvent,
+        SHORTCUTS.openReceiveSmssTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '%', code: 'Digit5' } as KeyboardEvent,
+        SHORTCUTS.openEsimplusTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '^', code: 'Digit6' } as KeyboardEvent,
+        SHORTCUTS.openReceiveSmsFreeTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '&', code: 'Digit7' } as KeyboardEvent,
+        SHORTCUTS.openQuackrTool,
+      ),
+    ).toBe(true)
+    expect(
+      matchesShortcut(
+        { ...baseEvent, key: '*', code: 'Digit8' } as KeyboardEvent,
+        SHORTCUTS.openTextverifiedTool,
+      ),
+    ).toBe(true)
   })
 })

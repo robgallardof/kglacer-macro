@@ -10,7 +10,7 @@ import { save } from './save'
 import { getShieldEnabled, setShieldEnabled } from './shield'
 import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
 // @ts-ignore
-import { SETTINGS_EXTENSION } from './version'
+import { APP_VERSION, SETTINGS_EXTENSION } from './version'
 import html from './widget.html' with { type: 'text' }
 import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 
@@ -30,6 +30,12 @@ const COLOR_CONVERTER_URL =
 const SAMUEL_ARCHIVE_URL = 'https://wplace.samuelscheit.com/'
 const ERALYON_ARCHIVE_URL = 'https://wplace.eralyon.net/'
 const ERALYON_ARCHIVE_VERSION = 'v69.051'
+const RECEIVE_SMSS_URL = 'https://receive-smss.com/'
+const ESIMPLUS_URL = 'https://esimplus.me/temporary-numbers'
+const RECEIVE_SMS_FREE_URL = 'https://receive-sms-free.cc/'
+const QUACKR_URL =
+  'https://quackr.io/?srsltid=AfmBOoqu2h3Pt6-h3HtJ_tixaj5WGtA7ZaI9sLQiQnPTnisDxe0MXbje'
+const TEXTVERIFIED_URL = 'https://www.textverified.com/free'
 
 type AutoFarmUnit = 'seconds' | 'minutes' | 'hours'
 
@@ -84,6 +90,11 @@ export class Widget extends Base {
   protected readonly $toolColorConverter!: HTMLButtonElement
   protected readonly $toolSamuelArchive!: HTMLButtonElement
   protected readonly $toolEralyonArchive!: HTMLButtonElement
+  protected readonly $toolReceiveSmss!: HTMLButtonElement
+  protected readonly $toolEsimplus!: HTMLButtonElement
+  protected readonly $toolReceiveSmsFree!: HTMLButtonElement
+  protected readonly $toolQuackr!: HTMLButtonElement
+  protected readonly $toolTextverified!: HTMLButtonElement
   protected readonly $toggleOverlay!: HTMLButtonElement
   protected readonly $autofarmConfig!: HTMLButtonElement
   protected readonly $autofarmStart!: HTMLButtonElement
@@ -94,6 +105,7 @@ export class Widget extends Base {
   protected readonly $autoOverlayStop!: HTMLButtonElement
   protected readonly $autoOverlayStatus!: HTMLDivElement
   protected readonly $strategy!: HTMLInputElement
+  protected readonly $strategyPicker!: HTMLButtonElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
@@ -135,6 +147,11 @@ export class Widget extends Base {
       $toolColorConverter: '.tool-color-converter',
       $toolSamuelArchive: '.tool-samuel-archive',
       $toolEralyonArchive: '.tool-eralyon-archive',
+      $toolReceiveSmss: '.tool-receive-smss',
+      $toolEsimplus: '.tool-esimplus',
+      $toolReceiveSmsFree: '.tool-receive-sms-free',
+      $toolQuackr: '.tool-quackr',
+      $toolTextverified: '.tool-textverified',
       $toggleOverlay: '.toggle-overlay',
       $autofarmConfig: '.autofarm-config',
       $autofarmStart: '.autofarm-start',
@@ -145,6 +162,7 @@ export class Widget extends Base {
       $autoOverlayStop: '.autooverlay-stop',
       $autoOverlayStatus: '.autooverlay-status',
       $strategy: '.strategy',
+      $strategyPicker: '.strategy-picker',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
       $images: '.images',
@@ -175,6 +193,21 @@ export class Widget extends Base {
     this.$toolEralyonArchive.addEventListener('click', () => {
       this.openExternalTool('eralyonArchive')
     })
+    this.$toolReceiveSmss.addEventListener('click', () => {
+      this.openExternalTool('receiveSmss')
+    })
+    this.$toolEsimplus.addEventListener('click', () => {
+      this.openExternalTool('esimplus')
+    })
+    this.$toolReceiveSmsFree.addEventListener('click', () => {
+      this.openExternalTool('receiveSmsFree')
+    })
+    this.$toolQuackr.addEventListener('click', () => {
+      this.openExternalTool('quackr')
+    })
+    this.$toolTextverified.addEventListener('click', () => {
+      this.openExternalTool('textverified')
+    })
     this.$toggleOverlay.addEventListener('click', () => {
       this.toggleOverlay()
     })
@@ -199,6 +232,10 @@ export class Widget extends Base {
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
+    this.$strategyPicker.addEventListener('click', () => {
+      this.$strategy.focus()
+      this.$strategy.click()
+    })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
     })
@@ -215,6 +252,7 @@ export class Widget extends Base {
       this.refreshProgress()
     }, 1000)
     this.open = true
+    void this.recommendUpdateIfOutdated()
     console.log('[KGM][Widget] Widget mounted and opened')
   }
 
@@ -792,6 +830,11 @@ export class Widget extends Base {
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-droplet"></i><span data-i18n="shortcutColorConverter">Color converter</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>1</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-clock-rotate-left"></i><span data-i18n="shortcutSamuelArchive">Samuel archive</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>2</kbd></span></li>
       <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-map-location-dot"></i><span data-i18n="shortcutEralyonArchive">Eralyon archive</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>3</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-sim-card"></i><span>receive-smss</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>4</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-mobile-screen-button"></i><span>esimplus</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>5</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-comment-sms"></i><span>receive-sms-free</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>6</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-feather-pointed"></i><span>quackr</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>7</kbd></span></li>
+      <li class="shortcut-item"><span class="shortcut-label"><i class="fa-solid fa-shield-halved"></i><span>textverified</span></span><span class="shortcut-keys"><kbd>Shift</kbd><kbd>8</kbd></span></li>
     </ul>
   </details>
 </form>`
@@ -1676,10 +1719,23 @@ export class Widget extends Base {
   }
 
   protected buildExternalToolUrl(
-    tool: 'colorConverter' | 'samuelArchive' | 'eralyonArchive',
+    tool:
+      | 'colorConverter'
+      | 'samuelArchive'
+      | 'eralyonArchive'
+      | 'receiveSmss'
+      | 'esimplus'
+      | 'receiveSmsFree'
+      | 'quackr'
+      | 'textverified',
   ) {
     const position = this.getCurrentWplaceLocation()
     if (tool === 'colorConverter') return COLOR_CONVERTER_URL
+    if (tool === 'receiveSmss') return RECEIVE_SMSS_URL
+    if (tool === 'esimplus') return ESIMPLUS_URL
+    if (tool === 'receiveSmsFree') return RECEIVE_SMS_FREE_URL
+    if (tool === 'quackr') return QUACKR_URL
+    if (tool === 'textverified') return TEXTVERIFIED_URL
     if (!position) {
       if (tool === 'samuelArchive') return SAMUEL_ARCHIVE_URL
       const url = new URL(ERALYON_ARCHIVE_URL)
@@ -1705,7 +1761,15 @@ export class Widget extends Base {
   }
 
   protected openExternalTool(
-    tool: 'colorConverter' | 'samuelArchive' | 'eralyonArchive',
+    tool:
+      | 'colorConverter'
+      | 'samuelArchive'
+      | 'eralyonArchive'
+      | 'receiveSmss'
+      | 'esimplus'
+      | 'receiveSmsFree'
+      | 'quackr'
+      | 'textverified',
   ) {
     this.openUrlInNewTab(this.buildExternalToolUrl(tool))
   }
@@ -1843,6 +1907,31 @@ export class Widget extends Base {
       this.openExternalTool('eralyonArchive')
       return
     }
+    if (matchesShortcut(event, SHORTCUTS.openReceiveSmssTool)) {
+      event.preventDefault()
+      this.openExternalTool('receiveSmss')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openEsimplusTool)) {
+      event.preventDefault()
+      this.openExternalTool('esimplus')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openReceiveSmsFreeTool)) {
+      event.preventDefault()
+      this.openExternalTool('receiveSmsFree')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openQuackrTool)) {
+      event.preventDefault()
+      this.openExternalTool('quackr')
+      return
+    }
+    if (matchesShortcut(event, SHORTCUTS.openTextverifiedTool)) {
+      event.preventDefault()
+      this.openExternalTool('textverified')
+      return
+    }
     if (
       matchesShortcut(event, SHORTCUTS.addImage) &&
       !this.$addImage.disabled
@@ -1869,6 +1958,37 @@ export class Widget extends Base {
         (this.activeImageIndex + step + this.bot.images.length) %
         this.bot.images.length
     this.bot.images[this.activeImageIndex]!.position.scrollScreenTo()
+  }
+
+  protected async recommendUpdateIfOutdated() {
+    try {
+      const response = await fetch(
+        'https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/src/version.ts',
+      )
+      if (!response.ok) return
+      const source = await response.text()
+      const match = /APP_VERSION = '([^']+)'/.exec(source)
+      const remoteVersion = match?.[1]
+      if (!remoteVersion) return
+      if (this.compareSemver(remoteVersion, APP_VERSION) <= 0) return
+      const key = `kglacer-macro:update-notice:${remoteVersion}`
+      if (localStorage.getItem(key) === 'dismissed') return
+      const ok = confirm(
+        `Hay una versión nueva (${remoteVersion}) disponible. Tu versión actual es ${APP_VERSION}. ¿Quieres actualizar ahora?`,
+      )
+      if (ok) this.openUrlInNewTab('https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js')
+      else localStorage.setItem(key, 'dismissed')
+    } catch {}
+  }
+
+  protected compareSemver(a: string, b: string) {
+    const pa = a.split('.').map((item) => Number(item) || 0)
+    const pb = b.split('.').map((item) => Number(item) || 0)
+    for (let index = 0; index < 3; index++) {
+      if ((pa[index] ?? 0) > (pb[index] ?? 0)) return 1
+      if ((pa[index] ?? 0) < (pb[index] ?? 0)) return -1
+    }
+    return 0
   }
 
   protected getActiveImage() {
