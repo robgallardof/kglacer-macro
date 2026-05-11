@@ -105,7 +105,6 @@ export class Widget extends Base {
   protected readonly $autoOverlayStop!: HTMLButtonElement
   protected readonly $autoOverlayStatus!: HTMLDivElement
   protected readonly $strategy!: HTMLInputElement
-  protected readonly $strategyPicker!: HTMLButtonElement
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
@@ -162,7 +161,6 @@ export class Widget extends Base {
       $autoOverlayStop: '.autooverlay-stop',
       $autoOverlayStatus: '.autooverlay-status',
       $strategy: '.strategy',
-      $strategyPicker: '.strategy-picker',
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
       $images: '.images',
@@ -231,10 +229,6 @@ export class Widget extends Base {
     })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
-    })
-    this.$strategyPicker.addEventListener('click', () => {
-      this.$strategy.focus()
-      this.$strategy.click()
     })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
