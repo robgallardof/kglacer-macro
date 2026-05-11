@@ -108,6 +108,7 @@ export class Widget extends Base {
   protected readonly $progressLine!: HTMLDivElement
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
+  protected readonly $imagesSection!: HTMLDetailsElement
   protected readonly $wopenButton!: HTMLButtonElement
   protected readonly $widgetLogo!: HTMLImageElement
   protected activeImageIndex = -1
@@ -122,6 +123,7 @@ export class Widget extends Base {
   protected statusRefreshIntervalId?: number
   protected challengeWatcherObserver?: MutationObserver
   protected challengeWatcherRunning = false
+  protected imagesListDirty = true
 
   // protected readonly $pumpkinHunt!: HTMLButtonElement
 
@@ -164,6 +166,7 @@ export class Widget extends Base {
       $progressLine: '.wprogress div',
       $progressText: '.wprogress span',
       $images: '.images',
+      $imagesSection: '.widget-section-images',
       // $pumpkinHunt: '.pumpkin-hunt',
     })
     this.$widgetLogo.src = LOGO_URL
@@ -230,6 +233,12 @@ export class Widget extends Base {
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
+    this.$imagesSection.addEventListener('toggle', () => {
+      if (!this.$imagesSection.open) return
+      if (!this.imagesListDirty) return
+      this.renderImagesList()
+      this.imagesListDirty = false
+    })
     this.registerEvent(document, 'keydown', this.handleKeyboard.bind(this), {
       passive: false,
     })
@@ -246,7 +255,9 @@ export class Widget extends Base {
       this.refreshProgress()
     }, 1000)
     this.open = true
-    void this.recommendUpdateIfOutdated()
+    window.setTimeout(() => {
+      void this.recommendUpdateIfOutdated()
+    }, 2500)
     console.log('[KGM][Widget] Widget mounted and opened')
   }
 
@@ -629,8 +640,13 @@ export class Widget extends Base {
   public update() {
     this.$strategy.value = this.bot.strategy
     this.refreshProgress()
+    this.imagesListDirty = true
+    if (!this.$imagesSection.open) return
+    this.renderImagesList()
+    this.imagesListDirty = false
+  }
 
-    // Images
+  protected renderImagesList() {
     this.$images.innerHTML = ''
     const fragment = document.createDocumentFragment()
     for (let index = 0; index < this.bot.images.length; index++) {
@@ -642,6 +658,7 @@ export class Widget extends Base {
   <img src="${image.pixels.image.src}" alt="Image preview">
 </button>
   <div class="image-controls">
+    <button class="focus-map" title="Go to image position"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i></button>
     <button class="colors" title="Show colors"><i class="fa-solid fa-palette" aria-hidden="true"></i></button>
     <button class="strategy-modal" title="Strategy modal"><i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
     <button class="preview-strategy" title="Preview strategy"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
@@ -655,6 +672,12 @@ export class Widget extends Base {
         .addEventListener('click', () => {
           this.activeImageIndex = index
           image.openPreviewPanel()
+        })
+      $image
+        .querySelector<HTMLButtonElement>('.focus-map')!
+        .addEventListener('click', () => {
+          this.activeImageIndex = index
+          image.position.scrollScreenTo()
         })
       $image
         .querySelector<HTMLButtonElement>('.colors')!
@@ -1962,9 +1985,12 @@ export class Widget extends Base {
   }
 
   protected async recommendUpdateIfOutdated() {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800)
     try {
       const response = await fetch(
         'https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/src/version.ts',
+        { signal: controller.signal },
       )
       if (!response.ok) return
       const source = await response.text()
@@ -1980,6 +2006,9 @@ export class Widget extends Base {
       if (ok) this.openUrlInNewTab('https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js')
       else localStorage.setItem(key, 'dismissed')
     } catch {}
+    finally {
+      clearTimeout(timeoutId)
+    }
   }
 
   protected compareSemver(a: string, b: string) {

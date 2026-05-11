@@ -311,9 +311,15 @@
 
 .wwidget .widget-image-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 8px;
+  align-items: center;
+}
+
+.wwidget .widget-image-actions .strategy-row {
+  grid-column: 1 / -1;
+  justify-self: stretch;
 }
 
 .wwidget.wopen .wopen-button svg {
@@ -455,6 +461,10 @@
 
 .wwidget .images .image .image-controls .colors {
   color: var(--action-palette);
+}
+
+.wwidget .images .image .image-controls .focus-map {
+  color: #60a5fa;
 }
 
 .wwidget .images .image .image-controls .preview-strategy {
