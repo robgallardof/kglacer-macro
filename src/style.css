@@ -374,7 +374,7 @@
 
 .wwidget .images .image {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   align-items: stretch;
   width: 100%;
@@ -939,19 +939,10 @@
 }
 
 .wform select {
-  padding-right: 34px;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #c7d2fe 50%),
-    linear-gradient(135deg, #c7d2fe 50%, transparent 50%),
-    linear-gradient(180deg, #1a2948 0%, #131d34 100%);
-  background-position:
-    calc(100% - 17px) 50%,
-    calc(100% - 12px) 50%,
-    0 0;
-  background-size:
-    5px 5px,
-    5px 5px,
-    100% 100%;
+  padding-right: 12px;
+  background-image: linear-gradient(180deg, #1a2948 0%, #131d34 100%);
+  background-position: 0 0;
+  background-size: 100% 100%;
   background-repeat: no-repeat;
   color: #edf2ff;
   font-weight: 700;
@@ -997,7 +988,7 @@
 
 .wform .strategy-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   align-items: center;
   width: 100%;
@@ -1278,7 +1269,7 @@
 
 .kgm-switch-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   overflow: visible;
@@ -1404,6 +1395,12 @@
   background: linear-gradient(180deg, #273559, #1b2743);
   color: #ebf1ff;
   font-weight: 600;
+}
+
+
+.preview-dialog .render-preview {
+  margin: 0 0 10px;
+  width: 100%;
 }
 
 .preview-dialog-list {
