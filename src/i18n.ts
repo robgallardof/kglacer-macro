@@ -165,7 +165,7 @@ const MESSAGES = {
     shieldFeatureMatchMedia: 'Match media',
     shieldFeatureSharedArrayBuffer: 'SharedArrayBuffer',
     smartReplaceMode: 'Show smart replacement suggestions',
-    previewStrategy: 'Preview',
+    previewStrategy: 'Preview strategy',
     previewStrategyTitle: 'Paint preview',
     previewStrategyHelp:
       'Animated visual reference of the currently selected paint mode using your current image.',
@@ -391,7 +391,7 @@ const MESSAGES = {
     shieldFeatureMatchMedia: 'Match media',
     shieldFeatureSharedArrayBuffer: 'SharedArrayBuffer',
     smartReplaceMode: 'Mostrar sugerencias inteligentes de reemplazo',
-    previewStrategy: 'Vista',
+    previewStrategy: 'Estrategia de vista previa',
     previewStrategyTitle: 'Previsualización de pintado',
     previewStrategyHelp:
       'Referencia visual animada del modo de pintado seleccionado usando tu imagen actual.',
