@@ -373,7 +373,12 @@ export class BotImage extends Base {
     const colorsOrderMap = new Map<number, number>()
     for (let index = 0; index < this.colors.length; index++) {
       const drawColor = this.colors[index]!
-      if (drawColor.disabled) skipColors.add(drawColor.realColor)
+      if (
+        drawColor.disabled ||
+        (this.skipUnavailableColors &&
+          this.bot.unavailableColors.has(drawColor.realColor))
+      )
+        skipColors.add(drawColor.realColor)
       colorsOrderMap.set(drawColor.realColor, index)
     }
     const pendingPixels = computePendingPixels({
@@ -1015,17 +1020,25 @@ export class BotImage extends Base {
       const width = (color.amount / pixelsSum) * 100
       const hex = this.colorHex(color.realColor)
       const keywords = this.colorKeywords(color.realColor)
+      const unavailable = this.bot.unavailableColors.has(drawColor.realColor)
+      const effectivelyDisabled =
+        Boolean(drawColor.disabled) ||
+        (this.skipUnavailableColors && unavailable)
       const toggleDisabled = () => {
+        if (this.skipUnavailableColors && unavailable) return
         drawColor.disabled = drawColor.disabled ? undefined : true
         $chip.classList.toggle('disabled', Boolean(drawColor.disabled))
         const $state = $chip.querySelector<HTMLElement>('.state')
         if ($state)
-          $state.textContent = drawColor.disabled ? t('disabled') : t('enabled')
+          $state.textContent =
+            drawColor.disabled || (this.skipUnavailableColors && unavailable)
+              ? t('disabled')
+              : t('enabled')
         this.syncColorBulkToggle()
         save(this.bot)
       }
       const $chip = document.createElement('button')
-      $chip.className = `color-chip ${drawColor.disabled ? 'disabled' : ''}`
+      $chip.className = `color-chip ${effectivelyDisabled ? 'disabled' : ''}`
       $chip.draggable = true
       $chip.setAttribute(
         'aria-label',
@@ -1037,7 +1050,7 @@ export class BotImage extends Base {
 <span class="meta">
   <span class="coverage">${width.toFixed(1)}%</span>
   <span class="hex">${hex.toUpperCase()}</span>
-  <span class="state">${drawColor.disabled ? t('disabled') : t('enabled')}</span>
+  <span class="state">${effectivelyDisabled ? t('disabled') : t('enabled')}</span>
 </span>
 <span class="premium"></span>`
       $chip
