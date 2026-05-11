@@ -424,7 +424,12 @@ export class KGlacerMacro {
           }
         }
         this.widget.update()
-        this.log('Draw flow finished', { remainingCharges: charges })
+        await this.readMap()
+        this.updateTasks()
+        this.log('Draw flow finished', {
+          remainingCharges: charges,
+          remainingTasks: this.images.reduce((sum, image) => sum + image.tasks.length, 0),
+        })
       },
       () => {
         globalThis.removeEventListener('mousemove', prevent, true)
