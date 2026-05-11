@@ -1017,6 +1017,15 @@
   color: #d8b4ff;
 }
 
+.wwidget .preview-dialog .preview-strategy-row {
+  margin: 0 0 10px;
+}
+
+.wwidget .preview-dialog .preview-strategy-row .strategy-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .kgm-button-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 10px !important;
