@@ -143,7 +143,6 @@ export class BotImage extends Base {
   protected readonly $previewDialog!: HTMLDialogElement
   protected readonly $previewDialogList!: HTMLDivElement
   protected readonly $previewStrategySelect!: HTMLSelectElement
-  protected readonly $renderPreview!: HTMLButtonElement
   protected readonly $resetSize!: HTMLButtonElement
   protected readonly $resetSizeSpan!: HTMLSpanElement
   protected readonly $settings!: HTMLDivElement
@@ -216,7 +215,6 @@ export class BotImage extends Base {
       $previewDialog: '.preview-dialog',
       $previewDialogList: '.preview-dialog-list',
       $previewStrategySelect: '.preview-strategy-select',
-      $renderPreview: '.render-preview',
       $resetSize: '.reset-size',
       $settings: '.wform',
       $strategy: '.strategy',
@@ -238,8 +236,6 @@ export class BotImage extends Base {
     this.registerEvent(this.$previewStrategySelect, 'change', () => {
       this.$strategy.value = this.$previewStrategySelect.value
       this.$strategy.dispatchEvent(new Event('change'))
-    })
-    this.registerEvent(this.$renderPreview, 'click', () => {
       this.renderStrategyPreviewSamples()
     })
 
