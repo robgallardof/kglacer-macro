@@ -8,7 +8,7 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.17)
+### Highlights (v4.4.19)
 
 - Replaced the color modal's separate **Enable all** / **Disable all** action buttons with one standardized switch that is enabled by default, disables every overlay color when turned off, and re-enables every overlay color when turned back on.
 
@@ -76,7 +76,7 @@ Macro/UI to support pixel painting on **wplace.live**.
 
 Macro/UI para apoyar el pintado en **wplace.live**.
 
-### Novedades (v4.4.17)
+### Novedades (v4.4.19)
 
 - Se reemplazaron los botones separados **Activar todos** / **Desactivar todos** del modal de colores por un solo switch estandarizado que viene activo por defecto, desactiva todos los colores del overlay al apagarlo y los reactiva al encenderlo.
 

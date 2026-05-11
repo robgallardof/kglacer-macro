@@ -374,7 +374,7 @@
 
 .wwidget .images .image {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: stretch;
   width: 100%;
@@ -404,19 +404,20 @@
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 60px;
+  min-height: 88px;
   margin: 0;
   padding: 0;
   border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 10px;
+  border-radius: 14px;
   background: #0f1321;
 }
 
 .wwidget .images .image img {
   max-width: 100%;
-  max-height: 56px;
+  max-height: 84px;
   margin: 0 auto;
-  border-radius: 8px;
+  border-radius: 12px;
+  object-fit: contain;
   cursor: pointer;
 }
 
@@ -1007,6 +1008,30 @@
   padding: 8px 10px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.wform .strategy-controls .strategy-picker {
+  min-width: 38px;
+  min-height: 34px;
+  border-radius: 10px;
+  color: #d8b4ff;
+}
+
+.kgm-button-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.kgm-button-grid .shield-checker i {
+  color: #22c55e;
+}
+
+.kgm-button-grid .shield-info i {
+  color: #60a5fa;
+}
+
+.kgm-button-grid .shield-refresh-profile i {
+  color: #fbbf24;
 }
 
 .kgm-capture-overlay {
@@ -2038,6 +2063,10 @@
 .kgm-modal .challenge-button,
 .wwidget .challenge-button {
   position: relative;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   min-height: 44px;
   border-color: rgb(126 146 255 / 42%);

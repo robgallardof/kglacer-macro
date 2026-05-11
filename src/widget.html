@@ -21,8 +21,11 @@
     <div class="wp wstatus"></div>
   </section>
 
-  <section class="widget-section widget-section-actions">
-    <strong class="widget-section-title" data-i18n="actionsSection">Actions</strong>
+  <details class="widget-section widget-section-actions" open>
+    <summary class="widget-section-summary">
+      <strong class="widget-section-title" data-i18n="actionsSection">Actions</strong>
+      <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+    </summary>
     <button class="draw" disabled><i class="fa-solid fa-pen-nib"></i><span data-i18n="draw">Draw</span></button>
     <button class="draw-and-paint" disabled><i class="fa-solid fa-wand-magic-sparkles"></i><span data-i18n="drawAndPaint">Draw + Paint</span></button>
     <button class="capture-template" disabled>
@@ -36,7 +39,7 @@
       <button class="autooverlay-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoOverlayStart">Start Auto Drawing</span></button>
       <button class="autooverlay-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoOverlayStop">Stop Auto Drawing</span></button>
     </div>
-  </section>
+  </details>
 
   <details class="widget-section widget-section-autofarm">
     <summary class="widget-section-summary">
@@ -62,6 +65,11 @@
       <button class="tool-color-converter" type="button"><i class="fa-solid fa-droplet"></i><span data-i18n="toolColorConverter">Color converter</span></button>
       <button class="tool-samuel-archive" type="button"><i class="fa-solid fa-clock-rotate-left"></i><span data-i18n="toolSamuelArchive">Samuel archive</span></button>
       <button class="tool-eralyon-archive" type="button"><i class="fa-solid fa-map-location-dot"></i><span data-i18n="toolEralyonArchive">Eralyon archive</span></button>
+      <button class="tool-receive-smss" type="button"><i class="fa-solid fa-sim-card"></i><span>receive-smss</span></button>
+      <button class="tool-esimplus" type="button"><i class="fa-solid fa-mobile-screen-button"></i><span>esimplus</span></button>
+      <button class="tool-receive-sms-free" type="button"><i class="fa-solid fa-comment-sms"></i><span>receive-sms-free</span></button>
+      <button class="tool-quackr" type="button"><i class="fa-solid fa-feather-pointed"></i><span>quackr</span></button>
+      <button class="tool-textverified" type="button"><i class="fa-solid fa-shield-halved"></i><span>textverified</span></button>
     </div>
     <div class="wp external-tools-help" data-i18n="externalToolsHelp">Opens tools centered on the current Wplace URL zone when lat/lng/zoom are available.</div>
   </details>
@@ -78,11 +86,19 @@
       <strong class="widget-section-title" data-i18n="strategySection">Draw strategy</strong>
       <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
     </summary>
-    <label><span data-i18n="strategy">Strategy</span>:&nbsp;<select class="strategy">
-      <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
-      <option value="ALL" data-i18n="all">All</option>
-      <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
-    </select></label>
+    <label class="strategy-row">
+      <span data-i18n="strategy">Strategy</span>:&nbsp;
+      <span class="strategy-controls">
+        <select class="strategy">
+          <option value="SEQUENTIAL" selected data-i18n="sequential">Sequential</option>
+          <option value="ALL" data-i18n="all">All</option>
+          <option value="PERCENTAGE" data-i18n="percentage">Percentage</option>
+        </select>
+        <button class="strategy-picker" type="button" title="Open strategy selector" aria-label="Open strategy selector">
+          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+        </button>
+      </span>
+    </label>
   </details>
 
   <details class="widget-section widget-section-images" open>
