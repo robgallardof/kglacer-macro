@@ -234,7 +234,10 @@ export class Widget extends Base {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
     this.$imagesSection.addEventListener('toggle', () => {
-      if (!this.$imagesSection.open) return
+      if (!this.$imagesSection.open) {
+        this.$imagesSection.open = true
+        return
+      }
       if (!this.imagesListDirty) return
       this.renderImagesList()
       this.imagesListDirty = false

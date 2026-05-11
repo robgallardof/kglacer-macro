@@ -8,11 +8,11 @@
 
 Macro/UI to support pixel painting on **wplace.live**.
 
-### Highlights (v4.4.26)
+### Highlights (v4.4.27)
 
 - Added i18n coverage for the strategy label and strategy combo in the paint preview modal (including Spanish).
 
-- Set the **Images** section to start collapsed so the panel stays cleaner until you open it.
+- Kept the **Images** section permanently expanded so image controls and list are always visible.
 
 - Added a clear enabled/disabled status icon to the **Hide/show overlays** control so it is obvious when overlays are disabled.
 
@@ -86,7 +86,7 @@ Macro/UI para apoyar el pintado en **wplace.live**.
 
 - Se agregó i18n al texto de estrategia y al combo de estrategia del modal de previsualización de pintado (incluyendo español).
 
-- La sección **Imágenes** ahora inicia colapsada para mantener el panel más limpio hasta que la abras.
+- Se dejó la sección **Imágenes** siempre expandida para que la lista y controles estén siempre visibles.
 
 - Se agregó un icono claro de estado habilitado/deshabilitado en **Mostrar/ocultar overlays** para ver rápido cuándo está desactivado.
 
