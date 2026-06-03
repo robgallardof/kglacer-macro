@@ -78,11 +78,17 @@ export class ControlApiError extends Error {
 }
 
 export function readControlSession(): ControlSession | null {
-  const session = readJson<ControlSession | null>(
-    sessionStorage,
-    CONTROL_SESSION_STORAGE_KEY,
-    null,
-  )
+  const session =
+    readJson<ControlSession | null>(
+      sessionStorage,
+      CONTROL_SESSION_STORAGE_KEY,
+      null,
+    ) ??
+    readJson<ControlSession | null>(
+      localStorage,
+      CONTROL_SESSION_STORAGE_KEY,
+      null,
+    )
   if (!session?.accessToken) return null
   if (
     session.expiresAt &&
@@ -91,16 +97,22 @@ export function readControlSession(): ControlSession | null {
     clearControlSession()
     return null
   }
+  const serialized = JSON.stringify(session)
+  sessionStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)
+  localStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)
   return session
 }
 
 export function saveControlSession(session: ControlSession) {
-  sessionStorage.setItem(CONTROL_SESSION_STORAGE_KEY, JSON.stringify(session))
+  const serialized = JSON.stringify(session)
+  sessionStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)
+  localStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)
   if (session.settings) saveControlSettings(session.settings)
 }
 
 export function clearControlSession() {
   sessionStorage.removeItem(CONTROL_SESSION_STORAGE_KEY)
+  localStorage.removeItem(CONTROL_SESSION_STORAGE_KEY)
 }
 
 export function readControlSettings(): Partial<ControlSettings> {

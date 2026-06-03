@@ -4,6 +4,7 @@ import { initChallengeSolver } from './challenge-solver'
 import {
   checkControlAccess,
   clearControlSession,
+  ControlApiError,
   ControlSession,
   hasUsableControlAccess,
   loginToControlApi,
@@ -316,6 +317,7 @@ export class KGlacerMacro {
     const cachedSession = readControlSession()
     if (hasUsableControlAccess(cachedSession)) {
       this.controlSession = cachedSession
+      this.controlAccessAllowed = true
       try {
         await this.refreshControlAccess('startup')
         return
@@ -323,9 +325,16 @@ export class KGlacerMacro {
         this.log('Cached Control API session rejected', {
           reason: error instanceof Error ? error.message : 'unknown',
         })
-        clearControlSession()
-        this.controlSession = null
-        this.controlAccessAllowed = false
+        if (this.shouldClearControlSession(error)) {
+          clearControlSession()
+          this.controlSession = null
+          this.controlAccessAllowed = false
+        } else {
+          this.log(
+            'Keeping cached Control API session after transient check failure',
+          )
+          return
+        }
       }
     }
 
@@ -412,6 +421,14 @@ export class KGlacerMacro {
       return t('invalidAccessKey')
     if (/device_limit/i.test(reason)) return t('accessDeviceLimit')
     return t('loginErrorUnknown')
+  }
+
+  protected shouldClearControlSession(error: unknown) {
+    if (!(error instanceof ControlApiError)) return false
+    if (error.status === 401 || error.status === 403) return true
+    return /invalid|expired|inactive|blocked|device_limit/i.test(
+      error.reason ?? error.message,
+    )
   }
 
   public getControlSession() {
