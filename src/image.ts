@@ -232,11 +232,17 @@ export class BotImage extends Base {
       this.strategy = this.$strategy.value as ImageStrategy
       this.$previewStrategySelect.value = this.strategy
       save(this.bot)
+      this.trackAction('image_strategy_changed', {
+        strategy: this.strategy,
+      })
     })
     this.registerEvent(this.$previewStrategySelect, 'change', () => {
       this.$strategy.value = this.$previewStrategySelect.value
       this.$strategy.dispatchEvent(new Event('change'))
       this.renderStrategyPreviewSamples()
+      this.trackAction('image_preview_strategy_changed', {
+        strategy: this.$previewStrategySelect.value,
+      })
     })
 
     // Opacity
@@ -245,6 +251,11 @@ export class BotImage extends Base {
       this.$opacity.style.setProperty('--val', this.opacity + '%')
       this.update()
       save(this.bot)
+    })
+    this.registerEvent(this.$opacity, 'change', () => {
+      this.trackAction('image_opacity_changed', {
+        opacity: this.opacity,
+      })
     })
     this.$opacity.style.setProperty('--val', this.opacity + '%')
 
@@ -255,24 +266,37 @@ export class BotImage extends Base {
       this.updateColors()
       this.update()
       save(this.bot)
+      this.trackAction('image_size_reset', {
+        width: this.pixels.width,
+        height: this.pixels.height,
+      })
     })
 
     // drawTransparent
     this.registerEvent(this.$drawTransparent, 'click', () => {
       this.drawTransparentPixels = this.$drawTransparent.checked
       save(this.bot)
+      this.trackAction('image_draw_transparent_changed', {
+        enabled: this.drawTransparentPixels,
+      })
     })
 
     this.registerEvent(this.$skipUnavailable, 'click', () => {
       this.skipUnavailableColors = this.$skipUnavailable.checked
       this.updateTasks()
       save(this.bot)
+      this.trackAction('image_skip_unavailable_changed', {
+        enabled: this.skipUnavailableColors,
+      })
     })
 
     // drawColorsInOrder
     this.registerEvent(this.$drawColorsInOrder, 'click', () => {
       this.drawColorsInOrder = this.$drawColorsInOrder.checked
       save(this.bot)
+      this.trackAction('image_draw_colors_in_order_changed', {
+        enabled: this.drawColorsInOrder,
+      })
     })
 
     // Lock
@@ -280,19 +304,39 @@ export class BotImage extends Base {
       this.lock = !this.lock
       this.update()
       save(this.bot)
+      this.trackAction('image_lock_changed', {
+        locked: this.lock,
+      })
     })
 
-    this.registerEvent(this.$delete, 'click', this.destroy.bind(this))
+    this.registerEvent(this.$delete, 'click', () => {
+      this.trackAction('image_deleted', {
+        source: 'image_panel',
+      })
+      this.destroy()
+    })
     this.registerEvent(this.$openColors, 'click', () => {
+      this.trackAction('image_colors_opened', {
+        source: 'image_panel',
+      })
       this.openColorPanel()
     })
     this.registerEvent(this.$openPreview, 'click', () => {
+      this.trackAction('image_preview_opened', {
+        source: 'image_panel',
+      })
       this.openPreviewPanel()
     })
     this.registerEvent(this.$closeColors, 'click', () => {
+      this.trackAction('image_colors_closed', {
+        source: 'image_panel',
+      })
       this.closeDialog(this.$colorsDialog)
     })
     this.registerEvent(this.$closePreview, 'click', () => {
+      this.trackAction('image_preview_closed', {
+        source: 'image_panel',
+      })
       this.closeDialog(this.$previewDialog)
     })
     this.registerEvent(
@@ -330,6 +374,10 @@ export class BotImage extends Base {
     })
     this.registerEvent(this.$colorSearch, 'input', () => {
       this.updateColors()
+      this.trackAction('image_color_search_changed', {
+        source: 'image_panel',
+        queryLength: this.$colorSearch.value.length,
+      })
     })
     this.registerEvent(this.$toggleAllColors, 'change', () => {
       const disabled = !this.$toggleAllColors.checked
@@ -338,10 +386,19 @@ export class BotImage extends Base {
       this.updateTasks()
       this.updateColors()
       save(this.bot)
+      this.trackAction('image_all_colors_toggled', {
+        source: 'image_panel',
+        enabled: !disabled,
+      })
     })
 
     // Export
-    this.registerEvent(this.$export, 'click', this.export.bind(this))
+    this.registerEvent(this.$export, 'click', () => {
+      this.trackAction('image_exported', {
+        source: 'image_panel',
+      })
+      this.export()
+    })
 
     // Move
     this.registerEvent(this.$topbar, 'mousedown', this.moveStart.bind(this))
@@ -356,6 +413,17 @@ export class BotImage extends Base {
       this.registerEvent($resize, 'mousedown', this.resizeStart.bind(this))
     this.update()
     this.updateColors()
+  }
+
+  protected trackAction(
+    action: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    this.bot.trackAction(action, {
+      source: 'image_panel',
+      image: this.bot.summarizeImageForTelemetry(this),
+      ...metadata,
+    })
   }
 
   public toJSON() {
@@ -1058,6 +1126,12 @@ export class BotImage extends Base {
               : t('enabled')
         this.syncColorBulkToggle()
         save(this.bot)
+        this.trackAction('image_color_toggled', {
+          source: 'image_panel',
+          color: drawColor.realColor,
+          disabled: Boolean(drawColor.disabled),
+          unavailable,
+        })
       }
       const $chip = document.createElement('button')
       $chip.className = `color-chip ${effectivelyDisabled ? 'disabled' : ''}`
@@ -1113,6 +1187,12 @@ export class BotImage extends Base {
           return
         this.colors.splice(index, 0, ...this.colors.splice(source, 1))
         save(this.bot)
+        this.trackAction('image_color_reordered', {
+          source: 'image_panel',
+          fromIndex: source,
+          toIndex: index,
+          color: drawColor.realColor,
+        })
         this.updateColors()
       })
       const $buy = document.createElement('button')
@@ -1120,6 +1200,10 @@ export class BotImage extends Base {
       $buy.className = 'buy-chip'
       $buy.addEventListener('click', (event) => {
         event.stopPropagation()
+        this.trackAction('image_color_buy_clicked', {
+          source: 'image_panel',
+          color: color.realColor,
+        })
         document.getElementById('color-' + color.realColor)?.click()
       })
       $chip.append($buy)
@@ -2188,22 +2272,45 @@ export class BotImage extends Base {
     if (event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
-    if (!this.lock)
+    if (!this.lock) {
       this.moveInfo = {
         globalX: this.position.globalX,
         globalY: this.position.globalY,
         clientX: event.clientX,
         clientY: event.clientY,
       }
+      this.trackAction('image_move_started', {
+        source: 'image_panel',
+        screenPosition: {
+          x: event.clientX,
+          y: event.clientY,
+        },
+      })
+    }
   }
 
   protected moveStop() {
     if (this.moveInfo) {
+      const moveInfo = this.moveInfo
+      const mode =
+        moveInfo.width !== undefined || moveInfo.height !== undefined
+          ? 'resize'
+          : 'move'
       this.moveInfo = undefined
       this.position.updateAnchor()
       this.pixels.update()
       this.updateColors()
       save(this.bot)
+      this.trackAction(mode === 'resize' ? 'image_resized' : 'image_moved', {
+        source: 'image_panel',
+        mode,
+        previous: {
+          globalX: moveInfo.globalX,
+          globalY: moveInfo.globalY,
+          width: moveInfo.width,
+          height: moveInfo.height,
+        },
+      })
     }
   }
 
@@ -2253,6 +2360,18 @@ export class BotImage extends Base {
       this.moveInfo.width = this.pixels.width
       this.moveInfo.globalX = this.position.globalX
     }
+    this.trackAction('image_resize_started', {
+      source: 'image_panel',
+      handles: Array.from($resize.classList).filter((item) =>
+        ['n', 'e', 's', 'w'].includes(item),
+      ),
+      width: this.pixels.width,
+      height: this.pixels.height,
+      screenPosition: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+    })
   }
 
   /** export image */

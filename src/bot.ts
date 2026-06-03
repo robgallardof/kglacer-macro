@@ -315,6 +315,11 @@ export class KGlacerMacro {
         this.widget.setDisabled('add-image', false)
         this.widget.setDisabled('capture-template', false)
         this.log('Initialization completed; controls enabled')
+        this.trackAction('bot_loaded', {
+          source: 'startup',
+          restoredImages: this.images.length,
+          totalTasks: this.getTotalPendingTasks(),
+        })
         // this.widget.setDisabled('pumpkin-hunt', false)
       })
     })()
@@ -407,6 +412,10 @@ export class KGlacerMacro {
               wplaceCookieStatus: cookieContext.status,
             })
             this.controlAccessAllowed = true
+            this.trackAction('serial_login_success', {
+              source: 'serial_modal',
+              hasWplaceAccount: Boolean(wplaceMe),
+            })
             void this.syncAccountInfoWithControl('login_background')
             $dialog.close()
             $dialog.remove()
@@ -562,7 +571,7 @@ export class KGlacerMacro {
     this.accountCookieTokenWarmup ??= this.readAccountCookieToken({
       force: true,
       exhaustive: true,
-      timeoutMs: 500,
+      timeoutMs: 2000,
     }).finally(() => {
       this.accountCookieTokenWarmup = undefined
     })
@@ -582,7 +591,7 @@ export class KGlacerMacro {
       (await this.readAccountCookieToken({
         force: true,
         exhaustive: true,
-        timeoutMs: options.timeoutMs ?? 750,
+        timeoutMs: options.timeoutMs ?? 2000,
       }))
     return {
       token,
@@ -690,10 +699,28 @@ export class KGlacerMacro {
         ? location.href
         : 'https://wplace.live/'
     const priorityQueries: UserscriptCookieQuery[] = [
+      { name },
+      { name, partitionKey: {} },
       { url: currentUrl, name },
+      { url: currentUrl, name, partitionKey: {} },
+      { url: currentUrl, domain: '.wplace.live', name, path: '/' },
       { url: 'https://wplace.live/', name },
+      { url: 'https://wplace.live/', name, partitionKey: {} },
+      { url: 'https://wplace.live/', domain: '.wplace.live', name, path: '/' },
       { url: 'https://www.wplace.live/', name },
+      {
+        url: 'https://www.wplace.live/',
+        domain: '.wplace.live',
+        name,
+        path: '/',
+      },
       { url: 'https://backend.wplace.live/', name },
+      {
+        url: 'https://backend.wplace.live/',
+        domain: '.wplace.live',
+        name,
+        path: '/',
+      },
       { domain: '.wplace.live', name, path: '/' },
       { domain: '.wplace.live', name },
       { domain: 'wplace.live', name, path: '/' },
@@ -702,8 +729,10 @@ export class KGlacerMacro {
     ]
     const exhaustiveQueries: UserscriptCookieQuery[] = [
       { url: currentUrl },
+      { url: currentUrl, partitionKey: {} },
       { url: 'https://wplace.live/', name, path: '/' },
       { url: 'https://wplace.live/' },
+      { url: 'https://wplace.live/', partitionKey: {} },
       { url: 'https://www.wplace.live/', name, path: '/' },
       { url: 'https://www.wplace.live/' },
       { url: 'https://backend.wplace.live/', name, path: '/' },
@@ -712,9 +741,11 @@ export class KGlacerMacro {
       { domain: 'wplace.live' },
       { firstPartyDomain: 'https://wplace.live', domain: '.wplace.live', name },
       { name },
+      { name, path: '/' },
+      { name, partitionKey: {} },
       {},
     ]
-    const timeoutMs = options.timeoutMs ?? 500
+    const timeoutMs = options.timeoutMs ?? 2000
     const priorityValue = await this.findCookieWithUserscriptQueries(
       apis,
       this.dedupeCookieQueries(priorityQueries),
@@ -978,12 +1009,230 @@ export class KGlacerMacro {
     }
   }
 
+  public trackAction(action: string, metadata: Record<string, unknown> = {}) {
+    void this.sendControlAction(action, metadata)
+  }
+
+  protected async sendControlAction(
+    action: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    const session = this.controlSession
+    if (!session || !hasUsableControlAccess(session)) return
+
+    const [account, cookieContext] = await Promise.all([
+      this.withTimeout(
+        this.me
+          ? Promise.resolve(this.me)
+          : this.fetchAccountInfo().catch(() => null),
+        650,
+        null,
+      ),
+      this.resolveAccountCookieForControl({
+        force: true,
+        exhaustive: true,
+        timeoutMs: 650,
+      }),
+    ])
+
+    try {
+      this.controlSession = await checkControlAccess({
+        session,
+        eventType: 'action',
+        wplaceMe: account,
+        wplaceCookieJToken: cookieContext.token,
+        cookieStatus: cookieContext.status,
+        metadata: this.sanitizeTelemetryValue({
+          app: APP_NAME,
+          version: APP_VERSION,
+          eventName: action,
+          action,
+          sentAt: new Date().toISOString(),
+          cookieName: 'j',
+          accountTokenAvailable: Boolean(cookieContext.token),
+          jTokenAvailable: Boolean(cookieContext.token),
+          ...this.buildActionTelemetryContext(),
+          ...metadata,
+        }) as Record<string, unknown>,
+      })
+      this.controlAccessAllowed = true
+    } catch (error) {
+      if (this.shouldClearControlSession(error)) {
+        clearControlSession()
+        this.controlSession = null
+        this.controlAccessAllowed = false
+      }
+      this.log('Control API action event failed', {
+        action,
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
+    }
+  }
+
+  protected buildActionTelemetryContext() {
+    const page = this.getPageTelemetry()
+    return {
+      page,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+      mapCenter: this.getWorldPositionForTelemetry({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      }),
+      botState: {
+        strategy: this.strategy,
+        images: this.images.length,
+        totalTasks: this.getTotalPendingTasks(),
+        unavailableColors: this.unavailableColors.size,
+        accessAllowed: this.isControlAccessAllowed(),
+      },
+      images: this.summarizeImagesForTelemetry(),
+    }
+  }
+
+  protected getPageTelemetry() {
+    try {
+      const url = new URL(location.href)
+      return {
+        href: url.href,
+        origin: url.origin,
+        host: url.host,
+        pathname: url.pathname,
+        search: url.search,
+        hash: url.hash,
+        query: Object.fromEntries(
+          Array.from(url.searchParams.entries()).slice(0, 25),
+        ),
+      }
+    } catch {
+      return {
+        href: location.href,
+        host: location.host,
+      }
+    }
+  }
+
+  protected getWorldPositionForTelemetry(position: Position) {
+    try {
+      return this.serializeWorldPositionForTelemetry(
+        WorldPosition.fromScreenPosition(this, position),
+      )
+    } catch {
+      return null
+    }
+  }
+
+  public summarizeImageForTelemetry(
+    image: BotImage,
+    index = this.images.indexOf(image),
+  ) {
+    const rows = image.pixels.pixels
+    const height = rows.length
+    const width = rows[0]?.length ?? 0
+    let screenPosition: Position | null = null
+    try {
+      screenPosition = image.position.toScreenPosition()
+    } catch {
+      screenPosition = null
+    }
+    return {
+      index,
+      width,
+      height,
+      tasks: image.tasks.length,
+      strategy: image.strategy,
+      opacity: image.opacity,
+      lock: image.lock,
+      drawTransparentPixels: image.drawTransparentPixels,
+      drawColorsInOrder: image.drawColorsInOrder,
+      skipUnavailableColors: image.skipUnavailableColors,
+      colors: image.colors.length,
+      disabledColors: image.colors.filter((color) => color.disabled).length,
+      position: this.serializeWorldPositionForTelemetry(image.position),
+      screenPosition,
+    }
+  }
+
+  protected summarizeImagesForTelemetry() {
+    return this.images
+      .slice(0, 20)
+      .map((image, index) => this.summarizeImageForTelemetry(image, index))
+  }
+
+  protected serializeWorldPositionForTelemetry(position: WorldPosition) {
+    return {
+      globalX: position.globalX,
+      globalY: position.globalY,
+      tileX: position.tileX,
+      tileY: position.tileY,
+      x: position.x,
+      y: position.y,
+    }
+  }
+
+  protected getTotalPendingTasks() {
+    return this.images.reduce((sum, image) => sum + image.tasks.length, 0)
+  }
+
+  protected sanitizeTelemetryValue(
+    value: unknown,
+    depth = 0,
+    seen = new WeakSet<object>(),
+  ): unknown {
+    if (value === null || value === undefined) return value
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    )
+      return typeof value === 'bigint' ? value.toString() : value
+    if (typeof value === 'string') {
+      if (value.startsWith('data:')) return `[data-url:${value.length}]`
+      if (value.length > 2048) return `${value.slice(0, 2048)}…[truncated]`
+      return value
+    }
+    if (depth >= 5) return '[max-depth]'
+    if (Array.isArray(value))
+      return value
+        .slice(0, 50)
+        .map((item) => this.sanitizeTelemetryValue(item, depth + 1, seen))
+    if (typeof value === 'object') {
+      if (seen.has(value)) return '[circular]'
+      seen.add(value)
+      const output: Record<string, unknown> = {}
+      for (const [key, entry] of Object.entries(value).slice(0, 80)) {
+        if (
+          /token|secret|password|authorization/i.test(key) &&
+          typeof entry === 'string'
+        ) {
+          output[key] = '[redacted]'
+          continue
+        }
+        output[key] = this.sanitizeTelemetryValue(entry, depth + 1, seen)
+      }
+      return output
+    }
+    if (typeof value === 'symbol') return value.description ?? '[symbol]'
+    if (typeof value === 'function')
+      return `[function:${value.name || 'anonymous'}]`
+    return '[unsupported]'
+  }
+
   /** Start drawing */
   public draw() {
     if (!this.ensureFeatureAccess('draw')) return Promise.resolve()
     this.log('Draw requested', {
       strategy: this.strategy,
       images: this.images.length,
+    })
+    this.trackAction('draw_requested', {
+      source: 'bot',
+      strategy: this.strategy,
+      images: this.images.length,
+      totalTasks: this.getTotalPendingTasks(),
     })
     this.widget.setDisabled('draw', true)
     this.widget.setDisabled('draw-and-paint', true)
@@ -1010,12 +1259,20 @@ export class KGlacerMacro {
           credentials: 'include',
         }).then((x) => x.json())) as Me
         let charges = Math.floor(me.charges.count)
+        const startCharges = charges
         this.log('Charges fetched', { charges })
 
         let n = 0
         for (let index = 0; index < this.images.length; index++)
           n += this.images[index]!.tasks.length
         this.log('Tasks prepared', { tasks: n })
+        this.trackAction('draw_started', {
+          source: 'bot',
+          strategy: this.strategy,
+          charges,
+          preparedTasks: n,
+          images: this.images.length,
+        })
         switch (this.strategy) {
           case BotStrategy.ALL: {
             while (charges > 0) {
@@ -1084,12 +1341,20 @@ export class KGlacerMacro {
         this.widget.update()
         await this.readMap()
         this.updateTasks()
+        const remainingTasks = this.getTotalPendingTasks()
         this.log('Draw flow finished', {
           remainingCharges: charges,
-          remainingTasks: this.images.reduce(
-            (sum, image) => sum + image.tasks.length,
-            0,
-          ),
+          remainingTasks,
+        })
+        this.trackAction('draw_completed', {
+          source: 'bot',
+          strategy: this.strategy,
+          startCharges,
+          remainingCharges: charges,
+          usedCharges: Math.max(0, startCharges - charges),
+          preparedTasks: n,
+          remainingTasks,
+          images: this.images.length,
         })
       },
       () => {
@@ -1330,6 +1595,9 @@ export class KGlacerMacro {
 
   public async paintRandomPixelInViewport() {
     if (!this.ensureFeatureAccess('autoFarm')) return
+    this.trackAction('auto_farm_random_pixel_requested', {
+      source: 'bot',
+    })
     try {
       await this.updateColors()
       const availableButtons = Array.from(
@@ -1364,8 +1632,20 @@ export class KGlacerMacro {
           y: screenY,
         }),
       })
+      this.trackAction('auto_farm_random_pixel_drawn', {
+        source: 'bot',
+        color,
+        screenPosition: {
+          x: screenX,
+          y: screenY,
+        },
+      })
     } catch (error) {
       this.log('Auto farm tick failed', error)
+      this.trackAction('auto_farm_random_pixel_failed', {
+        source: 'bot',
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
     }
   }
 
@@ -1373,6 +1653,12 @@ export class KGlacerMacro {
     if (!this.ensureFeatureAccess('autoFarm')) return 0
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
+    this.trackAction('auto_farm_draw_batch_requested', {
+      source: 'bot',
+      requestedLimit: limit,
+      normalizedLimit,
+      preferredColor: preferredColor ?? null,
+    })
     await this.widget.run(t('taskDrawingRandomPixels'), async () => {
       await this.widget.run(t('taskInitializingDraw'), () =>
         this.updateColors(),
@@ -1422,6 +1708,13 @@ export class KGlacerMacro {
         await wait(1)
       }
     })
+    this.trackAction('auto_farm_draw_batch_completed', {
+      source: 'bot',
+      requestedLimit: limit,
+      normalizedLimit,
+      preferredColor: preferredColor ?? null,
+      drawn,
+    })
     return drawn
   }
 
@@ -1429,6 +1722,13 @@ export class KGlacerMacro {
     if (!this.ensureFeatureAccess('autoDraw')) return 0
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
+    this.trackAction('auto_draw_overlay_batch_requested', {
+      source: 'bot',
+      requestedLimit: limit,
+      normalizedLimit,
+      strategy: this.strategy,
+      totalTasks: this.getTotalPendingTasks(),
+    })
     await this.widget.run(t('taskDrawingOverlayPixels'), async () => {
       await this.widget.run(t('taskInitializingDraw'), () =>
         Promise.all([this.updateColors(), this.readMap()]),
@@ -1442,6 +1742,14 @@ export class KGlacerMacro {
         await wait(1)
       }
       this.widget.update()
+    })
+    this.trackAction('auto_draw_overlay_batch_completed', {
+      source: 'bot',
+      requestedLimit: limit,
+      normalizedLimit,
+      drawn,
+      strategy: this.strategy,
+      totalTasks: this.getTotalPendingTasks(),
     })
     return drawn
   }
@@ -1509,25 +1817,37 @@ export class KGlacerMacro {
             this.log('Control API /me sync failed', error)
           },
         )
+        this.trackAction('wplace_me_observed', {
+          source: 'fetch_interceptor',
+          accountId: this.me.id,
+          accountName: this.me.name,
+          accountCountry: this.me.country,
+        })
       }
       const pixelMatch = pixelRegExp.exec(url)
       if (pixelMatch) {
+        const position = new WorldPosition(
+          this,
+          +pixelMatch[1]!,
+          +pixelMatch[2]!,
+          +pixelMatch[3]!,
+          +pixelMatch[4]!,
+        )
         for (
           let index = 0;
           index < this.markerPixelPositionResolvers.length;
           index++
         )
-          this.markerPixelPositionResolvers[index]!(
-            new WorldPosition(
-              this,
-              +pixelMatch[1]!,
-              +pixelMatch[2]!,
-              +pixelMatch[3]!,
-              +pixelMatch[4]!,
-            ),
-          )
+          this.markerPixelPositionResolvers[index]!(position)
         this.markerPixelPositionResolvers.length = 0
         this.log('Resolved marker pixel position from network event')
+        this.trackAction('wplace_pixel_request', {
+          source: 'fetch_interceptor',
+          requestUrl: url,
+          method: this.resolveFetchMethod(request, options),
+          body: this.summarizeFetchBody(options),
+          position: this.serializeWorldPositionForTelemetry(position),
+        })
       }
       return response
     }
@@ -1543,6 +1863,63 @@ export class KGlacerMacro {
       if (typeof url === 'string') return url
     }
     return ''
+  }
+
+  protected resolveFetchMethod(
+    request: unknown,
+    options?: Parameters<Window['fetch']>[1],
+  ) {
+    if (typeof options?.method === 'string') return options.method
+    if (request && typeof request === 'object' && 'method' in request) {
+      const method = (request as { method?: unknown }).method
+      if (typeof method === 'string') return method
+    }
+    return 'GET'
+  }
+
+  protected summarizeFetchBody(options?: Parameters<Window['fetch']>[1]) {
+    const body = options?.body
+    if (!body) return null
+    if (typeof body === 'string') {
+      if (body.length > 2048) return `${body.slice(0, 2048)}…[truncated]`
+      return body
+    }
+    if (body instanceof URLSearchParams)
+      return Object.fromEntries(Array.from(body.entries()).slice(0, 50))
+    if (body instanceof FormData) {
+      const output: Record<string, unknown> = {}
+      for (const [key, value] of Array.from(body.entries()).slice(0, 50)) {
+        if (typeof value === 'string') {
+          output[key] = value
+          continue
+        }
+        const file = value as File
+        output[key] = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        }
+      }
+      return output
+    }
+    if (body instanceof Blob)
+      return {
+        type: body.type,
+        size: body.size,
+      }
+    if (body instanceof ArrayBuffer)
+      return {
+        type: 'ArrayBuffer',
+        byteLength: body.byteLength,
+      }
+    if (ArrayBuffer.isView(body))
+      return {
+        type: body.constructor.name,
+        byteLength: body.byteLength,
+      }
+    return {
+      type: typeof body,
+    }
   }
 
   /** Closes all popups */

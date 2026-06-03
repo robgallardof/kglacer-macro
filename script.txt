@@ -12,6 +12,8 @@
 // @match        *://wplace.live/*
 // @match        *://*.wplace.live/*
 // @match        *://*.hcaptcha.com/*
+// @include      https://wplace.live/*
+// @include      https://*.wplace.live/*
 // @grant        unsafeWindow
 // @grant        GM.cookie
 // @grant        GM_cookie

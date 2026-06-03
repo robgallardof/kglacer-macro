@@ -206,20 +206,48 @@ export class Widget extends Base {
     this.$widgetLogo.src = LOGO_URL
 
     // Button actions
-    this.$wopenButton.addEventListener('click', () => (this.open = !this.open))
-    this.$draw.addEventListener('click', () => this.bot.draw())
+    this.$wopenButton.addEventListener('click', () => {
+      this.open = !this.open
+      this.trackAction('widget_panel_toggled', {
+        source: 'widget_button',
+        open: this.open,
+      })
+    })
+    this.$draw.addEventListener('click', () => {
+      this.trackAction('draw_button_clicked', {
+        source: 'widget_button',
+      })
+      void this.bot.draw()
+    })
     this.$drawAndPaint.addEventListener('click', () => {
+      this.trackAction('draw_and_paint_button_clicked', {
+        source: 'widget_button',
+      })
       void this.drawAndClickPaintWhenReady()
     })
     // this.$pumpkinHunt.addEventListener('click', () => this.pumpkinHunt())
-    this.$addImage.addEventListener('click', () => this.addImage())
+    this.$addImage.addEventListener('click', () => {
+      this.trackAction('add_image_button_clicked', {
+        source: 'widget_button',
+      })
+      void this.addImage()
+    })
     this.$openConfig.addEventListener('click', () => {
+      this.trackAction('settings_opened', {
+        source: 'widget_button',
+      })
       this.openSettingsModal()
     })
     this.$mobileMinimize.addEventListener('click', () => {
       this.open = false
+      this.trackAction('widget_panel_minimized', {
+        source: 'mobile_button',
+      })
     })
     this.$mobileSettings.addEventListener('click', () => {
+      this.trackAction('settings_opened', {
+        source: 'mobile_button',
+      })
       this.openSettingsModal()
     })
     this.$mobileScrollImages.addEventListener('click', () => {
@@ -229,8 +257,14 @@ export class Widget extends Base {
         behavior: 'smooth',
         block: 'start',
       })
+      this.trackAction('mobile_scroll_images_clicked', {
+        source: 'mobile_button',
+      })
     })
     this.$captureTemplate.addEventListener('click', () => {
+      this.trackAction('capture_template_button_clicked', {
+        source: 'widget_button',
+      })
       void this.captureTemplate()
     })
     this.$toolColorConverter.addEventListener('click', () => {
@@ -261,30 +295,58 @@ export class Widget extends Base {
       this.toggleOverlay()
     })
     this.$autofarmConfig.addEventListener('click', () => {
+      this.trackAction('auto_farm_config_opened', {
+        source: 'widget_button',
+      })
       this.openAutoFarmModal()
     })
     this.$autofarmStart.addEventListener('click', () => {
+      this.trackAction('auto_farm_start_clicked', {
+        source: 'widget_button',
+      })
       this.startAutoFarm()
     })
     this.$autofarmStop.addEventListener('click', () => {
+      this.trackAction('auto_farm_stop_clicked', {
+        source: 'widget_button',
+      })
       this.stopAutoFarm()
     })
     this.$autoOverlayConfig.addEventListener('click', () => {
+      this.trackAction('auto_draw_config_opened', {
+        source: 'widget_button',
+      })
       this.openAutoOverlayModal()
     })
     this.$autoOverlayStart.addEventListener('click', () => {
+      this.trackAction('auto_draw_start_clicked', {
+        source: 'widget_button',
+      })
       this.startAutoOverlay()
     })
     this.$autoOverlayStop.addEventListener('click', () => {
+      this.trackAction('auto_draw_stop_clicked', {
+        source: 'widget_button',
+      })
       this.stopAutoOverlay()
     })
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
+      this.trackAction('bot_strategy_changed', {
+        source: 'widget_select',
+        strategy: this.bot.strategy,
+      })
     })
     this.applyImagesCollapsedPreference()
     this.$imagesSection.addEventListener('toggle', () => {
       this.persistImagesCollapsedPreference(!this.$imagesSection.open)
       this.refreshImagesCollapseText()
+      this.trackAction('widget_images_section_toggled', {
+        source: 'widget_details',
+        open: this.$imagesSection.open,
+        collapsed: !this.$imagesSection.open,
+        images: this.bot.images.length,
+      })
       if (!this.$imagesSection.open || !this.imagesListDirty) return
       this.renderImagesList()
       this.imagesListDirty = false
@@ -309,6 +371,34 @@ export class Widget extends Base {
       void this.recommendUpdateIfOutdated()
     }, 2500)
     console.log('[KGM][Widget] Widget mounted and opened')
+  }
+
+  protected trackAction(
+    action: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    this.bot.trackAction(action, {
+      source: 'widget',
+      ...metadata,
+    })
+  }
+
+  protected imageTelemetry(index: number) {
+    const image = this.bot.images[index]
+    if (!image) return { index, missing: true }
+    return this.bot.summarizeImageForTelemetry(image, index)
+  }
+
+  protected fileTelemetry(file: File) {
+    return {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+      extension: file.name.includes('.')
+        ? file.name.split('.').pop()?.toLowerCase()
+        : '',
+    }
   }
 
   protected startChallengeWatcher() {
@@ -342,83 +432,108 @@ export class Widget extends Base {
   /** Add image handler */
   public addImage() {
     console.log('[KGM][Widget] Add image flow started')
+    this.trackAction('image_add_started', {
+      source: 'widget',
+    })
     this.setDisabled('add-image', true)
     return this.run(
       t('taskAddingImage'),
       async () => {
-        await this.bot.updateColors()
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = `image/*,.${SETTINGS_EXTENSION},.wplace`
-        input.click()
-        await promisifyEventSource(input, ['change'], ['cancel', 'error'])
-        const file = input.files?.[0]
-        if (!file) throw new NoImageError(this.bot)
-        console.log('[KGM][Widget] File selected', {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-        })
-        let botImage
-        if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
-          botImage = await BotImage.fromJSON(
-            this.bot,
-            JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
-          )
-        } else if (file.name.endsWith('.wplace')) {
-          const raw = JSON.parse(await file.text()) as {
-            image?: { dataUrl?: string }
-            opacity?: number
-            name?: string
+        let fileSummary: ReturnType<Widget['fileTelemetry']> | undefined
+        try {
+          await this.bot.updateColors()
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = `image/*,.${SETTINGS_EXTENSION},.wplace`
+          input.click()
+          await promisifyEventSource(input, ['change'], ['cancel', 'error'])
+          const file = input.files?.[0]
+          if (!file) throw new NoImageError(this.bot)
+          fileSummary = this.fileTelemetry(file)
+          this.trackAction('image_file_selected', {
+            source: 'file_picker',
+            file: fileSummary,
+          })
+          console.log('[KGM][Widget] File selected', {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          })
+          let botImage
+          if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
+            botImage = await BotImage.fromJSON(
+              this.bot,
+              JSON.parse(await file.text()) as ReturnType<BotImage['toJSON']>,
+            )
+          } else if (file.name.endsWith('.wplace')) {
+            const raw = JSON.parse(await file.text()) as {
+              image?: { dataUrl?: string }
+              opacity?: number
+              name?: string
+            }
+            if (!raw.image?.dataUrl)
+              throw new Error('Invalid .wplace file: image.dataUrl missing')
+            const image = new Image()
+            image.src = raw.image.dataUrl
+            await promisifyEventSource(image, ['load'], ['error'])
+            await this.waitForStableViewportProjection()
+            botImage = new BotImage(
+              this.bot,
+              WorldPosition.fromScreenPosition(
+                this.bot,
+                this.defaultImageScreenPosition(),
+              ),
+              new Pixels(this.bot, image),
+            )
+            if (typeof raw.opacity === 'number')
+              botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
+          } else {
+            const reader = new FileReader()
+            reader.readAsDataURL(file)
+            await promisifyEventSource(reader, ['load'], ['error'])
+            const optimizedDataURL = await this.compressImageBeforeLoad(
+              reader.result as string,
+            )
+            const image = new Image()
+            image.src = optimizedDataURL
+            await promisifyEventSource(image, ['load'], ['error'])
+            await this.waitForStableViewportProjection()
+            botImage = new BotImage(
+              this.bot,
+              WorldPosition.fromScreenPosition(
+                this.bot,
+                this.defaultImageScreenPosition(),
+              ),
+              new Pixels(this.bot, image),
+            )
           }
-          if (!raw.image?.dataUrl)
-            throw new Error('Invalid .wplace file: image.dataUrl missing')
-          const image = new Image()
-          image.src = raw.image.dataUrl
-          await promisifyEventSource(image, ['load'], ['error'])
-          await this.waitForStableViewportProjection()
-          botImage = new BotImage(
-            this.bot,
-            WorldPosition.fromScreenPosition(
-              this.bot,
-              this.defaultImageScreenPosition(),
-            ),
-            new Pixels(this.bot, image),
-          )
-          if (typeof raw.opacity === 'number')
-            botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
-        } else {
-          const reader = new FileReader()
-          reader.readAsDataURL(file)
-          await promisifyEventSource(reader, ['load'], ['error'])
-          const optimizedDataURL = await this.compressImageBeforeLoad(
-            reader.result as string,
-          )
-          const image = new Image()
-          image.src = optimizedDataURL
-          await promisifyEventSource(image, ['load'], ['error'])
-          await this.waitForStableViewportProjection()
-          botImage = new BotImage(
-            this.bot,
-            WorldPosition.fromScreenPosition(
-              this.bot,
-              this.defaultImageScreenPosition(),
-            ),
-            new Pixels(this.bot, image),
-          )
+          this.bot.images.push(botImage)
+          const imageIndex = this.bot.images.length - 1
+          console.log('[KGM][Widget] Image instance added', {
+            images: this.bot.images.length,
+          })
+          this.trackAction('image_loaded', {
+            source: 'file_picker',
+            file: fileSummary,
+            image: this.imageTelemetry(imageIndex),
+            images: this.bot.images.length,
+          })
+          await this.bot.readMap()
+          botImage.updateTasks()
+          save(this.bot, true)
+          this.bot.updateTasks()
+          this.update()
+          window.setTimeout(() => {
+            globalThis.location.reload()
+          }, 120)
+        } catch (error) {
+          this.trackAction('image_load_failed', {
+            source: 'file_picker',
+            file: fileSummary ?? null,
+            reason: error instanceof Error ? error.message : 'unknown',
+          })
+          throw error
         }
-        this.bot.images.push(botImage)
-        console.log('[KGM][Widget] Image instance added', {
-          images: this.bot.images.length,
-        })
-        await this.bot.readMap()
-        botImage.updateTasks()
-        save(this.bot, true)
-        this.bot.updateTasks()
-        this.update()
-        window.setTimeout(() => {
-          globalThis.location.reload()
-        }, 120)
       },
       () => {
         this.setDisabled('add-image', false)
@@ -428,56 +543,87 @@ export class Widget extends Base {
 
   public captureTemplate() {
     this.setDisabled('capture-template', true)
+    this.trackAction('capture_template_started', {
+      source: 'widget',
+    })
     return this.run(
       t('taskCapturingMapImage'),
       async () => {
-        const selection = await this.resolveCaptureBounds()
-        const { minGlobalX, minGlobalY, maxGlobalX, maxGlobalY } = selection
-        const captured = document.createElement('canvas')
-        captured.width = Math.max(1, maxGlobalX - minGlobalX + 1)
-        captured.height = Math.max(1, maxGlobalY - minGlobalY + 1)
-        const context = captured.getContext('2d')
-        if (!context) throw new Error('Capture context unavailable')
-        context.imageSmoothingEnabled = false
-        const tileXStart = Math.floor(minGlobalX / WORLD_TILE_SIZE)
-        const tileYStart = Math.floor(minGlobalY / WORLD_TILE_SIZE)
-        const tileXEnd = Math.floor(maxGlobalX / WORLD_TILE_SIZE)
-        const tileYEnd = Math.floor(maxGlobalY / WORLD_TILE_SIZE)
-        const totalTiles =
-          (tileXEnd - tileXStart + 1) * (tileYEnd - tileYStart + 1)
-        let done = 0
+        try {
+          const selection = await this.resolveCaptureBounds()
+          const { minGlobalX, minGlobalY, maxGlobalX, maxGlobalY } = selection
+          this.trackAction('capture_template_area_selected', {
+            source: 'widget',
+            selection,
+            width: maxGlobalX - minGlobalX + 1,
+            height: maxGlobalY - minGlobalY + 1,
+          })
+          const captured = document.createElement('canvas')
+          captured.width = Math.max(1, maxGlobalX - minGlobalX + 1)
+          captured.height = Math.max(1, maxGlobalY - minGlobalY + 1)
+          const context = captured.getContext('2d')
+          if (!context) throw new Error('Capture context unavailable')
+          context.imageSmoothingEnabled = false
+          const tileXStart = Math.floor(minGlobalX / WORLD_TILE_SIZE)
+          const tileYStart = Math.floor(minGlobalY / WORLD_TILE_SIZE)
+          const tileXEnd = Math.floor(maxGlobalX / WORLD_TILE_SIZE)
+          const tileYEnd = Math.floor(maxGlobalY / WORLD_TILE_SIZE)
+          const totalTiles =
+            (tileXEnd - tileXStart + 1) * (tileYEnd - tileYStart + 1)
+          let done = 0
 
-        for (let tileX = tileXStart; tileX <= tileXEnd; tileX++)
-          for (let tileY = tileYStart; tileY <= tileYEnd; tileY++) {
-            this.status = `⌛ ${t('taskReadingTiles')} [${++done}/${totalTiles}]`
-            const tileImage = await this.loadTileImage(tileX, tileY)
-            const tileOriginX = tileX * WORLD_TILE_SIZE
-            const tileOriginY = tileY * WORLD_TILE_SIZE
-            const startX = Math.max(minGlobalX, tileOriginX)
-            const endX = Math.min(maxGlobalX, tileOriginX + WORLD_TILE_SIZE - 1)
-            const startY = Math.max(minGlobalY, tileOriginY)
-            const endY = Math.min(maxGlobalY, tileOriginY + WORLD_TILE_SIZE - 1)
-            const sourceX = startX - tileOriginX
-            const sourceY = startY - tileOriginY
-            const drawWidth = endX - startX + 1
-            const drawHeight = endY - startY + 1
-            const targetX = startX - minGlobalX
-            const targetY = startY - minGlobalY
-            context.drawImage(
-              tileImage,
-              sourceX,
-              sourceY,
-              drawWidth,
-              drawHeight,
-              targetX,
-              targetY,
-              drawWidth,
-              drawHeight,
-            )
-          }
+          for (let tileX = tileXStart; tileX <= tileXEnd; tileX++)
+            for (let tileY = tileYStart; tileY <= tileYEnd; tileY++) {
+              this.status = `⌛ ${t('taskReadingTiles')} [${++done}/${totalTiles}]`
+              const tileImage = await this.loadTileImage(tileX, tileY)
+              const tileOriginX = tileX * WORLD_TILE_SIZE
+              const tileOriginY = tileY * WORLD_TILE_SIZE
+              const startX = Math.max(minGlobalX, tileOriginX)
+              const endX = Math.min(
+                maxGlobalX,
+                tileOriginX + WORLD_TILE_SIZE - 1,
+              )
+              const startY = Math.max(minGlobalY, tileOriginY)
+              const endY = Math.min(
+                maxGlobalY,
+                tileOriginY + WORLD_TILE_SIZE - 1,
+              )
+              const sourceX = startX - tileOriginX
+              const sourceY = startY - tileOriginY
+              const drawWidth = endX - startX + 1
+              const drawHeight = endY - startY + 1
+              const targetX = startX - minGlobalX
+              const targetY = startY - minGlobalY
+              context.drawImage(
+                tileImage,
+                sourceX,
+                sourceY,
+                drawWidth,
+                drawHeight,
+                targetX,
+                targetY,
+                drawWidth,
+                drawHeight,
+              )
+            }
 
-        const timestamp = Date.now()
-        await this.downloadCapture(captured, 'png', timestamp)
+          const timestamp = Date.now()
+          await this.downloadCapture(captured, 'png', timestamp)
+          this.trackAction('capture_template_completed', {
+            source: 'widget',
+            selection,
+            width: captured.width,
+            height: captured.height,
+            totalTiles,
+            format: 'png',
+          })
+        } catch (error) {
+          this.trackAction('capture_template_failed', {
+            source: 'widget',
+            reason: error instanceof Error ? error.message : 'unknown',
+          })
+          throw error
+        }
       },
       () => {
         this.setDisabled('capture-template', false)
@@ -721,45 +867,80 @@ export class Widget extends Base {
         .querySelector<HTMLButtonElement>('.preview')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
+          this.trackAction('image_preview_opened', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.openPreviewPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.focus-map')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
+          this.trackAction('image_focus_requested', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.position.scrollScreenTo()
         })
       $image
         .querySelector<HTMLButtonElement>('.colors')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
+          this.trackAction('image_colors_opened', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.openColorPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.strategy-modal')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
+          this.trackAction('image_strategy_modal_opened', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.openPreviewPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.preview-strategy')!
         .addEventListener('click', () => {
           this.activeImageIndex = index
+          this.trackAction('image_strategy_preview_opened', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.openPreviewPanel()
         })
       $image
         .querySelector<HTMLButtonElement>('.download')!
         .addEventListener('click', () => {
+          this.trackAction('image_settings_downloaded', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.exportImage()
         })
       $image
         .querySelector<HTMLButtonElement>('.delete')!
         .addEventListener('click', () => {
+          this.trackAction('image_deleted', {
+            source: 'image_controls',
+            image: this.imageTelemetry(index),
+          })
           image.destroy()
         })
       $image
         .querySelector<HTMLButtonElement>('.up')!
         .addEventListener('click', () => {
+          this.trackAction('image_reordered', {
+            source: 'image_controls',
+            direction: 'up',
+            fromIndex: index,
+            toIndex: index - 1,
+            image: this.imageTelemetry(index),
+          })
           swap(this.bot.images, index, index - 1)
           this.update()
           save(this.bot)
@@ -767,6 +948,13 @@ export class Widget extends Base {
       $image
         .querySelector<HTMLButtonElement>('.down')!
         .addEventListener('click', () => {
+          this.trackAction('image_reordered', {
+            source: 'image_controls',
+            direction: 'down',
+            fromIndex: index,
+            toIndex: index + 1,
+            image: this.imageTelemetry(index),
+          })
           swap(this.bot.images, index, index + 1)
           this.update()
           save(this.bot)
@@ -801,6 +989,10 @@ export class Widget extends Base {
     document.body.classList.toggle('overlay-hidden', next)
     localStorage.setItem(OVERLAY_VISIBILITY_STORAGE_KEY, String(next))
     this.refreshOverlayToggleText()
+    this.trackAction('overlay_visibility_changed', {
+      source: 'widget',
+      hidden: next,
+    })
   }
 
   protected refreshOverlayToggleText() {
@@ -962,6 +1154,11 @@ export class Widget extends Base {
     $dialog
       .querySelector<HTMLButtonElement>('.script-update')!
       .addEventListener('click', () => {
+        this.trackAction('script_update_link_opened', {
+          source: 'settings_modal',
+          targetUrl:
+            'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
+        })
         globalThis.open(
           'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
           '_blank',
@@ -971,6 +1168,10 @@ export class Widget extends Base {
     $locale.addEventListener('change', () => {
       this.applyLocaleToUI($locale.value as 'en' | 'es')
       applyTranslations($dialog)
+      this.trackAction('settings_locale_changed', {
+        source: 'settings_modal',
+        locale: $locale.value,
+      })
     })
     const proxyConfig = JSON.parse(
       localStorage.getItem(PROXY_CONFIG_STORAGE_KEY) ?? '{}',
@@ -1014,6 +1215,9 @@ export class Widget extends Base {
       $accountInfoRefresh.disabled = false
     }
     $accountInfoRefresh.addEventListener('click', async () => {
+      this.trackAction('settings_account_refresh_clicked', {
+        source: 'settings_modal',
+      })
       await this.bot.refreshControlAccess('settings').catch(() => null)
       await refreshAccountInfoOutput()
     })
@@ -1027,7 +1231,7 @@ export class Widget extends Base {
     $proxyPort.value = proxyConfig.port ?? ''
     $proxyUser.value = proxyConfig.username ?? ''
     $proxyPass.value = proxyConfig.password ?? ''
-    const persistProxy = () => {
+    const persistProxy = (emitAction = true) => {
       const proxyEnabled = $proxyEnabled.checked
       const proxyHost = $proxyHost.value.trim()
       const proxyPort = $proxyPort.value.trim()
@@ -1047,6 +1251,15 @@ export class Widget extends Base {
           ? `${proxyHost}:${proxyPort}`
           : 'DIRECT/SHIELD',
       )
+      if (emitAction)
+        this.trackAction('proxy_settings_changed', {
+          source: 'settings_modal',
+          enabled: proxyEnabled,
+          host: proxyHost,
+          port: proxyPort,
+          hasUsername: Boolean($proxyUser.value.trim()),
+          hasPassword: Boolean($proxyPass.value),
+        })
     }
     const refreshPublicIpCard = async () => {
       if ($publicIpValue) $publicIpValue.textContent = t('publicIpChecking')
@@ -1075,12 +1288,17 @@ export class Widget extends Base {
     $proxyEnabled.addEventListener('change', () => {
       $proxyDetails.open = $proxyEnabled.checked
     })
-    persistProxy()
+    persistProxy(false)
     void refreshPublicIpCard()
     $proxyTest.addEventListener('click', async () => {
       persistProxy()
       const host = $proxyHost.value.trim()
       const port = $proxyPort.value.trim()
+      this.trackAction('proxy_test_started', {
+        source: 'settings_modal',
+        host,
+        port,
+      })
       $proxyTest.disabled = true
       if ($proxyOutput)
         $proxyOutput.innerHTML = `<div class="pending">⏳ ${t('proxyTesting')}</div>`
@@ -1089,12 +1307,22 @@ export class Widget extends Base {
       if ($proxyOutput)
         $proxyOutput.innerHTML = `<div class="${ok ? 'ok' : 'fail'}">${ok ? '✅' : '❌'} ${ok ? t('proxyOk') : t('proxyFail')}</div>`
       else alert(ok ? t('proxyOk') : t('proxyFail'))
+      this.trackAction('proxy_test_completed', {
+        source: 'settings_modal',
+        host,
+        port,
+        ok,
+      })
       $proxyTest.disabled = false
     })
     $shieldEnabled.addEventListener('change', () => {
       $shieldDetails.open = $shieldEnabled.checked
       this.renderShieldControls($shieldControls)
       setShieldEnabled($shieldEnabled.checked)
+      this.trackAction('shield_enabled_changed', {
+        source: 'settings_modal',
+        enabled: $shieldEnabled.checked,
+      })
       window.setTimeout(() => {
         location.reload()
       }, 120)
@@ -1118,7 +1346,7 @@ export class Widget extends Base {
         .getAccountCookieStatus({
           force: true,
           exhaustive: true,
-          timeoutMs: 750,
+          timeoutMs: 2000,
         })
         .catch(() => ({
           hasToken: false,
@@ -1147,7 +1375,7 @@ export class Widget extends Base {
       [
         t('settingsCookieJ'),
         cookieStatus.hasToken
-          ? `${t('settingsCookieJDetected')} · ${this.maskSensitiveToken(cookieStatus.token)}`
+          ? `${t('settingsCookieJDetected')} · ${cookieStatus.token ?? '—'}`
           : t('settingsCookieJNotDetected'),
       ],
       [t('settingsCookieSource'), cookieStatus.source],
@@ -1233,16 +1461,6 @@ export class Widget extends Base {
     return '—'
   }
 
-  protected maskSensitiveToken(token: string | null | undefined) {
-    if (!token) return '—'
-    if (token.length <= 28) return token
-    const parts = token.split('.')
-    if (parts.length === 3) {
-      return `${parts[0]!.slice(0, 12)}…${parts[1]!.slice(0, 12)}…${parts[2]!.slice(-12)}`
-    }
-    return `${token.slice(0, 16)}…${token.slice(-12)}`
-  }
-
   protected renderShieldControls(container: HTMLDivElement) {
     const SETTINGS_KEY = '__afm_settings'
     const PROFILE_KEY = '__afm_profile'
@@ -1309,6 +1527,11 @@ export class Widget extends Base {
           const key = input.dataset.shieldKey!
           merged[key] = input.checked
           localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged))
+          this.trackAction('shield_module_changed', {
+            source: 'shield_settings',
+            key,
+            enabled: input.checked,
+          })
           window.setTimeout(() => {
             location.reload()
           }, 120)
@@ -1328,6 +1551,10 @@ export class Widget extends Base {
             JSON.stringify(selectedProfile ?? { id: selected }),
           )
         }
+        this.trackAction('shield_profile_changed', {
+          source: 'shield_settings',
+          profileId: selected || 'auto',
+        })
         location.reload()
       })
     container
@@ -1338,6 +1565,10 @@ export class Widget extends Base {
         )
         if (!output) return
         const checks = this.runShieldChecker()
+        this.trackAction('shield_checker_run', {
+          source: 'shield_settings',
+          checks,
+        })
         output.innerHTML = checks
           .map(
             (check) =>
@@ -1348,11 +1579,17 @@ export class Widget extends Base {
     container
       .querySelector<HTMLButtonElement>('.shield-info')
       ?.addEventListener('click', () => {
+        this.trackAction('shield_info_opened', {
+          source: 'shield_settings',
+        })
         this.openShieldInfoModal()
       })
     container
       .querySelector<HTMLButtonElement>('.shield-refresh-profile')
       ?.addEventListener('click', () => {
+        this.trackAction('shield_profile_refreshed', {
+          source: 'shield_settings',
+        })
         localStorage.removeItem(PROFILE_KEY)
         localStorage.removeItem(PROFILE_EXPIRY_KEY)
         location.reload()
@@ -1617,6 +1854,10 @@ export class Widget extends Base {
     this.autoFarmIntervalId = undefined
     this.autoFarmNextTickAt = undefined
     this.refreshAutoFarmStatusText()
+    this.trackAction('auto_farm_stopped', {
+      source: 'widget',
+      config: this.autoFarmConfig ?? null,
+    })
   }
 
   protected stopAutoOverlay() {
@@ -1625,12 +1866,20 @@ export class Widget extends Base {
     this.autoOverlayIntervalId = undefined
     this.autoOverlayNextTickAt = undefined
     this.refreshAutoOverlayStatusText()
+    this.trackAction('auto_draw_stopped', {
+      source: 'widget',
+      config: this.autoOverlayConfig ?? null,
+    })
   }
 
   protected startAutoFarm() {
     if (!this.autoFarmConfig) {
       this.status = `⚠️ ${t('autoFarmNeedsConfig')}`
       this.refreshAutoFarmStatusText()
+      this.trackAction('auto_farm_start_failed', {
+        source: 'widget',
+        reason: 'missing_config',
+      })
       return
     }
     this.stopAutoFarm()
@@ -1641,12 +1890,21 @@ export class Widget extends Base {
     }, this.autoFarmConfig.timerMs)
     void this.runAutoFarmCycle()
     this.refreshAutoFarmStatusText()
+    this.trackAction('auto_farm_started', {
+      source: 'widget',
+      config: this.autoFarmConfig,
+      nextTickAt: this.autoFarmNextTickAt,
+    })
   }
 
   protected startAutoOverlay() {
     if (!this.autoOverlayConfig) {
       this.status = `⚠️ ${t('autoOverlayNeedsConfig')}`
       this.refreshAutoOverlayStatusText()
+      this.trackAction('auto_draw_start_failed', {
+        source: 'widget',
+        reason: 'missing_config',
+      })
       return
     }
     this.stopAutoOverlay()
@@ -1657,22 +1915,46 @@ export class Widget extends Base {
     }, this.autoOverlayConfig.timerMs)
     void this.runAutoOverlayCycle()
     this.refreshAutoOverlayStatusText()
+    this.trackAction('auto_draw_started', {
+      source: 'widget',
+      config: this.autoOverlayConfig,
+      nextTickAt: this.autoOverlayNextTickAt,
+    })
   }
 
   protected async runAutoFarmCycle() {
     if (!this.autoFarmConfig || this.autoFarmTickRunning) return
     this.autoFarmTickRunning = true
+    const pixels = this.resolveCyclePixelCount(this.autoFarmConfig)
+    this.trackAction('auto_farm_cycle_started', {
+      source: 'widget',
+      config: this.autoFarmConfig,
+      pixels,
+    })
     try {
-      const painted = await this.bot.drawRandomPixelsBatch(
-        this.resolveCyclePixelCount(this.autoFarmConfig),
-        0,
-      )
+      const painted = await this.bot.drawRandomPixelsBatch(pixels, 0)
       if (!painted) {
         this.status = `⚠️ ${t('autoFarmStopped')}: ${t('autoFarmTransparentUnavailable')}`
+        this.trackAction('auto_farm_cycle_stopped_no_pixels', {
+          source: 'widget',
+          pixels,
+        })
         this.stopAutoFarm()
         return
       }
       await this.waitAndClickPaintButton()
+      this.trackAction('auto_farm_cycle_completed', {
+        source: 'widget',
+        pixels,
+        painted,
+      })
+    } catch (error) {
+      this.trackAction('auto_farm_cycle_failed', {
+        source: 'widget',
+        pixels,
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
+      throw error
     } finally {
       this.autoFarmTickRunning = false
     }
@@ -1681,16 +1963,36 @@ export class Widget extends Base {
   protected async runAutoOverlayCycle() {
     if (!this.autoOverlayConfig || this.autoOverlayTickRunning) return
     this.autoOverlayTickRunning = true
+    const pixels = this.resolveCyclePixelCount(this.autoOverlayConfig)
+    this.trackAction('auto_draw_cycle_started', {
+      source: 'widget',
+      config: this.autoOverlayConfig,
+      pixels,
+    })
     try {
-      const painted = await this.bot.drawOverlayPixelsBatch(
-        this.resolveCyclePixelCount(this.autoOverlayConfig),
-      )
+      const painted = await this.bot.drawOverlayPixelsBatch(pixels)
       if (!painted) {
         this.status = `⚠️ ${t('autoOverlayStopped')}: ${t('autoOverlayNoTasks')}`
+        this.trackAction('auto_draw_cycle_stopped_no_tasks', {
+          source: 'widget',
+          pixels,
+        })
         this.stopAutoOverlay()
         return
       }
       await this.waitAndClickPaintButton()
+      this.trackAction('auto_draw_cycle_completed', {
+        source: 'widget',
+        pixels,
+        painted,
+      })
+    } catch (error) {
+      this.trackAction('auto_draw_cycle_failed', {
+        source: 'widget',
+        pixels,
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
+      throw error
     } finally {
       this.autoOverlayTickRunning = false
     }
@@ -1702,6 +2004,10 @@ export class Widget extends Base {
     saveControlSettings({
       farm: this.toControlPixelSettings(config),
     })
+    this.trackAction('auto_farm_config_saved', {
+      source: 'widget',
+      config,
+    })
   }
 
   protected saveAutoOverlayConfig(config: AutoOverlayConfig) {
@@ -1712,6 +2018,10 @@ export class Widget extends Base {
     )
     saveControlSettings({
       autoDraw: this.toControlPixelSettings(config),
+    })
+    this.trackAction('auto_draw_config_saved', {
+      source: 'widget',
+      config,
     })
   }
 
@@ -2221,7 +2531,14 @@ export class Widget extends Base {
       | 'quackr'
       | 'textverified',
   ) {
-    this.openUrlInNewTab(this.buildExternalToolUrl(tool))
+    const targetUrl = this.buildExternalToolUrl(tool)
+    this.trackAction('external_tool_opened', {
+      source: 'widget',
+      tool,
+      targetUrl,
+      wplaceLocation: this.getCurrentWplaceLocation() ?? null,
+    })
+    this.openUrlInNewTab(targetUrl)
   }
 
   protected openUrlInNewTab(url: string) {
@@ -2279,106 +2596,191 @@ export class Widget extends Base {
     if (matchesShortcut(event, SHORTCUTS.toggleWidget)) {
       event.preventDefault()
       this.open = !this.open
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'toggleWidget',
+        open: this.open,
+      })
       return
     }
     if (matchesShortcut(event, SHORTCUTS.minimizeWidget)) {
       event.preventDefault()
       this.open = false
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'minimizeWidget',
+      })
       return
     }
     if (matchesShortcut(event, SHORTCUTS.showWidgetPanel)) {
       event.preventDefault()
       this.open = true
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'showWidgetPanel',
+      })
       return
     }
     if (matchesShortcut(event, SHORTCUTS.hideWidgetPanel)) {
       event.preventDefault()
       this.open = false
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'hideWidgetPanel',
+      })
       return
     }
     if (matchesShortcut(event, SHORTCUTS.showShortcuts)) {
       event.preventDefault()
       this.open = true
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'showShortcuts',
+      })
       this.openSettingsModal()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.toggleOverlay)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'toggleOverlay',
+      })
       this.toggleOverlay()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.focusNextImage)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'focusNextImage',
+      })
       this.focusImageByStep(1)
       return
     }
     if (matchesShortcut(event, SHORTCUTS.focusPreviousImage)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'focusPreviousImage',
+      })
       this.focusImageByStep(-1)
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openColorPanel)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openColorPanel',
+      })
       this.openColorPanelForActiveImage()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.toggleImageLock)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'toggleImageLock',
+      })
       this.toggleLockForActiveImage()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.clickPaintWhenReady)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'clickPaintWhenReady',
+      })
       void this.drawAndClickPaintWhenReady()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.startAutoFarm)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'startAutoFarm',
+      })
       this.startAutoFarm()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.stopAutoFarm)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'stopAutoFarm',
+      })
       this.stopAutoFarm()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openColorConverterTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openColorConverterTool',
+      })
       this.openExternalTool('colorConverter')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openSamuelArchiveTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openSamuelArchiveTool',
+      })
       this.openExternalTool('samuelArchive')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openEralyonArchiveTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openEralyonArchiveTool',
+      })
       this.openExternalTool('eralyonArchive')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openReceiveSmssTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openReceiveSmssTool',
+      })
       this.openExternalTool('receiveSmss')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openEsimplusTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openEsimplusTool',
+      })
       this.openExternalTool('esimplus')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openReceiveSmsFreeTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openReceiveSmsFreeTool',
+      })
       this.openExternalTool('receiveSmsFree')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openQuackrTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openQuackrTool',
+      })
       this.openExternalTool('quackr')
       return
     }
     if (matchesShortcut(event, SHORTCUTS.openTextverifiedTool)) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'openTextverifiedTool',
+      })
       this.openExternalTool('textverified')
       return
     }
@@ -2387,11 +2789,19 @@ export class Widget extends Base {
       !this.$addImage.disabled
     ) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'addImage',
+      })
       void this.addImage()
       return
     }
     if (matchesShortcut(event, SHORTCUTS.draw) && !this.$draw.disabled) {
       event.preventDefault()
+      this.trackAction('shortcut_used', {
+        source: 'keyboard',
+        shortcut: 'draw',
+      })
       void this.bot.draw()
     }
   }
@@ -2407,6 +2817,11 @@ export class Widget extends Base {
       this.activeImageIndex =
         (this.activeImageIndex + step + this.bot.images.length) %
         this.bot.images.length
+    this.trackAction('active_image_focused', {
+      source: 'widget',
+      step,
+      image: this.imageTelemetry(this.activeImageIndex),
+    })
     this.bot.images[this.activeImageIndex]!.position.scrollScreenTo()
   }
 
@@ -2466,6 +2881,10 @@ export class Widget extends Base {
   protected openColorPanelForActiveImage() {
     const image = this.getActiveImage()
     if (!image) return
+    this.trackAction('active_image_colors_opened', {
+      source: 'widget',
+      image: this.imageTelemetry(this.activeImageIndex),
+    })
     image.openColorPanel()
   }
 
@@ -2473,14 +2892,25 @@ export class Widget extends Base {
     const image = this.getActiveImage()
     if (!image) return
     image.lock = !image.lock
+    this.trackAction('active_image_lock_changed', {
+      source: 'widget',
+      locked: image.lock,
+      image: this.imageTelemetry(this.activeImageIndex),
+    })
     image.update()
     save(this.bot)
   }
 
   protected async waitAndClickPaintButton() {
+    this.trackAction('paint_button_wait_started', {
+      source: 'widget',
+    })
     await this.run(t('taskWaitingPaintButton'), async () => {
       for (;;) {
         if (this.isChallengeBlockingPaint()) {
+          this.trackAction('paint_blocked_by_challenge', {
+            source: 'widget',
+          })
           await this.waitForChallengeToResolve()
           await new Promise((resolve) => setTimeout(resolve, 250))
           continue
@@ -2488,6 +2918,9 @@ export class Widget extends Base {
         const button = this.findNativePaintButton()
         if (button && !button.disabled && button.ariaDisabled !== 'true') {
           await this.triggerNativePaintClickWithChallengeRecovery(button)
+          this.trackAction('paint_button_flow_completed', {
+            source: 'widget',
+          })
           return
         }
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -2496,8 +2929,15 @@ export class Widget extends Base {
   }
 
   protected async drawAndClickPaintWhenReady() {
+    this.trackAction('draw_and_paint_started', {
+      source: 'widget',
+      drawButtonEnabled: !this.$draw.disabled,
+    })
     if (!this.$draw.disabled) await this.bot.draw()
     await this.waitAndClickPaintButton()
+    this.trackAction('draw_and_paint_completed', {
+      source: 'widget',
+    })
   }
 
   protected findNativePaintButton() {
@@ -2557,8 +2997,20 @@ export class Widget extends Base {
       if (!candidate) return
       if (candidate.disabled || candidate.ariaDisabled === 'true') return
 
+      this.trackAction('native_paint_clicked', {
+        source: 'widget',
+        attempt: attempt + 1,
+        maxAttempts,
+        buttonText: candidate.textContent.trim(),
+      })
       this.triggerNativePaintClick(candidate)
       const outcome = await this.waitForPaintAttemptOutcome(6_000)
+      this.trackAction('native_paint_attempt_result', {
+        source: 'widget',
+        attempt: attempt + 1,
+        maxAttempts,
+        outcome,
+      })
       if (outcome === 'painted') return
 
       if (outcome === 'challenge') {

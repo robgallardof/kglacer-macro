@@ -64,7 +64,12 @@ export type AccountCookieStatus = {
   source: string
 }
 
-export type ControlCheckEventType = 'check' | 'heartbeat' | 'painted' | 'denied'
+export type ControlCheckEventType =
+  | 'check'
+  | 'heartbeat'
+  | 'action'
+  | 'painted'
+  | 'denied'
 
 export class ControlApiError extends Error {
   public constructor(
