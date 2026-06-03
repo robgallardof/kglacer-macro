@@ -95,13 +95,9 @@ export function readControlSession(): ControlSession | null {
       null,
     )
   if (!session?.accessToken) return null
-  if (
-    session.expiresAt &&
-    new Date(session.expiresAt).getTime() <= Date.now()
-  ) {
-    clearControlSession()
-    return null
-  }
+  // Do not discard an already validated serial just because the client-side
+  // session timestamp is old. The Control API remains the source of truth and
+  // can renew or deny this signed license token on the next check.
   const serialized = JSON.stringify(session)
   sessionStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)
   localStorage.setItem(CONTROL_SESSION_STORAGE_KEY, serialized)

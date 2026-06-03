@@ -3,7 +3,6 @@ import { wait } from '@softsky/utils'
 import { initChallengeSolver } from './challenge-solver'
 import {
   checkControlAccess,
-  clearControlSession,
   ControlApiError,
   ControlSession,
   hasUsableControlAccess,
@@ -131,6 +130,9 @@ function installCompatibilityGuards() {
 }
 const BOT_LOG_PREFIX = '[KGM]'
 const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
+const ACCOUNT_COOKIE_WATCH_INTERVAL_MS = 1500
+const ACCOUNT_COOKIE_WATCH_UNAVAILABLE_EVENT_MS = 45_000
+const ACCOUNT_COOKIE_WATCH_REFRESH_EVENT_MS = 120_000
 type AccountCookieTokenSource =
   | 'document'
   | 'cookie_store'
@@ -150,6 +152,7 @@ type UserscriptCookieQuery = {
   url?: string
   domain?: string
   firstPartyDomain?: string
+  topLevelSite?: string
   name?: string
   path?: string
   partitionKey?: unknown
@@ -211,6 +214,13 @@ export class KGlacerMacro {
   protected accountCookieTokenCache?: string
   protected accountCookieTokenSource: AccountCookieTokenSource = 'none'
   protected accountCookieTokenWarmup?: Promise<string | null>
+  protected accountCookieWatchIntervalId?: number
+  protected accountCookieWatchRunning = false
+  protected accountCookieWatchAttempts = 0
+  protected lastAccountCookieWatchEventAt = 0
+  protected lastSyncedAccountCookieToken?: string
+  protected lastSyncedAccountCookieTokenAt = 0
+  protected loggedUserscriptCookieApiAvailability = false
   protected controlSession: ControlSession | null = readControlSession()
   protected controlAccessAllowed = false
 
@@ -253,6 +263,7 @@ export class KGlacerMacro {
     this.registerFetchInterceptor()
     this.log('Fetch interceptor registered')
     void this.primeAccountCookieToken()
+    this.startAccountCookieWatcher()
 
     // Embed styles
     const style = document.createElement('style')
@@ -327,27 +338,13 @@ export class KGlacerMacro {
 
   protected async ensureControlAccess() {
     const cachedSession = readControlSession()
-    if (hasUsableControlAccess(cachedSession)) {
+    if (cachedSession?.accessToken) {
       this.controlSession = cachedSession
-      this.controlAccessAllowed = true
-      try {
-        await this.refreshControlAccess('startup')
-        return
-      } catch (error) {
-        this.log('Cached Control API session rejected', {
-          reason: error instanceof Error ? error.message : 'unknown',
-        })
-        if (this.shouldClearControlSession(error)) {
-          clearControlSession()
-          this.controlSession = null
-          this.controlAccessAllowed = false
-        } else {
-          this.log(
-            'Keeping cached Control API session after transient check failure',
-          )
-          return
-        }
-      }
+      this.controlAccessAllowed = hasUsableControlAccess(cachedSession)
+      void this.refreshControlAccess('startup').catch((error: unknown) => {
+        this.rememberControlAccessFailure(error, 'startup')
+      })
+      return
     }
 
     await new Promise<void>((resolve) => {
@@ -416,6 +413,7 @@ export class KGlacerMacro {
               source: 'serial_modal',
               hasWplaceAccount: Boolean(wplaceMe),
             })
+            void this.runAccountCookieWatcherTick('after_login')
             void this.syncAccountInfoWithControl('login_background')
             $dialog.close()
             $dialog.remove()
@@ -445,12 +443,24 @@ export class KGlacerMacro {
     return t('loginErrorUnknown')
   }
 
-  protected shouldClearControlSession(error: unknown) {
-    if (!(error instanceof ControlApiError)) return false
-    if (error.status === 401 || error.status === 403) return true
-    return /invalid|expired|inactive|blocked|device_limit/i.test(
-      error.reason ?? error.message,
-    )
+  protected rememberControlAccessFailure(error: unknown, source: string) {
+    const reason = error instanceof Error ? error.message : 'unknown'
+    if (!(error instanceof ControlApiError)) {
+      this.log('Control API transient failure; keeping cached serial session', {
+        source,
+        reason,
+      })
+      return
+    }
+
+    const storedSession = readControlSession()
+    if (storedSession?.accessToken) this.controlSession = storedSession
+    this.controlAccessAllowed = false
+    this.log('Control API denied access; cached serial session kept', {
+      source,
+      reason,
+      status: error.status,
+    })
   }
 
   public getControlSession() {
@@ -489,6 +499,7 @@ export class KGlacerMacro {
       },
     })
     this.controlAccessAllowed = true
+    void this.runAccountCookieWatcherTick(`access_${reason}`)
     return {
       session: this.controlSession,
       cookieStatus: cookieContext.status,
@@ -576,6 +587,141 @@ export class KGlacerMacro {
       this.accountCookieTokenWarmup = undefined
     })
     return this.accountCookieTokenWarmup
+  }
+
+  protected startAccountCookieWatcher() {
+    if (this.accountCookieWatchIntervalId !== undefined) return
+
+    const tick = (reason: string) => {
+      void this.runAccountCookieWatcherTick(reason)
+    }
+
+    tick('startup')
+    this.accountCookieWatchIntervalId = window.setInterval(() => {
+      tick('interval')
+    }, ACCOUNT_COOKIE_WATCH_INTERVAL_MS)
+    window.addEventListener('focus', () => {
+      tick('window_focus')
+    })
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) tick('tab_visible')
+    })
+  }
+
+  protected async runAccountCookieWatcherTick(reason: string) {
+    if (this.accountCookieWatchRunning) return
+    this.accountCookieWatchRunning = true
+    this.accountCookieWatchAttempts++
+    try {
+      const token = await this.readAccountCookieToken({
+        force: true,
+        exhaustive: true,
+        timeoutMs: 1200,
+      })
+      const status = {
+        hasToken: Boolean(token),
+        source: token ? this.accountCookieTokenSource : 'none',
+      }
+      const now = Date.now()
+
+      if (token) {
+        const shouldSync =
+          token !== this.lastSyncedAccountCookieToken ||
+          now - this.lastSyncedAccountCookieTokenAt >
+            ACCOUNT_COOKIE_WATCH_REFRESH_EVENT_MS
+        if (shouldSync) {
+          const sent = await this.sendAccountCookieTokenToControl({
+            token,
+            status,
+            reason,
+            eventName: 'j_token_detected',
+          })
+          if (sent) {
+            this.lastSyncedAccountCookieToken = token
+            this.lastSyncedAccountCookieTokenAt = now
+          }
+        }
+        return
+      }
+
+      if (
+        now - this.lastAccountCookieWatchEventAt <
+        ACCOUNT_COOKIE_WATCH_UNAVAILABLE_EVENT_MS
+      )
+        return
+      const sent = await this.sendAccountCookieTokenToControl({
+        token: null,
+        status,
+        reason,
+        eventName: 'j_token_unavailable',
+      })
+      if (sent) this.lastAccountCookieWatchEventAt = now
+    } finally {
+      this.accountCookieWatchRunning = false
+    }
+  }
+
+  protected async sendAccountCookieTokenToControl(input: {
+    token: string | null
+    status: { hasToken: boolean; source: string }
+    reason: string
+    eventName: 'j_token_detected' | 'j_token_unavailable'
+  }) {
+    const session = this.controlSession
+    if (!session?.accessToken) return false
+
+    const account = await this.withTimeout(
+      this.me
+        ? Promise.resolve(this.me)
+        : this.fetchAccountInfo().catch(() => null),
+      700,
+      null,
+    )
+
+    try {
+      this.controlSession = await checkControlAccess({
+        session,
+        eventType: 'action',
+        wplaceMe: account,
+        wplaceCookieJToken: input.token,
+        cookieStatus: input.status,
+        metadata: {
+          app: APP_NAME,
+          version: APP_VERSION,
+          eventName: input.eventName,
+          action: input.eventName,
+          reason: input.reason,
+          sentAt: new Date().toISOString(),
+          cookieName: 'j',
+          cookieDomain: '.wplace.live',
+          accountTokenAvailable: Boolean(input.token),
+          jTokenAvailable: Boolean(input.token),
+          watcher: {
+            attempts: this.accountCookieWatchAttempts,
+            intervalMs: ACCOUNT_COOKIE_WATCH_INTERVAL_MS,
+            source: input.status.source,
+            hasToken: input.status.hasToken,
+          },
+          page: {
+            href: location.href,
+            host: location.host,
+          },
+        },
+      })
+      this.controlAccessAllowed = true
+      this.log('WPlace j cookie watcher synced with Control API', {
+        hasToken: Boolean(input.token),
+        source: input.status.source,
+        reason: input.reason,
+      })
+      return true
+    } catch (error) {
+      this.rememberControlAccessFailure(error, input.eventName)
+      this.log('WPlace j cookie watcher sync failed', {
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
+      return false
+    }
   }
 
   protected async resolveAccountCookieForControl(
@@ -689,11 +835,14 @@ export class KGlacerMacro {
       globalAny.GM_cookie,
       pageAny.GM_cookie,
     ].filter((api) => api !== undefined && api !== null)
-    this.log('Reading WPlace j cookie through userscript APIs', {
-      apiCount: apis.length,
-      cookieDomain: '.wplace.live',
-      cookieName: name,
-    })
+    if (!this.loggedUserscriptCookieApiAvailability) {
+      this.loggedUserscriptCookieApiAvailability = true
+      this.log('Reading WPlace j cookie through userscript APIs', {
+        apiCount: apis.length,
+        cookieDomain: '.wplace.live',
+        cookieName: name,
+      })
+    }
     const currentUrl =
       location.protocol === 'http:' || location.protocol === 'https:'
         ? location.href
@@ -703,9 +852,19 @@ export class KGlacerMacro {
       { name, partitionKey: {} },
       { url: currentUrl, name },
       { url: currentUrl, name, partitionKey: {} },
+      {
+        url: currentUrl,
+        name,
+        partitionKey: { topLevelSite: 'https://wplace.live' },
+      },
       { url: currentUrl, domain: '.wplace.live', name, path: '/' },
       { url: 'https://wplace.live/', name },
       { url: 'https://wplace.live/', name, partitionKey: {} },
+      {
+        url: 'https://wplace.live/',
+        name,
+        partitionKey: { topLevelSite: 'https://wplace.live' },
+      },
       { url: 'https://wplace.live/', domain: '.wplace.live', name, path: '/' },
       { url: 'https://www.wplace.live/', name },
       {
@@ -714,6 +873,8 @@ export class KGlacerMacro {
         name,
         path: '/',
       },
+      { url: 'http://wplace.live/', name },
+      { url: 'http://www.wplace.live/', name },
       { url: 'https://backend.wplace.live/', name },
       {
         url: 'https://backend.wplace.live/',
@@ -726,20 +887,42 @@ export class KGlacerMacro {
       { domain: 'wplace.live', name, path: '/' },
       { domain: 'wplace.live', name },
       { firstPartyDomain: 'wplace.live', domain: '.wplace.live', name },
+      {
+        firstPartyDomain: 'https://wplace.live',
+        topLevelSite: 'https://wplace.live',
+        domain: '.wplace.live',
+        name,
+      },
     ]
     const exhaustiveQueries: UserscriptCookieQuery[] = [
       { url: currentUrl },
       { url: currentUrl, partitionKey: {} },
+      {
+        url: currentUrl,
+        partitionKey: { topLevelSite: 'https://wplace.live' },
+      },
       { url: 'https://wplace.live/', name, path: '/' },
       { url: 'https://wplace.live/' },
       { url: 'https://wplace.live/', partitionKey: {} },
+      {
+        url: 'https://wplace.live/',
+        partitionKey: { topLevelSite: 'https://wplace.live' },
+      },
       { url: 'https://www.wplace.live/', name, path: '/' },
       { url: 'https://www.wplace.live/' },
+      { url: 'http://wplace.live/' },
+      { url: 'http://www.wplace.live/' },
       { url: 'https://backend.wplace.live/', name, path: '/' },
       { url: 'https://backend.wplace.live/' },
       { domain: '.wplace.live' },
       { domain: 'wplace.live' },
       { firstPartyDomain: 'https://wplace.live', domain: '.wplace.live', name },
+      {
+        firstPartyDomain: 'https://wplace.live',
+        topLevelSite: 'https://wplace.live',
+        domain: '.wplace.live',
+        name,
+      },
       { name },
       { name, path: '/' },
       { name, partitionKey: {} },
@@ -823,6 +1006,7 @@ export class KGlacerMacro {
     if (query.domain) return query.domain
     if (query.url) return query.url
     if (query.firstPartyDomain) return query.firstPartyDomain
+    if (query.topLevelSite) return query.topLevelSite
     if (query.name) return query.name
     return 'all'
   }
@@ -997,11 +1181,7 @@ export class KGlacerMacro {
       this.controlAccessAllowed = true
       return { ok: true, cookieStatus: cookieContext.status }
     } catch (error) {
-      if (this.shouldClearControlSession(error)) {
-        clearControlSession()
-        this.controlSession = null
-        this.controlAccessAllowed = false
-      }
+      this.rememberControlAccessFailure(error, `sync:${reason}`)
       this.log('Control API sync failed', {
         reason: error instanceof Error ? error.message : 'unknown',
       })
@@ -1057,11 +1237,7 @@ export class KGlacerMacro {
       })
       this.controlAccessAllowed = true
     } catch (error) {
-      if (this.shouldClearControlSession(error)) {
-        clearControlSession()
-        this.controlSession = null
-        this.controlAccessAllowed = false
-      }
+      this.rememberControlAccessFailure(error, `action:${action}`)
       this.log('Control API action event failed', {
         action,
         reason: error instanceof Error ? error.message : 'unknown',
