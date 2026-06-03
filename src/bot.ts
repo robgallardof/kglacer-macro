@@ -2,6 +2,14 @@ import { wait } from '@softsky/utils'
 
 import { initChallengeSolver } from './challenge-solver'
 import {
+  checkControlAccess,
+  clearControlSession,
+  ControlSession,
+  hasUsableControlAccess,
+  loginToControlApi,
+  readControlSession,
+} from './control-api'
+import {
   applyTranslations,
   availableLocales,
   getLocale,
@@ -12,8 +20,9 @@ import { BotImage, DrawTask } from './image'
 import { Pixels } from './pixels'
 import { loadSave } from './save'
 import { applyShield, ProxyConfig } from './shield'
-// @ts-ignore
 import css from './style.css' with { type: 'text' }
+import { APP_NAME, APP_VERSION } from './version'
+// @ts-ignore
 import { BotStrategy, Widget } from './widget'
 import {
   addFavoriteLocation,
@@ -26,6 +35,7 @@ import {
 
 export type Me = {
   allianceId: number
+  allianceName?: string
   allianceRole: string
   banned: false
   charges: { cooldownMs: number; count: number; max: number }
@@ -51,6 +61,9 @@ export type Me = {
   needsPhoneVerification: boolean
   picture: string
   pixelsPainted: number
+  role?: string
+  rulesRead?: boolean
+  showDiscord?: boolean
   showLastPixel: boolean
   suspensionReason: string
   timeoutUntil: string
@@ -116,9 +129,37 @@ function installCompatibilityGuards() {
   }
 }
 const BOT_LOG_PREFIX = '[KGM]'
-const ACCESS_KEY_STORAGE_KEY = 'kglacer-macro:access-ok'
-const ACCESS_SERIAL_B64 = 'S0dNLXlZUjhTMW81bEhVemVjS1RFMEhxRVB4OVFkcjgxaEVz'
 const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
+type AccountCookieTokenSource =
+  | 'document'
+  | 'cookie_store'
+  | 'gm_cookie'
+  | 'none'
+type UserscriptCookie = {
+  name?: string
+  value?: string
+}
+type UserscriptCookieQuery = {
+  url?: string
+  domain?: string
+  name?: string
+  path?: string
+}
+type UserscriptCookieCallback = (...args: unknown[]) => void
+type UserscriptCookieApiFunction = (
+  method: 'get' | 'list',
+  query: UserscriptCookieQuery,
+  callback: UserscriptCookieCallback,
+) => unknown
+type UserscriptCookieApiObject = Partial<
+  Record<
+    'get' | 'list',
+    (
+      query: UserscriptCookieQuery,
+      callback: UserscriptCookieCallback,
+    ) => unknown
+  >
+>
 
 /**
  * Main class. Initializes everything.
@@ -157,6 +198,11 @@ export class KGlacerMacro {
 
   /** Last color drawn */
   protected lastColor?: number
+
+  protected accountCookieTokenCache?: string
+  protected accountCookieTokenSource: AccountCookieTokenSource = 'none'
+  protected controlSession: ControlSession | null = readControlSession()
+  protected controlAccessAllowed = false
 
   protected log(message: string, payload?: unknown) {
     if (payload === undefined) console.log(`${BOT_LOG_PREFIX} ${message}`)
@@ -199,7 +245,7 @@ export class KGlacerMacro {
 
     // Embed styles
     const style = document.createElement('style')
-    style.textContent = (css as string).replace(
+    style.textContent = css.replace(
       'FAKE_FAVORITE_LOCATIONS',
       FAVORITE_LOCATIONS.length.toString(),
     )
@@ -210,7 +256,7 @@ export class KGlacerMacro {
 
     void (async () => {
       this.log('Widget initialization flow started')
-      await this.ensureAccessKey()
+      await this.ensureControlAccess()
       document.body.classList.remove(ACCESS_LOCKED_CLASS)
       this._widget = new Widget(this)
       await this.widget.run(t('taskInitializing'), async () => {
@@ -263,31 +309,47 @@ export class KGlacerMacro {
     })()
   }
 
-  protected async ensureAccessKey() {
-    if (localStorage.getItem(ACCESS_KEY_STORAGE_KEY) === ACCESS_SERIAL_B64)
-      return
+  protected async ensureControlAccess() {
+    const cachedSession = readControlSession()
+    if (hasUsableControlAccess(cachedSession)) {
+      this.controlSession = cachedSession
+      try {
+        await this.refreshControlAccess('startup')
+        return
+      } catch (error) {
+        this.log('Cached Control API session rejected', {
+          reason: error instanceof Error ? error.message : 'unknown',
+        })
+        clearControlSession()
+        this.controlSession = null
+        this.controlAccessAllowed = false
+      }
+    }
+
     await new Promise<void>((resolve) => {
       const $dialog = document.createElement('dialog')
       $dialog.className = 'kgm-modal access-dialog'
       $dialog.innerHTML = `<form method="dialog" class="access-form">
   <div class="kgm-modal-head">
-    <strong data-i18n="accessTitle">Access key</strong>
+    <strong data-i18n="loginTitle">Login</strong>
   </div>
-  <p data-i18n="accessHelp">Enter your serial key to continue.</p>
+  <p data-i18n="loginHelp">Sign in with your Control API account.</p>
   <label class="access-label">
-    <span data-i18n="accessInputLabel">Serial key</span>
-    <input class="access-input" type="password" required data-i18n-placeholder="accessInputPlaceholder" placeholder="KGM-********" />
+    <span data-i18n="loginSerialKey">Serial key</span>
+    <input class="access-serial" type="password" required data-i18n-placeholder="accessInputPlaceholder" placeholder="KGM-********" />
   </label>
   <label class="access-label">
     <span data-i18n="language">Language</span>
     <select class="access-locale"></select>
   </label>
-  <button type="submit" class="access-submit" data-i18n="accessContinue">Continue</button>
+  <button type="submit" class="access-submit" data-i18n="loginSubmit">Continue</button>
   <small class="access-error" role="alert" aria-live="assertive"></small>
 </form>`
       document.body.append($dialog)
       applyTranslations($dialog)
-      const $input = $dialog.querySelector<HTMLInputElement>('.access-input')!
+      const $serial = $dialog.querySelector<HTMLInputElement>('.access-serial')!
+      const $submit =
+        $dialog.querySelector<HTMLButtonElement>('.access-submit')!
       const $error = $dialog.querySelector<HTMLElement>('.access-error')!
       const $locale =
         $dialog.querySelector<HTMLSelectElement>('.access-locale')!
@@ -306,23 +368,404 @@ export class KGlacerMacro {
       })
       $dialog.querySelector('form')!.addEventListener('submit', (event) => {
         event.preventDefault()
-        const expectedSerial = atob(ACCESS_SERIAL_B64)
-        if ($input.value.trim() !== expectedSerial) {
-          $error.textContent = t('invalidAccessKey')
-          return
-        }
-        localStorage.setItem(ACCESS_KEY_STORAGE_KEY, ACCESS_SERIAL_B64)
-        $dialog.close()
-        $dialog.remove()
-        resolve()
+        $error.textContent = ''
+        $submit.disabled = true
+        $submit.textContent = t('loginChecking')
+        void (async () => {
+          try {
+            const wplaceMe = await this.fetchAccountInfo(true).catch(() => null)
+            const wplaceCookieJToken = await this.readAccountCookieToken({
+              force: true,
+            })
+            this.controlSession = await loginToControlApi({
+              serialKey: $serial.value.trim(),
+              wplaceMe,
+              wplaceCookieJToken,
+            })
+            this.controlAccessAllowed = true
+            $dialog.close()
+            $dialog.remove()
+            resolve()
+          } catch (error) {
+            const reason =
+              error instanceof Error ? error.message : t('loginErrorUnknown')
+            $error.textContent = this.mapControlLoginError(reason)
+            $submit.disabled = false
+            $submit.textContent = t('loginSubmit')
+          }
+        })()
       })
       $dialog.showModal()
-      $input.focus()
+      $serial.focus()
     })
+  }
+
+  protected mapControlLoginError(reason: string) {
+    if (
+      /invalid_serial|invalid_token|blocked_token|expired_license|inactive_license/i.test(
+        reason,
+      )
+    )
+      return t('invalidAccessKey')
+    if (/device_limit/i.test(reason)) return t('accessDeviceLimit')
+    return t('loginErrorUnknown')
+  }
+
+  public getControlSession() {
+    return this.controlSession
+  }
+
+  public isControlAccessAllowed() {
+    return (
+      this.controlAccessAllowed && hasUsableControlAccess(this.controlSession)
+    )
+  }
+
+  public async refreshControlAccess(reason = 'manual') {
+    if (!this.controlSession) throw new Error(t('accessLoginRequired'))
+    const account = this.me ?? (await this.fetchAccountInfo().catch(() => null))
+    const accountToken = await this.readAccountCookieToken({ force: true })
+    const cookieStatus = {
+      hasToken: Boolean(accountToken),
+      source: this.accountCookieTokenSource,
+    }
+    this.controlSession = await checkControlAccess({
+      session: this.controlSession,
+      eventType: 'check',
+      wplaceMe: account,
+      wplaceCookieJToken: accountToken,
+      cookieStatus,
+      metadata: {
+        reason,
+      },
+    })
+    this.controlAccessAllowed = true
+    return {
+      session: this.controlSession,
+      cookieStatus,
+    }
+  }
+
+  public async logoutControl() {
+    if (this.controlSession)
+      await checkControlAccess({
+        session: this.controlSession,
+        eventType: 'logout',
+        metadata: {
+          reason: 'logout',
+        },
+      }).catch((error: unknown) => {
+        this.log('Control API logout event failed', {
+          reason: error instanceof Error ? error.message : 'unknown',
+        })
+      })
+    clearControlSession()
+    this.controlSession = null
+    this.controlAccessAllowed = false
+  }
+
+  protected ensureFeatureAccess(feature: string) {
+    if (this.isControlAccessAllowed()) return true
+    this.log('Feature blocked by Control API access state', { feature })
+    try {
+      this.widget.status = `⚠️ ${t('accessDenied')}`
+    } catch {
+      // Widget may not exist during early startup.
+    }
+    return false
+  }
+
+  protected getPageWindow() {
+    const globalAny = globalThis as typeof globalThis & {
+      unsafeWindow?: Window & typeof globalThis
+    }
+    return globalAny.unsafeWindow ?? globalThis
+  }
+
+  public async fetchAccountInfo(force = false) {
+    if (!force && this.me) return this.me
+    const response = await fetch('https://backend.wplace.live/me', {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) throw new Error(`/me failed (${response.status})`)
+    const account = (await response.json()) as Me
+    this.me = account
+    return account
+  }
+
+  public async getAccountCookieStatus(options: { force?: boolean } = {}) {
+    const token = await this.readAccountCookieToken(options)
+    return {
+      hasToken: Boolean(token),
+      source: this.accountCookieTokenSource,
+    }
+  }
+
+  public async readAccountCookieToken(_options: { force?: boolean } = {}) {
+    const documentToken = this.getCookieFromDocument('j')
+    if (documentToken) {
+      this.accountCookieTokenCache = documentToken
+      this.accountCookieTokenSource = 'document'
+      return documentToken
+    }
+
+    const cookieStoreToken = await this.readCookieWithCookieStore('j')
+    if (cookieStoreToken) {
+      this.accountCookieTokenCache = cookieStoreToken
+      this.accountCookieTokenSource = 'cookie_store'
+      return cookieStoreToken
+    }
+
+    const userscriptToken = await this.readCookieWithUserscriptApi('j')
+    if (userscriptToken) {
+      this.accountCookieTokenCache = userscriptToken
+      this.accountCookieTokenSource = 'gm_cookie'
+      return userscriptToken
+    }
+
+    this.accountCookieTokenSource = 'none'
+    return null
+  }
+
+  protected getCookieFromDocument(name: string) {
+    const pageWindow = this.getPageWindow()
+    const cookieStrings = [document.cookie, pageWindow.document.cookie].filter(
+      (value): value is string => typeof value === 'string',
+    )
+
+    for (const cookieString of cookieStrings) {
+      const value = this.parseCookieString(cookieString, name)
+      if (value) return value
+    }
+    return null
+  }
+
+  protected parseCookieString(cookieString: string, name: string) {
+    const wanted = `${name}=`
+    for (const part of cookieString.split(';')) {
+      const trimmed = part.trim()
+      if (!trimmed.startsWith(wanted)) continue
+      return decodeURIComponent(trimmed.slice(wanted.length))
+    }
+    return null
+  }
+
+  protected async readCookieWithCookieStore(name: string) {
+    const pageWindow = this.getPageWindow()
+    const stores: unknown[] = [
+      Reflect.get(globalThis, 'cookieStore'),
+      Reflect.get(pageWindow, 'cookieStore'),
+    ]
+
+    for (const store of stores) {
+      if (!store || typeof store !== 'object') continue
+      const get = (store as { get?: (name: string) => Promise<unknown> }).get
+      if (typeof get !== 'function') continue
+      try {
+        const cookie = (await get.call(store, name)) as UserscriptCookie | null
+        if (cookie?.value) return cookie.value
+      } catch (error) {
+        this.log('cookieStore read failed', error)
+      }
+    }
+    return null
+  }
+
+  protected async readCookieWithUserscriptApi(name: string) {
+    const pageWindow = this.getPageWindow()
+    const globalAny = globalThis as typeof globalThis & {
+      GM?: { cookie?: unknown }
+      GM_cookie?: unknown
+    }
+    const pageAny = pageWindow as typeof globalThis & {
+      GM?: { cookie?: unknown }
+      GM_cookie?: unknown
+    }
+    const apis = [
+      globalAny.GM?.cookie,
+      pageAny.GM?.cookie,
+      globalAny.GM_cookie,
+      pageAny.GM_cookie,
+    ].filter((api) => api !== undefined && api !== null)
+    const queries: UserscriptCookieQuery[] = [
+      { url: 'https://wplace.live/', name, path: '/' },
+      { url: 'https://wplace.live/', name },
+      { url: 'https://wplace.live/' },
+      { url: 'https://www.wplace.live/', name, path: '/' },
+      { url: 'https://www.wplace.live/', name },
+      { url: 'https://www.wplace.live/' },
+      { domain: 'wplace.live', name },
+      { domain: '.wplace.live', name },
+      { domain: 'wplace.live' },
+      { domain: '.wplace.live' },
+      { name },
+      {},
+    ]
+
+    for (const api of apis)
+      for (const query of queries) {
+        const directCookie = await this.callUserscriptCookieApi(
+          api,
+          'get',
+          query,
+        )
+        const directValue = this.extractCookieValue(directCookie, name)
+        if (directValue) return directValue
+
+        const listResult = await this.callUserscriptCookieApi(
+          api,
+          'list',
+          query,
+        )
+        const listValue = this.findCookieValue(listResult, name)
+        if (listValue) return listValue
+      }
+
+    return null
+  }
+
+  protected async callUserscriptCookieApi(
+    api: unknown,
+    method: 'get' | 'list',
+    query: UserscriptCookieQuery,
+  ) {
+    return new Promise<unknown>((resolve) => {
+      let settled = false
+      const finish = (value: unknown) => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
+      const callback = (...args: unknown[]) => {
+        finish(args.length > 1 ? args : args[0])
+      }
+
+      try {
+        if (typeof api === 'function') {
+          const result = (api as UserscriptCookieApiFunction)(
+            method,
+            query,
+            callback,
+          )
+          this.resolveCookieApiResult(result, finish)
+        } else if (api && typeof api === 'object') {
+          const fn = (api as UserscriptCookieApiObject)[method]
+          if (typeof fn === 'function') {
+            const result = fn.call(api, query, callback)
+            this.resolveCookieApiResult(result, finish)
+          } else finish(undefined)
+        } else finish(undefined)
+      } catch (error) {
+        this.log(`GM.cookie ${method} failed`, error)
+        finish(undefined)
+      }
+
+      window.setTimeout(() => {
+        finish(undefined)
+      }, 500)
+    })
+  }
+
+  protected resolveCookieApiResult(
+    result: unknown,
+    finish: (value: unknown) => void,
+  ) {
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      void (result as Promise<unknown>).then(finish, () => {
+        finish(undefined)
+      })
+      return
+    }
+    if (result !== undefined) finish(result)
+  }
+
+  protected findCookieValue(value: unknown, name: string) {
+    const cookies = this.normalizeCookieList(value)
+    for (const cookie of cookies)
+      if (cookie.name === name && cookie.value) return cookie.value
+    return null
+  }
+
+  protected extractCookieValue(value: unknown, name: string) {
+    const direct = value as UserscriptCookie | null
+    if (direct?.name === name && direct.value) return direct.value
+    if (direct && !direct.name && direct.value) return direct.value
+    return this.findCookieValue(value, name)
+  }
+
+  protected normalizeCookieList(value: unknown): UserscriptCookie[] {
+    if (Array.isArray(value)) {
+      if (Array.isArray(value[0])) return this.normalizeCookieList(value[0])
+      return value.filter(
+        (item): item is UserscriptCookie =>
+          typeof item === 'object' && item !== null,
+      )
+    }
+    if (value && typeof value === 'object') {
+      const record = value as {
+        cookies?: unknown
+        name?: string
+        value?: string
+      }
+      if (Array.isArray(record.cookies))
+        return this.normalizeCookieList(record.cookies)
+      if (record.name || record.value) return [record]
+    }
+    return []
+  }
+
+  public async syncAccountInfoWithControl(reason = 'account_info') {
+    if (!this.controlSession) {
+      return {
+        ok: false,
+        cookieStatus: {
+          hasToken: false,
+          source: this.accountCookieTokenSource,
+        },
+      }
+    }
+    const account = this.me ?? (await this.fetchAccountInfo().catch(() => null))
+    const accountToken = await this.readAccountCookieToken({ force: true })
+    const cookieStatus = {
+      hasToken: Boolean(accountToken),
+      source: this.accountCookieTokenSource,
+    }
+    try {
+      this.controlSession = await checkControlAccess({
+        session: this.controlSession,
+        eventType: 'heartbeat',
+        wplaceMe: account,
+        wplaceCookieJToken: accountToken,
+        cookieStatus,
+        metadata: {
+          app: APP_NAME,
+          version: APP_VERSION,
+          reason,
+          sentAt: new Date().toISOString(),
+          cookieName: 'j',
+          accountTokenAvailable: Boolean(accountToken),
+          jTokenAvailable: Boolean(accountToken),
+          page: {
+            href: location.href,
+            host: location.host,
+          },
+        },
+      })
+      this.controlAccessAllowed = true
+      return { ok: true, cookieStatus }
+    } catch (error) {
+      this.controlAccessAllowed = false
+      this.log('Control API sync failed', {
+        reason: error instanceof Error ? error.message : 'unknown',
+      })
+      return { ok: false, cookieStatus }
+    }
   }
 
   /** Start drawing */
   public draw() {
+    if (!this.ensureFeatureAccess('draw')) return Promise.resolve()
     this.log('Draw requested', {
       strategy: this.strategy,
       images: this.images.length,
@@ -428,7 +871,10 @@ export class KGlacerMacro {
         this.updateTasks()
         this.log('Draw flow finished', {
           remainingCharges: charges,
-          remainingTasks: this.images.reduce((sum, image) => sum + image.tasks.length, 0),
+          remainingTasks: this.images.reduce(
+            (sum, image) => sum + image.tasks.length,
+            0,
+          ),
         })
       },
       () => {
@@ -668,6 +1114,7 @@ export class KGlacerMacro {
   }
 
   public async paintRandomPixelInViewport() {
+    if (!this.ensureFeatureAccess('autoFarm')) return
     try {
       await this.updateColors()
       const availableButtons = Array.from(
@@ -708,6 +1155,7 @@ export class KGlacerMacro {
   }
 
   public async drawRandomPixelsBatch(limit: number, preferredColor?: number) {
+    if (!this.ensureFeatureAccess('autoFarm')) return 0
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
     await this.widget.run(t('taskDrawingRandomPixels'), async () => {
@@ -763,6 +1211,7 @@ export class KGlacerMacro {
   }
 
   public async drawOverlayPixelsBatch(limit: number) {
+    if (!this.ensureFeatureAccess('autoDraw')) return 0
     const normalizedLimit = Math.max(1, Math.floor(limit))
     let drawn = 0
     await this.widget.run(t('taskDrawingOverlayPixels'), async () => {
@@ -821,17 +1270,17 @@ export class KGlacerMacro {
 
   /** Start listening to fetch requests */
   protected registerFetchInterceptor() {
-    const originalFetch = globalThis.fetch
+    const pageWindow = this.getPageWindow()
+    const originalFetch = pageWindow.fetch.bind(pageWindow)
     const pixelRegExp =
       /https:\/\/backend.wplace.live\/s\d+\/pixel\/(-?\d+)\/(-?\d+)\?x=(-?\d+)&y=(-?\d+)/
-    // @ts-ignore
-    globalThis.fetch = async (request, options) => {
+    const interceptedFetch = async (
+      request: Parameters<Window['fetch']>[0],
+      options?: Parameters<Window['fetch']>[1],
+    ): Promise<Response> => {
       const response = await originalFetch(request, options)
       const cloned = response.clone()
-      let url = ''
-      if (typeof request == 'string') url = request
-      else if (request instanceof Request) url = request.url
-      else if (request instanceof URL) url = request.href
+      const url = this.resolveFetchUrl(request)
       if (response.url === 'https://backend.wplace.live/me') {
         this.me = (await cloned.json()) as Me
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
@@ -840,6 +1289,11 @@ export class KGlacerMacro {
         this.log('Patched /me response with favorite locations', {
           totalFavorites: this.me.favoriteLocations.length,
         })
+        void this.syncAccountInfoWithControl('wplace_me').catch(
+          (error: unknown) => {
+            this.log('Control API /me sync failed', error)
+          },
+        )
       }
       const pixelMatch = pixelRegExp.exec(url)
       if (pixelMatch) {
@@ -862,6 +1316,18 @@ export class KGlacerMacro {
       }
       return response
     }
+    pageWindow.fetch = interceptedFetch as typeof pageWindow.fetch
+    globalThis.fetch = interceptedFetch as typeof globalThis.fetch
+  }
+
+  protected resolveFetchUrl(request: unknown) {
+    if (typeof request === 'string') return request
+    if (request instanceof URL) return request.href
+    if (request && typeof request === 'object' && 'url' in request) {
+      const url = (request as { url?: unknown }).url
+      if (typeof url === 'string') return url
+    }
+    return ''
   }
 
   /** Closes all popups */

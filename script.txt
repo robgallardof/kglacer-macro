@@ -9,9 +9,15 @@
 // @updateURL    https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
 // @downloadURL  https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js
 // @run-at       document-start
+// @match        *://wplace.live/*
 // @match        *://*.wplace.live/*
 // @match        *://*.hcaptcha.com/*
-// @grant        none
+// @grant        unsafeWindow
+// @grant        GM.cookie
+// @grant        GM_cookie
+// @connect      wplace.live
+// @connect      backend.wplace.live
+// @connect      control-api-opal.vercel.app
 // ==/UserScript==
 
 // Wplace  --> https://wplace.live

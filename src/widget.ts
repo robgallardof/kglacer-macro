@@ -2,6 +2,12 @@ import { promisifyEventSource, swap } from '@softsky/utils'
 
 import { Base } from './base'
 import { KGlacerMacro } from './bot'
+import {
+  collectClientMetadata,
+  ControlPixelSettings,
+  readControlSettings,
+  saveControlSettings,
+} from './control-api'
 import { KGlacerMacroError, NoImageError } from './errors'
 import { applyTranslations, getLocale, setLocale, t } from './i18n'
 import { BotImage } from './image'
@@ -15,6 +21,7 @@ import html from './widget.html' with { type: 'text' }
 import { WorldPosition, WORLD_TILE_SIZE } from './world-position'
 
 const OVERLAY_VISIBILITY_STORAGE_KEY = 'kglacer-macro:overlay-hidden'
+const IMAGES_COLLAPSED_STORAGE_KEY = 'kglacer-macro:images-collapsed'
 const AUTO_FARM_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-farm-config'
 const AUTO_OVERLAY_CONFIG_STORAGE_KEY = 'kglacer-macro:auto-overlay-config'
 const PROXY_CONFIG_STORAGE_KEY = 'kglacer-macro:proxy-config'
@@ -43,6 +50,11 @@ type AutoFarmConfig = {
   value: number
   unit: AutoFarmUnit
   pixels: number
+  usePixelRange: boolean
+  pixelRange: {
+    min: number
+    max: number
+  }
   timerMs: number
 }
 
@@ -50,6 +62,11 @@ type AutoOverlayConfig = {
   value: number
   unit: AutoFarmUnit
   pixels: number
+  usePixelRange: boolean
+  pixelRange: {
+    min: number
+    max: number
+  }
   timerMs: number
 }
 
@@ -109,6 +126,7 @@ export class Widget extends Base {
   protected readonly $progressText!: HTMLSpanElement
   protected readonly $images!: HTMLDivElement
   protected readonly $imagesSection!: HTMLDetailsElement
+  protected readonly $imagesCollapseState!: HTMLSpanElement
   protected readonly $wopenButton!: HTMLButtonElement
   protected readonly $widgetLogo!: HTMLImageElement
   protected activeImageIndex = -1
@@ -167,6 +185,7 @@ export class Widget extends Base {
       $progressText: '.wprogress span',
       $images: '.images',
       $imagesSection: '.widget-section-images',
+      $imagesCollapseState: '.images-collapse-state',
       // $pumpkinHunt: '.pumpkin-hunt',
     })
     this.$widgetLogo.src = LOGO_URL
@@ -233,12 +252,11 @@ export class Widget extends Base {
     this.$strategy.addEventListener('change', () => {
       this.bot.strategy = this.$strategy.value as BotStrategy
     })
+    this.applyImagesCollapsedPreference()
     this.$imagesSection.addEventListener('toggle', () => {
-      if (!this.$imagesSection.open) {
-        this.$imagesSection.open = true
-        return
-      }
-      if (!this.imagesListDirty) return
+      this.persistImagesCollapsedPreference(!this.$imagesSection.open)
+      this.refreshImagesCollapseText()
+      if (!this.$imagesSection.open || !this.imagesListDirty) return
       this.renderImagesList()
       this.imagesListDirty = false
     })
@@ -771,8 +789,38 @@ export class Widget extends Base {
     for (let index = 0; index < this.bot.images.length; index++)
       this.bot.images[index]!.applyLocale()
     this.refreshOverlayToggleText()
+    this.refreshImagesCollapseText()
     this.refreshAutoFarmStatusText()
     this.refreshAutoOverlayStatusText()
+  }
+
+  protected applyImagesCollapsedPreference() {
+    const collapsed = this.readImagesCollapsedPreference()
+    this.$imagesSection.open = !collapsed
+    this.refreshImagesCollapseText()
+    if (this.$imagesSection.open && this.imagesListDirty) {
+      this.renderImagesList()
+      this.imagesListDirty = false
+    }
+  }
+
+  protected readImagesCollapsedPreference() {
+    const stored = localStorage.getItem(IMAGES_COLLAPSED_STORAGE_KEY)
+    if (stored === 'true') return true
+    if (stored === 'false') return false
+    const controlSettings = readControlSettings()
+    return controlSettings.imagesCollapsed ?? true
+  }
+
+  protected persistImagesCollapsedPreference(collapsed: boolean) {
+    localStorage.setItem(IMAGES_COLLAPSED_STORAGE_KEY, String(collapsed))
+    saveControlSettings({ imagesCollapsed: collapsed })
+  }
+
+  protected refreshImagesCollapseText() {
+    this.$imagesCollapseState.textContent = this.$imagesSection.open
+      ? t('widgetImagesCollapse')
+      : t('widgetImagesExpand')
   }
 
   protected openSettingsModal() {
@@ -795,6 +843,17 @@ export class Widget extends Base {
   <div class="widget-actions">
     <button type="button" class="challenge-button script-update"><i class="fa-solid fa-rotate"></i><span data-i18n="scriptUpdate">Update script</span></button>
   </div>
+  <details class="shortcuts account-settings" open>
+    <summary class="shortcuts-summary">
+      <strong class="shortcuts-summary-title"><i class="fa-solid fa-user-shield"></i> <span data-i18n="accountInfoTitle">Account info</span></strong>
+      <i class="fa-solid fa-chevron-down shortcuts-chevron" aria-hidden="true"></i>
+    </summary>
+    <div class="widget-actions kgm-button-grid">
+      <button type="button" class="challenge-button account-info-refresh"><i class="fa-solid fa-id-card"></i><span data-i18n="accountInfoRefresh">Refresh account</span></button>
+      <button type="button" class="challenge-button account-logout"><i class="fa-solid fa-right-from-bracket"></i><span data-i18n="logout">Logout</span></button>
+    </div>
+    <div class="account-info-output shield-checker-output" aria-live="polite"></div>
+  </details>
   <label class="kgm-switch-row">
     <span data-i18n="proxyEnabled">Enable proxy for web requests (beta)</span>
     <span class="kgm-switch">
@@ -915,6 +974,28 @@ export class Widget extends Base {
       $dialog.querySelector<HTMLElement>('.public-ip-value')
     const $publicIpRoute =
       $dialog.querySelector<HTMLElement>('.public-ip-route')
+    const $accountInfoRefresh = $dialog.querySelector<HTMLButtonElement>(
+      '.account-info-refresh',
+    )!
+    const $accountLogout =
+      $dialog.querySelector<HTMLButtonElement>('.account-logout')!
+    const $accountInfoOutput = $dialog.querySelector<HTMLDivElement>(
+      '.account-info-output',
+    )!
+    const refreshAccountInfoOutput = async () => {
+      $accountInfoRefresh.disabled = true
+      await this.renderAccountInfoOutput($accountInfoOutput)
+      $accountInfoRefresh.disabled = false
+    }
+    $accountInfoRefresh.addEventListener('click', async () => {
+      await this.bot.refreshControlAccess('settings').catch(() => null)
+      await refreshAccountInfoOutput()
+    })
+    $accountLogout.addEventListener('click', async () => {
+      await this.bot.logoutControl()
+      location.reload()
+    })
+    void refreshAccountInfoOutput()
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
     $shieldEnabled.checked = getShieldEnabled()
     $proxyDetails.open = $proxyEnabled.checked
@@ -1004,6 +1085,123 @@ export class Widget extends Base {
       $dialog.remove()
     })
     $dialog.showModal()
+  }
+
+  protected async renderAccountInfoOutput(container: HTMLDivElement) {
+    container.innerHTML = `<div class="pending">⌛ ${t('accountInfoLoading')}</div>`
+    const session = this.bot.getControlSession()
+    const [account, cookieStatus, client] = await Promise.all([
+      this.bot.fetchAccountInfo(true).catch(() => null),
+      this.bot.getAccountCookieStatus({ force: true }).catch(() => ({
+        hasToken: false,
+        source: 'none',
+      })),
+      collectClientMetadata().catch(() => null),
+    ])
+    const access = session?.access
+    const serial = session?.serial
+    const rows: [string, unknown][] = [
+      [
+        t('settingsAccessStatus'),
+        access?.allowed === false ? t('disabled') : t('enabled'),
+      ],
+      [t('settingsApiMode'), access?.mode ?? '—'],
+      [t('settingsControlUser'), session ? t('enabled') : t('disabled')],
+      [t('settingsLicenseUser'), serial?.username ?? access?.username ?? '—'],
+      [
+        t('settingsSerialStatus'),
+        serial?.status ?? (serial?.valid ? 'active' : '—'),
+      ],
+      [t('settingsSerialValidatedAt'), serial?.validatedAt ?? '—'],
+      [t('settingsLicenseOwner'), serial?.ownerName ?? '—'],
+      [t('settingsDeviceLimit'), this.formatDeviceLimit(access, serial)],
+      [
+        t('settingsCookieJ'),
+        cookieStatus.hasToken
+          ? t('settingsCookieJDetected')
+          : t('settingsCookieJNotDetected'),
+      ],
+      [t('settingsCookieSource'), cookieStatus.source],
+      [t('settingsWplaceId'), account?.id ?? '—'],
+      [t('settingsWplaceName'), account?.name ?? '—'],
+      [t('settingsDiscord'), account?.discord ?? '—'],
+      [t('settingsDiscordId'), account?.discordId ?? '—'],
+      [t('settingsCountry'), account?.country ?? '—'],
+      [t('settingsAlliance'), account?.allianceName ?? '—'],
+      [t('settingsAllianceRole'), account?.allianceRole ?? '—'],
+      [t('settingsLevel'), account?.level ?? '—'],
+      [t('settingsPixelsPainted'), account?.pixelsPainted ?? '—'],
+      [t('settingsDroplets'), account?.droplets ?? '—'],
+      [t('settingsCharges'), this.formatCharges(account?.charges)],
+      [
+        t('settingsCustomer'),
+        account?.isCustomer === undefined
+          ? '—'
+          : account.isCustomer
+            ? t('enabled')
+            : t('disabled'),
+      ],
+      [t('settingsSuspension'), account?.suspensionReason ?? '—'],
+      [t('settingsTimeout'), account?.timeoutUntil ?? '—'],
+      [t('settingsLocalDeviceId'), client?.localDeviceId ?? '—'],
+      [t('settingsFingerprint'), client?.deviceFingerprintHash ?? '—'],
+      [t('settingsUserAgent'), client?.userAgent ?? navigator.userAgent],
+      [t('settingsPlatform'), client?.platform ?? navigator.platform],
+      [t('settingsLanguage'), client?.language ?? navigator.language],
+      [t('settingsTimezone'), client?.timezone ?? '—'],
+      [
+        t('settingsScreen'),
+        client
+          ? `${client.screenWidth}×${client.screenHeight} @${client.devicePixelRatio}`
+          : '—',
+      ],
+      [
+        t('settingsTouchSupport'),
+        client?.touchSupport ? t('enabled') : t('disabled'),
+      ],
+      [t('settingsHardwareConcurrency'), client?.hardwareConcurrency ?? '—'],
+      [t('settingsDeviceMemory'), client?.deviceMemory ?? '—'],
+      [t('settingsMacAddress'), t('settingsMacUnavailable')],
+    ]
+
+    container.innerHTML = `<div class="account-info-grid">${rows
+      .map(
+        ([label, value]) =>
+          `<div class="account-info-card"><span>${this.escapeHtml(label)}</span><strong>${this.escapeHtml(this.stringifyShieldValue(value))}</strong></div>`,
+      )
+      .join('')}</div>`
+  }
+
+  protected formatDeviceLimit(
+    access: { registeredDevices?: number; maxDevices?: number } | undefined,
+    serial: { maxDevices?: number } | undefined,
+  ) {
+    const registered = access?.registeredDevices
+    const max = access?.maxDevices ?? serial?.maxDevices
+    if (registered === undefined && max === undefined) return '—'
+    return `${registered ?? '—'} / ${max ?? '—'}`
+  }
+
+  protected formatCharges(charges: unknown) {
+    if (!charges || typeof charges !== 'object') return '—'
+    const record = charges as {
+      count?: unknown
+      max?: unknown
+      cooldownMs?: unknown
+    }
+    const count =
+      typeof record.count === 'number' ? Math.floor(record.count) : record.count
+    return `${this.formatUnknownValue(count)} / ${this.formatUnknownValue(record.max)} (${this.formatUnknownValue(record.cooldownMs)} ms)`
+  }
+
+  protected formatUnknownValue(value: unknown) {
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    )
+      return String(value)
+    return '—'
   }
 
   protected renderShieldControls(container: HTMLDivElement) {
@@ -1365,7 +1563,7 @@ export class Widget extends Base {
     const totalSeconds = Math.ceil(remainingMs / 1000)
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
-    return `next in ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    return `${t('nextRunIn')} ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
   }
 
   protected formatAutoFarmDelay(ms: number) {
@@ -1427,7 +1625,7 @@ export class Widget extends Base {
     this.autoFarmTickRunning = true
     try {
       const painted = await this.bot.drawRandomPixelsBatch(
-        this.autoFarmConfig.pixels,
+        this.resolveCyclePixelCount(this.autoFarmConfig),
         0,
       )
       if (!painted) {
@@ -1446,7 +1644,7 @@ export class Widget extends Base {
     this.autoOverlayTickRunning = true
     try {
       const painted = await this.bot.drawOverlayPixelsBatch(
-        this.autoOverlayConfig.pixels,
+        this.resolveCyclePixelCount(this.autoOverlayConfig),
       )
       if (!painted) {
         this.status = `⚠️ ${t('autoOverlayStopped')}: ${t('autoOverlayNoTasks')}`
@@ -1462,6 +1660,9 @@ export class Widget extends Base {
   protected saveAutoFarmConfig(config: AutoFarmConfig) {
     this.autoFarmConfig = config
     localStorage.setItem(AUTO_FARM_CONFIG_STORAGE_KEY, JSON.stringify(config))
+    saveControlSettings({
+      farm: this.toControlPixelSettings(config),
+    })
   }
 
   protected saveAutoOverlayConfig(config: AutoOverlayConfig) {
@@ -1470,10 +1671,44 @@ export class Widget extends Base {
       AUTO_OVERLAY_CONFIG_STORAGE_KEY,
       JSON.stringify(config),
     )
+    saveControlSettings({
+      autoDraw: this.toControlPixelSettings(config),
+    })
+  }
+
+  protected resolveCyclePixelCount(
+    config: Pick<AutoFarmConfig, 'pixels' | 'usePixelRange' | 'pixelRange'>,
+  ) {
+    if (!config.usePixelRange) return Math.max(1, Math.floor(config.pixels))
+    const min = Math.max(1, Math.floor(config.pixelRange.min))
+    const max = Math.max(min, Math.floor(config.pixelRange.max))
+    return min + Math.floor(Math.random() * (max - min + 1))
+  }
+
+  protected toControlPixelSettings(
+    config: Pick<AutoFarmConfig, 'pixels' | 'usePixelRange' | 'pixelRange'>,
+  ): ControlPixelSettings {
+    return {
+      usePixelRange: config.usePixelRange,
+      pixel: Math.max(1, Math.floor(config.pixels)),
+      pixelRange: {
+        min: Math.max(1, Math.floor(config.pixelRange.min)),
+        max: Math.max(1, Math.floor(config.pixelRange.max)),
+      },
+    }
+  }
+
+  protected getRemotePixelSettings(kind: 'autoDraw' | 'farm') {
+    return readControlSettings()[kind]
   }
 
   protected loadAutoFarmConfigFromStorage() {
+    const remote = this.getRemotePixelSettings('farm')
     const raw = localStorage.getItem(AUTO_FARM_CONFIG_STORAGE_KEY)
+    if (!raw && remote) {
+      this.autoFarmConfig = this.createDefaultAutoConfig(remote)
+      return
+    }
     if (!raw) return
     try {
       const parsed = JSON.parse(raw) as Partial<AutoFarmConfig>
@@ -1488,7 +1723,8 @@ export class Widget extends Base {
         Number.isFinite(parsed.pixels) &&
         parsed.pixels >= 1
           ? Math.floor(parsed.pixels)
-          : 60
+          : Math.max(1, Math.floor(remote?.pixel ?? 60))
+      const pixelRange = this.normalizePixelRange(parsed.pixelRange, remote)
       const unit =
         parsed.unit === 'hours' ||
         parsed.unit === 'minutes' ||
@@ -1506,6 +1742,8 @@ export class Widget extends Base {
       this.autoFarmConfig = {
         value: Math.max(1, Math.floor(parsed.value)),
         pixels,
+        usePixelRange: parsed.usePixelRange ?? remote?.usePixelRange ?? false,
+        pixelRange,
         unit,
         timerMs,
       }
@@ -1515,7 +1753,12 @@ export class Widget extends Base {
   }
 
   protected loadAutoOverlayConfigFromStorage() {
+    const remote = this.getRemotePixelSettings('autoDraw')
     const raw = localStorage.getItem(AUTO_OVERLAY_CONFIG_STORAGE_KEY)
+    if (!raw && remote) {
+      this.autoOverlayConfig = this.createDefaultAutoConfig(remote)
+      return
+    }
     if (!raw) return
     try {
       const parsed = JSON.parse(raw) as Partial<AutoOverlayConfig>
@@ -1530,7 +1773,8 @@ export class Widget extends Base {
         Number.isFinite(parsed.pixels) &&
         parsed.pixels >= 1
           ? Math.floor(parsed.pixels)
-          : 60
+          : Math.max(1, Math.floor(remote?.pixel ?? 60))
+      const pixelRange = this.normalizePixelRange(parsed.pixelRange, remote)
       const unit =
         parsed.unit === 'hours' ||
         parsed.unit === 'minutes' ||
@@ -1548,6 +1792,8 @@ export class Widget extends Base {
       this.autoOverlayConfig = {
         value: Math.max(1, Math.floor(parsed.value)),
         pixels,
+        usePixelRange: parsed.usePixelRange ?? remote?.usePixelRange ?? false,
+        pixelRange,
         unit,
         timerMs,
       }
@@ -1556,12 +1802,49 @@ export class Widget extends Base {
     }
   }
 
+  protected createDefaultAutoConfig(
+    settings: Partial<ControlPixelSettings>,
+  ): AutoFarmConfig {
+    return {
+      value: 1,
+      unit: 'minutes',
+      pixels: Math.max(1, Math.floor(settings.pixel ?? 60)),
+      usePixelRange: settings.usePixelRange ?? false,
+      pixelRange: this.normalizePixelRange(settings.pixelRange, settings),
+      timerMs: 60_000,
+    }
+  }
+
+  protected normalizePixelRange(
+    range: unknown,
+    fallback?: Partial<ControlPixelSettings>,
+  ) {
+    const candidate =
+      range && typeof range === 'object'
+        ? (range as { min?: unknown; max?: unknown })
+        : fallback?.pixelRange
+    const min =
+      typeof candidate?.min === 'number' && Number.isFinite(candidate.min)
+        ? Math.max(1, Math.floor(candidate.min))
+        : 1
+    const max =
+      typeof candidate?.max === 'number' && Number.isFinite(candidate.max)
+        ? Math.max(min, Math.floor(candidate.max))
+        : Math.max(min, 5)
+    return { min, max }
+  }
+
   protected openAutoFarmModal() {
     const $dialog = document.createElement('dialog')
     $dialog.className = 'kgm-modal autofarm-dialog'
     const defaultUnit = this.autoFarmConfig?.unit ?? 'minutes'
     const defaultValue = this.autoFarmConfig?.value ?? 1
     const defaultPixels = this.autoFarmConfig?.pixels ?? 60
+    const defaultUsePixelRange = this.autoFarmConfig?.usePixelRange ?? false
+    const defaultPixelRange = this.autoFarmConfig?.pixelRange ?? {
+      min: 1,
+      max: 5,
+    }
     $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
   <div class="kgm-modal-head">
     <strong data-i18n="autoFarmModalTitle">Auto farm</strong>
@@ -1585,6 +1868,21 @@ export class Widget extends Base {
       <input class="autofarm-pixels" type="number" min="1" step="1" value="${defaultPixels}" />
     </div>
   </label>
+  <label class="kgm-switch-row autofarm-range-toggle-row">
+    <span data-i18n="autoFarmUsePixelRange">Use pixel range in Auto Farm</span>
+    <span class="kgm-switch">
+      <input class="autofarm-use-range" type="checkbox" ${defaultUsePixelRange ? 'checked' : ''} />
+      <span class="kgm-switch-slider" aria-hidden="true"></span>
+    </span>
+  </label>
+  <label class="autofarm-label autofarm-range-row">
+    <span data-i18n="pixelRange">Pixel range</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-range-min" type="number" min="1" step="1" value="${defaultPixelRange.min}" data-i18n-title="pixelRangeMin" />
+      <input class="autofarm-range-max" type="number" min="1" step="1" value="${defaultPixelRange.max}" data-i18n-title="pixelRangeMax" />
+    </div>
+  </label>
+  <small class="access-error pixel-range-error" role="alert" aria-live="assertive"></small>
   <div class="autofarm-actions">
     <button type="button" class="autofarm-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoFarmStart">Start</span></button>
     <button type="button" class="autofarm-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoFarmStop">Stop</span></button>
@@ -1596,17 +1894,49 @@ export class Widget extends Base {
     $unit.value = defaultUnit
     const $value = $dialog.querySelector<HTMLInputElement>('.autofarm-value')!
     const $pixels = $dialog.querySelector<HTMLInputElement>('.autofarm-pixels')!
+    const $useRange = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-use-range',
+    )!
+    const $rangeRow = $dialog.querySelector<HTMLElement>('.autofarm-range-row')!
+    const $rangeMin = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-range-min',
+    )!
+    const $rangeMax = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-range-max',
+    )!
+    const $rangeError =
+      $dialog.querySelector<HTMLElement>('.pixel-range-error')!
+    const syncRangeFields = () => {
+      $rangeRow.hidden = !$useRange.checked
+      $pixels.disabled = $useRange.checked
+    }
+    $useRange.addEventListener('change', syncRangeFields)
+    syncRangeFields()
     const resolveTimerMs = () => {
       const value = Math.max(1, Number.parseInt($value.value || '1', 10))
       if ($unit.value === 'hours') return value * 3_600_000
       if ($unit.value === 'minutes') return value * 60_000
       return value * 1000
     }
+    const readPixelRange = () => {
+      const min = Math.max(1, Number.parseInt($rangeMin.value || '1', 10))
+      const max = Math.max(1, Number.parseInt($rangeMax.value || '1', 10))
+      if (min > max) {
+        $rangeError.textContent = t('pixelRangeInvalid')
+        return null
+      }
+      $rangeError.textContent = ''
+      return { min, max }
+    }
     $dialog.querySelector<HTMLButtonElement>('.autofarm-start')!.onclick =
       () => {
+        const pixelRange = readPixelRange()
+        if (!pixelRange) return
         this.saveAutoFarmConfig({
           value: Math.max(1, Number.parseInt($value.value || '1', 10)),
           pixels: Math.max(1, Number.parseInt($pixels.value || '60', 10)),
+          usePixelRange: $useRange.checked,
+          pixelRange,
           unit: $unit.value as AutoFarmUnit,
           timerMs: resolveTimerMs(),
         })
@@ -1636,6 +1966,11 @@ export class Widget extends Base {
     const defaultUnit = this.autoOverlayConfig?.unit ?? 'minutes'
     const defaultValue = this.autoOverlayConfig?.value ?? 1
     const defaultPixels = this.autoOverlayConfig?.pixels ?? 60
+    const defaultUsePixelRange = this.autoOverlayConfig?.usePixelRange ?? false
+    const defaultPixelRange = this.autoOverlayConfig?.pixelRange ?? {
+      min: 1,
+      max: 5,
+    }
     $dialog.innerHTML = `<form method="dialog" class="autofarm-form">
   <div class="kgm-modal-head">
     <strong data-i18n="autoOverlayModalTitle">Auto overlay timer</strong>
@@ -1659,6 +1994,21 @@ export class Widget extends Base {
       <input class="autofarm-pixels" type="number" min="1" step="1" value="${defaultPixels}" />
     </div>
   </label>
+  <label class="kgm-switch-row autofarm-range-toggle-row">
+    <span data-i18n="autoDrawUsePixelRange">Use pixel range in Auto Draw</span>
+    <span class="kgm-switch">
+      <input class="autofarm-use-range" type="checkbox" ${defaultUsePixelRange ? 'checked' : ''} />
+      <span class="kgm-switch-slider" aria-hidden="true"></span>
+    </span>
+  </label>
+  <label class="autofarm-label autofarm-range-row">
+    <span data-i18n="pixelRange">Pixel range</span>
+    <div class="autofarm-fields">
+      <input class="autofarm-range-min" type="number" min="1" step="1" value="${defaultPixelRange.min}" data-i18n-title="pixelRangeMin" />
+      <input class="autofarm-range-max" type="number" min="1" step="1" value="${defaultPixelRange.max}" data-i18n-title="pixelRangeMax" />
+    </div>
+  </label>
+  <small class="access-error pixel-range-error" role="alert" aria-live="assertive"></small>
   <div class="autofarm-actions">
     <button type="button" class="autooverlay-start"><i class="fa-solid fa-play"></i> <span data-i18n="autoOverlayStart">Start</span></button>
     <button type="button" class="autooverlay-stop"><i class="fa-solid fa-stop"></i> <span data-i18n="autoOverlayStop">Stop</span></button>
@@ -1670,17 +2020,49 @@ export class Widget extends Base {
     $unit.value = defaultUnit
     const $value = $dialog.querySelector<HTMLInputElement>('.autofarm-value')!
     const $pixels = $dialog.querySelector<HTMLInputElement>('.autofarm-pixels')!
+    const $useRange = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-use-range',
+    )!
+    const $rangeRow = $dialog.querySelector<HTMLElement>('.autofarm-range-row')!
+    const $rangeMin = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-range-min',
+    )!
+    const $rangeMax = $dialog.querySelector<HTMLInputElement>(
+      '.autofarm-range-max',
+    )!
+    const $rangeError =
+      $dialog.querySelector<HTMLElement>('.pixel-range-error')!
+    const syncRangeFields = () => {
+      $rangeRow.hidden = !$useRange.checked
+      $pixels.disabled = $useRange.checked
+    }
+    $useRange.addEventListener('change', syncRangeFields)
+    syncRangeFields()
     const resolveTimerMs = () => {
       const value = Math.max(1, Number.parseInt($value.value || '1', 10))
       if ($unit.value === 'hours') return value * 3_600_000
       if ($unit.value === 'minutes') return value * 60_000
       return value * 1000
     }
+    const readPixelRange = () => {
+      const min = Math.max(1, Number.parseInt($rangeMin.value || '1', 10))
+      const max = Math.max(1, Number.parseInt($rangeMax.value || '1', 10))
+      if (min > max) {
+        $rangeError.textContent = t('pixelRangeInvalid')
+        return null
+      }
+      $rangeError.textContent = ''
+      return { min, max }
+    }
     $dialog.querySelector<HTMLButtonElement>('.autooverlay-start')!.onclick =
       () => {
+        const pixelRange = readPixelRange()
+        if (!pixelRange) return
         this.saveAutoOverlayConfig({
           value: Math.max(1, Number.parseInt($value.value || '1', 10)),
           pixels: Math.max(1, Number.parseInt($pixels.value || '60', 10)),
+          usePixelRange: $useRange.checked,
+          pixelRange,
           unit: $unit.value as AutoFarmUnit,
           timerMs: resolveTimerMs(),
         })
@@ -1991,7 +2373,9 @@ export class Widget extends Base {
 
   protected async recommendUpdateIfOutdated() {
     const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), 1800)
+    const timeoutId = window.setTimeout(() => {
+      controller.abort()
+    }, 1800)
     try {
       const response = await fetch(
         'https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/src/version.ts',
@@ -2008,10 +2392,14 @@ export class Widget extends Base {
       const ok = confirm(
         `Hay una versión nueva (${remoteVersion}) disponible. Tu versión actual es ${APP_VERSION}. ¿Quieres actualizar ahora?`,
       )
-      if (ok) this.openUrlInNewTab('https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js')
+      if (ok)
+        this.openUrlInNewTab(
+          'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
+        )
       else localStorage.setItem(key, 'dismissed')
-    } catch {}
-    finally {
+    } catch {
+      // Ignore update checks when the remote version cannot be reached.
+    } finally {
       clearTimeout(timeoutId)
     }
   }
