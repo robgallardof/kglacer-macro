@@ -135,6 +135,7 @@ type AccountCookieTokenSource =
   | 'cookie_store'
   | 'gm_cookie'
   | 'none'
+  | `gm_cookie:${string}`
 type UserscriptCookie = {
   name?: string
   value?: string
@@ -142,8 +143,10 @@ type UserscriptCookie = {
 type UserscriptCookieQuery = {
   url?: string
   domain?: string
+  firstPartyDomain?: string
   name?: string
   path?: string
+  partitionKey?: unknown
 }
 type UserscriptCookieCallback = (...args: unknown[]) => void
 type UserscriptCookieApiFunction = (
@@ -446,24 +449,6 @@ export class KGlacerMacro {
     }
   }
 
-  public async logoutControl() {
-    if (this.controlSession)
-      await checkControlAccess({
-        session: this.controlSession,
-        eventType: 'logout',
-        metadata: {
-          reason: 'logout',
-        },
-      }).catch((error: unknown) => {
-        this.log('Control API logout event failed', {
-          reason: error instanceof Error ? error.message : 'unknown',
-        })
-      })
-    clearControlSession()
-    this.controlSession = null
-    this.controlAccessAllowed = false
-  }
-
   protected ensureFeatureAccess(feature: string) {
     if (this.isControlAccessAllowed()) return true
     this.log('Feature blocked by Control API access state', { feature })
@@ -502,7 +487,10 @@ export class KGlacerMacro {
     }
   }
 
-  public async readAccountCookieToken(_options: { force?: boolean } = {}) {
+  public async readAccountCookieToken(options: { force?: boolean } = {}) {
+    if (!options.force && this.accountCookieTokenCache)
+      return this.accountCookieTokenCache
+
     const documentToken = this.getCookieFromDocument('j')
     if (documentToken) {
       this.accountCookieTokenCache = documentToken
@@ -520,7 +508,8 @@ export class KGlacerMacro {
     const userscriptToken = await this.readCookieWithUserscriptApi('j')
     if (userscriptToken) {
       this.accountCookieTokenCache = userscriptToken
-      this.accountCookieTokenSource = 'gm_cookie'
+      if (!this.accountCookieTokenSource.startsWith('gm_cookie'))
+        this.accountCookieTokenSource = 'gm_cookie'
       return userscriptToken
     }
 
@@ -588,41 +577,67 @@ export class KGlacerMacro {
       globalAny.GM_cookie,
       pageAny.GM_cookie,
     ].filter((api) => api !== undefined && api !== null)
+    this.log('Reading WPlace j cookie through userscript APIs', {
+      apiCount: apis.length,
+      cookieDomain: '.wplace.live',
+      cookieName: name,
+    })
     const queries: UserscriptCookieQuery[] = [
+      { domain: '.wplace.live', name, path: '/' },
+      { domain: '.wplace.live', name },
+      { domain: '.wplace.live' },
+      { domain: 'wplace.live', name, path: '/' },
+      { domain: 'wplace.live', name },
+      { domain: 'wplace.live' },
       { url: 'https://wplace.live/', name, path: '/' },
       { url: 'https://wplace.live/', name },
       { url: 'https://wplace.live/' },
+      { url: 'https://backend.wplace.live/', name, path: '/' },
+      { url: 'https://backend.wplace.live/', name },
+      { url: 'https://backend.wplace.live/' },
       { url: 'https://www.wplace.live/', name, path: '/' },
       { url: 'https://www.wplace.live/', name },
       { url: 'https://www.wplace.live/' },
-      { domain: 'wplace.live', name },
-      { domain: '.wplace.live', name },
-      { domain: 'wplace.live' },
-      { domain: '.wplace.live' },
+      { firstPartyDomain: 'https://wplace.live', domain: '.wplace.live', name },
+      { firstPartyDomain: 'wplace.live', domain: '.wplace.live', name },
       { name },
       {},
     ]
 
     for (const api of apis)
       for (const query of queries) {
-        const directCookie = await this.callUserscriptCookieApi(
-          api,
-          'get',
-          query,
-        )
-        const directValue = this.extractCookieValue(directCookie, name)
-        if (directValue) return directValue
-
         const listResult = await this.callUserscriptCookieApi(
           api,
           'list',
           query,
         )
         const listValue = this.findCookieValue(listResult, name)
-        if (listValue) return listValue
+        if (listValue) {
+          this.accountCookieTokenSource = `gm_cookie:list:${this.describeCookieQuery(query)}`
+          return listValue
+        }
+
+        const directCookie = await this.callUserscriptCookieApi(
+          api,
+          'get',
+          query,
+        )
+        const directValue = this.extractCookieValue(directCookie, name)
+        if (directValue) {
+          this.accountCookieTokenSource = `gm_cookie:get:${this.describeCookieQuery(query)}`
+          return directValue
+        }
       }
 
     return null
+  }
+
+  protected describeCookieQuery(query: UserscriptCookieQuery) {
+    if (query.domain) return query.domain
+    if (query.url) return query.url
+    if (query.firstPartyDomain) return query.firstPartyDomain
+    if (query.name) return query.name
+    return 'all'
   }
 
   protected async callUserscriptCookieApi(
@@ -638,7 +653,7 @@ export class KGlacerMacro {
         resolve(value)
       }
       const callback = (...args: unknown[]) => {
-        finish(args.length > 1 ? args : args[0])
+        finish(this.normalizeUserscriptCookieCallbackArgs(args))
       }
 
       try {
@@ -663,8 +678,24 @@ export class KGlacerMacro {
 
       window.setTimeout(() => {
         finish(undefined)
-      }, 500)
+      }, 1200)
     })
+  }
+
+  protected normalizeUserscriptCookieCallbackArgs(args: unknown[]) {
+    if (args.length <= 1) return args[0]
+
+    const likelyCookiePayload = args.find((arg) => {
+      if (Array.isArray(arg)) return true
+      if (!arg || typeof arg !== 'object') return false
+      const record = arg as Record<string, unknown>
+      return (
+        Array.isArray(record.cookies) ||
+        typeof record.name === 'string' ||
+        typeof record.value === 'string'
+      )
+    })
+    return likelyCookiePayload ?? args
   }
 
   protected resolveCookieApiResult(
@@ -696,20 +727,22 @@ export class KGlacerMacro {
 
   protected normalizeCookieList(value: unknown): UserscriptCookie[] {
     if (Array.isArray(value)) {
-      if (Array.isArray(value[0])) return this.normalizeCookieList(value[0])
-      return value.filter(
-        (item): item is UserscriptCookie =>
-          typeof item === 'object' && item !== null,
-      )
+      return value.flatMap((item) => this.normalizeCookieList(item))
     }
     if (value && typeof value === 'object') {
       const record = value as {
         cookies?: unknown
+        cookie?: unknown
+        result?: unknown
+        response?: unknown
         name?: string
         value?: string
       }
       if (Array.isArray(record.cookies))
         return this.normalizeCookieList(record.cookies)
+      if (record.cookie) return this.normalizeCookieList(record.cookie)
+      if (record.result) return this.normalizeCookieList(record.result)
+      if (record.response) return this.normalizeCookieList(record.response)
       if (record.name || record.value) return [record]
     }
     return []

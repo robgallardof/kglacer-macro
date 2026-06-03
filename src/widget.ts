@@ -94,11 +94,23 @@ export class Widget extends Base {
   public set open(value) {
     if (value) this.element.classList.add('wopen')
     else this.element.classList.remove('wopen')
+    const button =
+      this.element.querySelector<HTMLButtonElement>('.wopen-button')
+    if (!button) return
+    button.setAttribute('aria-expanded', String(value))
+    button.setAttribute(
+      'aria-label',
+      value ? t('mobileMinimize') : t('mobileShowPanel'),
+    )
+    button.title = value ? t('mobileMinimize') : t('mobileShowPanel')
   }
 
   protected readonly $settings!: HTMLDivElement
   protected readonly $status!: HTMLDivElement
   protected readonly $openConfig!: HTMLButtonElement
+  protected readonly $mobileMinimize!: HTMLButtonElement
+  protected readonly $mobileSettings!: HTMLButtonElement
+  protected readonly $mobileScrollImages!: HTMLButtonElement
   protected readonly $topbar!: HTMLDivElement
   protected readonly $draw!: HTMLButtonElement
   protected readonly $drawAndPaint!: HTMLButtonElement
@@ -158,6 +170,9 @@ export class Widget extends Base {
       $settings: '.wform',
       $status: '.wstatus',
       $openConfig: '.open-config',
+      $mobileMinimize: '.mobile-minimize',
+      $mobileSettings: '.mobile-settings',
+      $mobileScrollImages: '.mobile-scroll-images',
       $topbar: '.wtopbar',
       $draw: '.draw',
       $drawAndPaint: '.draw-and-paint',
@@ -200,6 +215,20 @@ export class Widget extends Base {
     this.$addImage.addEventListener('click', () => this.addImage())
     this.$openConfig.addEventListener('click', () => {
       this.openSettingsModal()
+    })
+    this.$mobileMinimize.addEventListener('click', () => {
+      this.open = false
+    })
+    this.$mobileSettings.addEventListener('click', () => {
+      this.openSettingsModal()
+    })
+    this.$mobileScrollImages.addEventListener('click', () => {
+      this.open = true
+      this.$imagesSection.open = true
+      this.$imagesSection.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
     })
     this.$captureTemplate.addEventListener('click', () => {
       void this.captureTemplate()
@@ -809,7 +838,7 @@ export class Widget extends Base {
     if (stored === 'true') return true
     if (stored === 'false') return false
     const controlSettings = readControlSettings()
-    return controlSettings.imagesCollapsed ?? true
+    return controlSettings.imagesCollapsed ?? false
   }
 
   protected persistImagesCollapsedPreference(collapsed: boolean) {
@@ -850,7 +879,6 @@ export class Widget extends Base {
     </summary>
     <div class="widget-actions kgm-button-grid">
       <button type="button" class="challenge-button account-info-refresh"><i class="fa-solid fa-id-card"></i><span data-i18n="accountInfoRefresh">Refresh account</span></button>
-      <button type="button" class="challenge-button account-logout"><i class="fa-solid fa-right-from-bracket"></i><span data-i18n="logout">Logout</span></button>
     </div>
     <div class="account-info-output shield-checker-output" aria-live="polite"></div>
   </details>
@@ -977,8 +1005,6 @@ export class Widget extends Base {
     const $accountInfoRefresh = $dialog.querySelector<HTMLButtonElement>(
       '.account-info-refresh',
     )!
-    const $accountLogout =
-      $dialog.querySelector<HTMLButtonElement>('.account-logout')!
     const $accountInfoOutput = $dialog.querySelector<HTMLDivElement>(
       '.account-info-output',
     )!
@@ -990,10 +1016,6 @@ export class Widget extends Base {
     $accountInfoRefresh.addEventListener('click', async () => {
       await this.bot.refreshControlAccess('settings').catch(() => null)
       await refreshAccountInfoOutput()
-    })
-    $accountLogout.addEventListener('click', async () => {
-      await this.bot.logoutControl()
-      location.reload()
     })
     void refreshAccountInfoOutput()
     $proxyEnabled.checked = Boolean(proxyConfig.enabled)
