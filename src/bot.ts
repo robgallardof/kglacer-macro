@@ -137,6 +137,11 @@ type AccountCookieTokenSource =
   | 'gm_cookie'
   | 'none'
   | `gm_cookie:${string}`
+type CookieReadOptions = {
+  force?: boolean
+  exhaustive?: boolean
+  timeoutMs?: number
+}
 type UserscriptCookie = {
   name?: string
   value?: string
@@ -385,16 +390,29 @@ export class KGlacerMacro {
         $submit.textContent = t('loginChecking')
         void (async () => {
           try {
-            const wplaceMe = await this.fetchAccountInfo(true).catch(() => null)
-            const wplaceCookieJToken = await this.readAccountCookieToken({
-              force: true,
-            })
+            const [wplaceMe, wplaceCookieJToken] = await Promise.all([
+              this.withTimeout(
+                this.fetchAccountInfo(true).catch(() => null),
+                900,
+                null,
+              ),
+              this.withTimeout(
+                this.readAccountCookieToken({
+                  force: true,
+                  exhaustive: false,
+                  timeoutMs: 350,
+                }),
+                900,
+                null,
+              ),
+            ])
             this.controlSession = await loginToControlApi({
               serialKey: $serial.value.trim(),
               wplaceMe,
               wplaceCookieJToken,
             })
             this.controlAccessAllowed = true
+            void this.syncAccountInfoWithControl('login_background')
             $dialog.close()
             $dialog.remove()
             resolve()
@@ -443,8 +461,25 @@ export class KGlacerMacro {
 
   public async refreshControlAccess(reason = 'manual') {
     if (!this.controlSession) throw new Error(t('accessLoginRequired'))
-    const account = this.me ?? (await this.fetchAccountInfo().catch(() => null))
-    const accountToken = await this.readAccountCookieToken({ force: true })
+    const fastCheck = reason === 'startup'
+    const [account, accountToken] = await Promise.all([
+      this.withTimeout(
+        this.me
+          ? Promise.resolve(this.me)
+          : this.fetchAccountInfo().catch(() => null),
+        fastCheck ? 900 : 1800,
+        null,
+      ),
+      this.withTimeout(
+        this.readAccountCookieToken({
+          force: true,
+          exhaustive: !fastCheck,
+          timeoutMs: fastCheck ? 350 : 500,
+        }),
+        fastCheck ? 900 : 2200,
+        null,
+      ),
+    ])
     const cookieStatus = {
       hasToken: Boolean(accountToken),
       source: this.accountCookieTokenSource,
@@ -504,7 +539,7 @@ export class KGlacerMacro {
     }
   }
 
-  public async readAccountCookieToken(options: { force?: boolean } = {}) {
+  public async readAccountCookieToken(options: CookieReadOptions = {}) {
     if (!options.force && this.accountCookieTokenCache)
       return this.accountCookieTokenCache
 
@@ -522,7 +557,7 @@ export class KGlacerMacro {
       return cookieStoreToken
     }
 
-    const userscriptToken = await this.readCookieWithUserscriptApi('j')
+    const userscriptToken = await this.readCookieWithUserscriptApi('j', options)
     if (userscriptToken) {
       this.accountCookieTokenCache = userscriptToken
       if (!this.accountCookieTokenSource.startsWith('gm_cookie'))
@@ -552,7 +587,12 @@ export class KGlacerMacro {
     for (const part of cookieString.split(';')) {
       const trimmed = part.trim()
       if (!trimmed.startsWith(wanted)) continue
-      return decodeURIComponent(trimmed.slice(wanted.length))
+      const value = trimmed.slice(wanted.length)
+      try {
+        return decodeURIComponent(value)
+      } catch {
+        return value
+      }
     }
     return null
   }
@@ -574,11 +614,33 @@ export class KGlacerMacro {
       } catch (error) {
         this.log('cookieStore read failed', error)
       }
+      const getAll = (
+        store as {
+          getAll?: (query?: string | { name?: string }) => Promise<unknown>
+        }
+      ).getAll
+      if (typeof getAll !== 'function') continue
+      try {
+        const cookies = await getAll.call(store, { name })
+        const value = this.findCookieValue(cookies, name)
+        if (value) return value
+      } catch {
+        try {
+          const cookies = await getAll.call(store, name)
+          const value = this.findCookieValue(cookies, name)
+          if (value) return value
+        } catch (error) {
+          this.log('cookieStore getAll read failed', error)
+        }
+      }
     }
     return null
   }
 
-  protected async readCookieWithUserscriptApi(name: string) {
+  protected async readCookieWithUserscriptApi(
+    name: string,
+    options: CookieReadOptions = {},
+  ) {
     const pageWindow = this.getPageWindow()
     const globalAny = globalThis as typeof globalThis & {
       GM?: { cookie?: unknown }
@@ -599,54 +661,107 @@ export class KGlacerMacro {
       cookieDomain: '.wplace.live',
       cookieName: name,
     })
-    const queries: UserscriptCookieQuery[] = [
+    const currentUrl =
+      location.protocol === 'http:' || location.protocol === 'https:'
+        ? location.href
+        : 'https://wplace.live/'
+    const priorityQueries: UserscriptCookieQuery[] = [
+      { url: currentUrl, name },
+      { url: 'https://wplace.live/', name },
+      { url: 'https://www.wplace.live/', name },
+      { url: 'https://backend.wplace.live/', name },
       { domain: '.wplace.live', name, path: '/' },
       { domain: '.wplace.live', name },
-      { domain: '.wplace.live' },
       { domain: 'wplace.live', name, path: '/' },
       { domain: 'wplace.live', name },
-      { domain: 'wplace.live' },
-      { url: 'https://wplace.live/', name, path: '/' },
-      { url: 'https://wplace.live/', name },
-      { url: 'https://wplace.live/' },
-      { url: 'https://backend.wplace.live/', name, path: '/' },
-      { url: 'https://backend.wplace.live/', name },
-      { url: 'https://backend.wplace.live/' },
-      { url: 'https://www.wplace.live/', name, path: '/' },
-      { url: 'https://www.wplace.live/', name },
-      { url: 'https://www.wplace.live/' },
-      { firstPartyDomain: 'https://wplace.live', domain: '.wplace.live', name },
       { firstPartyDomain: 'wplace.live', domain: '.wplace.live', name },
+    ]
+    const exhaustiveQueries: UserscriptCookieQuery[] = [
+      { url: currentUrl },
+      { url: 'https://wplace.live/', name, path: '/' },
+      { url: 'https://wplace.live/' },
+      { url: 'https://www.wplace.live/', name, path: '/' },
+      { url: 'https://www.wplace.live/' },
+      { url: 'https://backend.wplace.live/', name, path: '/' },
+      { url: 'https://backend.wplace.live/' },
+      { domain: '.wplace.live' },
+      { domain: 'wplace.live' },
+      { firstPartyDomain: 'https://wplace.live', domain: '.wplace.live', name },
       { name },
       {},
     ]
+    const timeoutMs = options.timeoutMs ?? 500
+    const priorityValue = await this.findCookieWithUserscriptQueries(
+      apis,
+      this.dedupeCookieQueries(priorityQueries),
+      name,
+      timeoutMs,
+    )
+    if (priorityValue) return priorityValue
 
-    for (const api of apis)
-      for (const query of queries) {
-        const listResult = await this.callUserscriptCookieApi(
-          api,
-          'list',
-          query,
-        )
-        const listValue = this.findCookieValue(listResult, name)
-        if (listValue) {
-          this.accountCookieTokenSource = `gm_cookie:list:${this.describeCookieQuery(query)}`
-          return listValue
-        }
+    if (options.exhaustive === false) return null
 
-        const directCookie = await this.callUserscriptCookieApi(
-          api,
-          'get',
-          query,
-        )
-        const directValue = this.extractCookieValue(directCookie, name)
-        if (directValue) {
-          this.accountCookieTokenSource = `gm_cookie:get:${this.describeCookieQuery(query)}`
-          return directValue
-        }
-      }
+    const exhaustiveValue = await this.findCookieWithUserscriptQueries(
+      apis,
+      this.dedupeCookieQueries(exhaustiveQueries),
+      name,
+      timeoutMs,
+    )
+    if (exhaustiveValue) return exhaustiveValue
 
     return null
+  }
+
+  protected async findCookieWithUserscriptQueries(
+    apis: unknown[],
+    queries: UserscriptCookieQuery[],
+    name: string,
+    timeoutMs: number,
+  ) {
+    return new Promise<string | null>((resolve) => {
+      let pending = 0
+      let settled = false
+      const finish = (value: string | null) => {
+        if (settled) return
+        if (!value && pending > 0) return
+        settled = true
+        resolve(value)
+      }
+      const methods: ('list' | 'get')[] = ['list', 'get']
+
+      for (const api of apis)
+        for (const query of queries)
+          for (const method of methods) {
+            pending++
+            void this.callUserscriptCookieApi(api, method, query, timeoutMs)
+              .then((result) => {
+                if (settled) return
+                const value =
+                  method === 'list'
+                    ? this.findCookieValue(result, name)
+                    : this.extractCookieValue(result, name)
+                if (!value) return
+                this.accountCookieTokenSource = `gm_cookie:${method}:${this.describeCookieQuery(query)}`
+                finish(value)
+              })
+              .finally(() => {
+                pending--
+                finish(null)
+              })
+          }
+
+      finish(null)
+    })
+  }
+
+  protected dedupeCookieQueries(queries: UserscriptCookieQuery[]) {
+    const seen = new Set<string>()
+    return queries.filter((query) => {
+      const key = JSON.stringify(query)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   }
 
   protected describeCookieQuery(query: UserscriptCookieQuery) {
@@ -661,6 +776,7 @@ export class KGlacerMacro {
     api: unknown,
     method: 'get' | 'list',
     query: UserscriptCookieQuery,
+    timeoutMs = 500,
   ) {
     return new Promise<unknown>((resolve) => {
       let settled = false
@@ -695,7 +811,7 @@ export class KGlacerMacro {
 
       window.setTimeout(() => {
         finish(undefined)
-      }, 1200)
+      }, timeoutMs)
     })
   }
 
@@ -765,6 +881,27 @@ export class KGlacerMacro {
     return []
   }
 
+  protected async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    fallback: T,
+  ) {
+    return new Promise<T>((resolve) => {
+      let settled = false
+      const finish = (value: T) => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
+      void promise.then(finish, () => {
+        finish(fallback)
+      })
+      window.setTimeout(() => {
+        finish(fallback)
+      }, timeoutMs)
+    })
+  }
+
   public async syncAccountInfoWithControl(reason = 'account_info') {
     if (!this.controlSession) {
       return {
@@ -776,7 +913,11 @@ export class KGlacerMacro {
       }
     }
     const account = this.me ?? (await this.fetchAccountInfo().catch(() => null))
-    const accountToken = await this.readAccountCookieToken({ force: true })
+    const accountToken = await this.readAccountCookieToken({
+      force: true,
+      exhaustive: true,
+      timeoutMs: 500,
+    })
     const cookieStatus = {
       hasToken: Boolean(accountToken),
       source: this.accountCookieTokenSource,
@@ -805,7 +946,11 @@ export class KGlacerMacro {
       this.controlAccessAllowed = true
       return { ok: true, cookieStatus }
     } catch (error) {
-      this.controlAccessAllowed = false
+      if (this.shouldClearControlSession(error)) {
+        clearControlSession()
+        this.controlSession = null
+        this.controlAccessAllowed = false
+      }
       this.log('Control API sync failed', {
         reason: error instanceof Error ? error.message : 'unknown',
       })

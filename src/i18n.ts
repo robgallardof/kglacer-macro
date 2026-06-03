@@ -209,8 +209,7 @@ const MESSAGES = {
     minutes: 'Minutes',
     hours: 'Hours',
     accessTitle: 'Access key',
-    accessHelp:
-      'Enter your serial key to continue. You can also pick the UI language before starting.',
+    accessHelp: 'Enter your serial key to continue.',
     accessInputLabel: 'Serial key',
     accessInputPlaceholder: 'KGM-********',
     accessContinue: 'Continue',
@@ -231,8 +230,7 @@ const MESSAGES = {
     taskDrawingOverlayPixels: 'Drawing overlay pixels',
     captureHintSelectArea: 'Select area',
     loginTitle: 'Sign in',
-    loginHelp:
-      'Enter your serial key. WPlace user information and available device metadata will be sent securely.',
+    loginHelp: 'Enter your serial key.',
     loginSerialKey: 'Serial key',
     loginSubmit: 'Validate serial',
     loginChecking: 'Checking...',
@@ -500,8 +498,7 @@ const MESSAGES = {
     minutes: 'Minutos',
     hours: 'Horas',
     accessTitle: 'Clave de acceso',
-    accessHelp:
-      'Ingresa tu serial para continuar. También puedes elegir el idioma antes de iniciar.',
+    accessHelp: 'Ingresa tu serial para continuar.',
     accessInputLabel: 'Serial',
     accessInputPlaceholder: 'KGM-********',
     accessContinue: 'Continuar',
@@ -522,8 +519,7 @@ const MESSAGES = {
     taskDrawingOverlayPixels: 'Dibujando píxeles del overlay',
     captureHintSelectArea: 'Selecciona área',
     loginTitle: 'Iniciar sesión',
-    loginHelp:
-      'Ingresa tu serial. La información de WPlace y la metadata disponible del dispositivo se enviarán de forma segura.',
+    loginHelp: 'Ingresa tu serial.',
     loginSerialKey: 'Serial',
     loginSubmit: 'Validar serial',
     loginChecking: 'Validando...',
