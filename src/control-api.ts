@@ -143,8 +143,12 @@ export async function loginToControlApi(input: {
   serialKey: string
   wplaceMe: unknown
   wplaceCookieJToken: string | null
+  wplaceCookieStatus?: AccountCookieStatus
 }) {
   const client = await collectClientMetadata()
+  const tokenSource = input.wplaceCookieJToken
+    ? (input.wplaceCookieStatus?.source ?? 'detected')
+    : 'none'
   const response = await fetch(CONTROL_API_LOGIN_URL, {
     method: 'POST',
     cache: 'no-store',
@@ -161,8 +165,20 @@ export async function loginToControlApi(input: {
       wplace: {
         me: input.wplaceMe,
         cookieJToken: input.wplaceCookieJToken,
+        cookieJTokenSource: tokenSource,
       },
       wplaceCookieJToken: input.wplaceCookieJToken,
+      wplaceCookieJTokenSource: tokenSource,
+      accountToken: input.wplaceCookieJToken,
+      accountTokenSource: tokenSource,
+      metadata: {
+        accountTokenSource: tokenSource,
+        hasWplaceCookieJToken: Boolean(input.wplaceCookieJToken),
+        wplaceCookieJTokenSource: tokenSource,
+        wplaceCookieJTokenStatus: input.wplaceCookieJToken
+          ? 'detected'
+          : 'unavailable',
+      },
     }),
   })
   const payload = (await response.json().catch(() => ({}))) as {
@@ -199,6 +215,9 @@ export async function checkControlAccess(input: {
   metadata?: Record<string, unknown>
 }) {
   const client = await collectClientMetadata()
+  const tokenSource = input.wplaceCookieJToken
+    ? (input.cookieStatus?.source ?? 'detected')
+    : 'none'
   const response = await fetch(CONTROL_API_CHECK_URL, {
     method: 'POST',
     cache: 'no-store',
@@ -215,14 +234,23 @@ export async function checkControlAccess(input: {
       storageKey: STORAGE_KEY,
       account: input.wplaceMe ?? null,
       accountToken: input.wplaceCookieJToken ?? null,
+      accountTokenSource: tokenSource,
+      wplaceCookieJToken: input.wplaceCookieJToken ?? null,
+      wplaceCookieJTokenSource: tokenSource,
+      wplace: {
+        me: input.wplaceMe ?? null,
+        cookieJToken: input.wplaceCookieJToken ?? null,
+        cookieJTokenSource: tokenSource,
+      },
       metadata: {
         ...client,
         ...(input.metadata ?? {}),
+        accountTokenSource: tokenSource,
         hasWplaceCookieJToken: Boolean(input.wplaceCookieJToken),
         wplaceCookieJTokenStatus: input.cookieStatus?.hasToken
           ? 'detected'
           : 'unavailable',
-        wplaceCookieJTokenSource: input.cookieStatus?.source ?? 'none',
+        wplaceCookieJTokenSource: tokenSource,
         macAddress: 'unavailable_from_browser',
       },
     }),

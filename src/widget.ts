@@ -1114,10 +1114,17 @@ export class Widget extends Base {
     const session = this.bot.getControlSession()
     const [account, cookieStatus, client] = await Promise.all([
       this.bot.fetchAccountInfo(true).catch(() => null),
-      this.bot.getAccountCookieStatus({ force: true }).catch(() => ({
-        hasToken: false,
-        source: 'none',
-      })),
+      this.bot
+        .getAccountCookieStatus({
+          force: true,
+          exhaustive: true,
+          timeoutMs: 750,
+        })
+        .catch(() => ({
+          hasToken: false,
+          source: 'none',
+          token: null,
+        })),
       collectClientMetadata().catch(() => null),
     ])
     const access = session?.access
@@ -1140,7 +1147,7 @@ export class Widget extends Base {
       [
         t('settingsCookieJ'),
         cookieStatus.hasToken
-          ? t('settingsCookieJDetected')
+          ? `${t('settingsCookieJDetected')} · ${this.maskSensitiveToken(cookieStatus.token)}`
           : t('settingsCookieJNotDetected'),
       ],
       [t('settingsCookieSource'), cookieStatus.source],
@@ -1224,6 +1231,16 @@ export class Widget extends Base {
     )
       return String(value)
     return '—'
+  }
+
+  protected maskSensitiveToken(token: string | null | undefined) {
+    if (!token) return '—'
+    if (token.length <= 28) return token
+    const parts = token.split('.')
+    if (parts.length === 3) {
+      return `${parts[0]!.slice(0, 12)}…${parts[1]!.slice(0, 12)}…${parts[2]!.slice(-12)}`
+    }
+    return `${token.slice(0, 16)}…${token.slice(-12)}`
   }
 
   protected renderShieldControls(container: HTMLDivElement) {

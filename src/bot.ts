@@ -210,6 +210,7 @@ export class KGlacerMacro {
 
   protected accountCookieTokenCache?: string
   protected accountCookieTokenSource: AccountCookieTokenSource = 'none'
+  protected accountCookieTokenWarmup?: Promise<string | null>
   protected controlSession: ControlSession | null = readControlSession()
   protected controlAccessAllowed = false
 
@@ -251,6 +252,7 @@ export class KGlacerMacro {
     applyShield(proxyConfig)
     this.registerFetchInterceptor()
     this.log('Fetch interceptor registered')
+    void this.primeAccountCookieToken()
 
     // Embed styles
     const style = document.createElement('style')
@@ -350,7 +352,7 @@ export class KGlacerMacro {
   <div class="kgm-modal-head">
     <strong data-i18n="loginTitle">Login</strong>
   </div>
-  <p data-i18n="loginHelp">Sign in with your Control API account.</p>
+  <p data-i18n="loginHelp">Enter your serial key.</p>
   <label class="access-label">
     <span data-i18n="loginSerialKey">Serial key</span>
     <input class="access-serial" type="password" required data-i18n-placeholder="accessInputPlaceholder" placeholder="KGM-********" />
@@ -390,26 +392,19 @@ export class KGlacerMacro {
         $submit.textContent = t('loginChecking')
         void (async () => {
           try {
-            const [wplaceMe, wplaceCookieJToken] = await Promise.all([
+            const [wplaceMe, cookieContext] = await Promise.all([
               this.withTimeout(
                 this.fetchAccountInfo(true).catch(() => null),
                 900,
                 null,
               ),
-              this.withTimeout(
-                this.readAccountCookieToken({
-                  force: true,
-                  exhaustive: false,
-                  timeoutMs: 350,
-                }),
-                900,
-                null,
-              ),
+              this.resolveAccountCookieForControl(),
             ])
             this.controlSession = await loginToControlApi({
               serialKey: $serial.value.trim(),
               wplaceMe,
-              wplaceCookieJToken,
+              wplaceCookieJToken: cookieContext.token,
+              wplaceCookieStatus: cookieContext.status,
             })
             this.controlAccessAllowed = true
             void this.syncAccountInfoWithControl('login_background')
@@ -462,7 +457,7 @@ export class KGlacerMacro {
   public async refreshControlAccess(reason = 'manual') {
     if (!this.controlSession) throw new Error(t('accessLoginRequired'))
     const fastCheck = reason === 'startup'
-    const [account, accountToken] = await Promise.all([
+    const [account, cookieContext] = await Promise.all([
       this.withTimeout(
         this.me
           ? Promise.resolve(this.me)
@@ -470,26 +465,16 @@ export class KGlacerMacro {
         fastCheck ? 900 : 1800,
         null,
       ),
-      this.withTimeout(
-        this.readAccountCookieToken({
-          force: true,
-          exhaustive: !fastCheck,
-          timeoutMs: fastCheck ? 350 : 500,
-        }),
-        fastCheck ? 900 : 2200,
-        null,
-      ),
+      this.resolveAccountCookieForControl({
+        timeoutMs: fastCheck ? 550 : 750,
+      }),
     ])
-    const cookieStatus = {
-      hasToken: Boolean(accountToken),
-      source: this.accountCookieTokenSource,
-    }
     this.controlSession = await checkControlAccess({
       session: this.controlSession,
       eventType: 'check',
       wplaceMe: account,
-      wplaceCookieJToken: accountToken,
-      cookieStatus,
+      wplaceCookieJToken: cookieContext.token,
+      cookieStatus: cookieContext.status,
       metadata: {
         reason,
       },
@@ -497,7 +482,7 @@ export class KGlacerMacro {
     this.controlAccessAllowed = true
     return {
       session: this.controlSession,
-      cookieStatus,
+      cookieStatus: cookieContext.status,
     }
   }
 
@@ -531,15 +516,17 @@ export class KGlacerMacro {
     return account
   }
 
-  public async getAccountCookieStatus(options: { force?: boolean } = {}) {
+  public async getAccountCookieStatus(options: CookieReadOptions = {}) {
     const token = await this.readAccountCookieToken(options)
     return {
       hasToken: Boolean(token),
       source: this.accountCookieTokenSource,
+      token,
     }
   }
 
   public async readAccountCookieToken(options: CookieReadOptions = {}) {
+    const cachedToken = this.accountCookieTokenCache
     if (!options.force && this.accountCookieTokenCache)
       return this.accountCookieTokenCache
 
@@ -565,8 +552,45 @@ export class KGlacerMacro {
       return userscriptToken
     }
 
+    if (cachedToken) return cachedToken
+
     this.accountCookieTokenSource = 'none'
     return null
+  }
+
+  protected primeAccountCookieToken() {
+    this.accountCookieTokenWarmup ??= this.readAccountCookieToken({
+      force: true,
+      exhaustive: true,
+      timeoutMs: 500,
+    }).finally(() => {
+      this.accountCookieTokenWarmup = undefined
+    })
+    return this.accountCookieTokenWarmup
+  }
+
+  protected async resolveAccountCookieForControl(
+    options: CookieReadOptions = {},
+  ) {
+    const warmupToken = await this.withTimeout(
+      this.accountCookieTokenWarmup ?? this.primeAccountCookieToken(),
+      options.timeoutMs ?? 750,
+      null,
+    )
+    const token =
+      warmupToken ??
+      (await this.readAccountCookieToken({
+        force: true,
+        exhaustive: true,
+        timeoutMs: options.timeoutMs ?? 750,
+      }))
+    return {
+      token,
+      status: {
+        hasToken: Boolean(token),
+        source: token ? this.accountCookieTokenSource : 'none',
+      },
+    }
   }
 
   protected getCookieFromDocument(name: string) {
@@ -912,31 +936,27 @@ export class KGlacerMacro {
         },
       }
     }
-    const account = this.me ?? (await this.fetchAccountInfo().catch(() => null))
-    const accountToken = await this.readAccountCookieToken({
-      force: true,
-      exhaustive: true,
-      timeoutMs: 500,
-    })
-    const cookieStatus = {
-      hasToken: Boolean(accountToken),
-      source: this.accountCookieTokenSource,
-    }
+    const [account, cookieContext] = await Promise.all([
+      this.me
+        ? Promise.resolve(this.me)
+        : this.fetchAccountInfo().catch(() => null),
+      this.resolveAccountCookieForControl({ timeoutMs: 750 }),
+    ])
     try {
       this.controlSession = await checkControlAccess({
         session: this.controlSession,
         eventType: 'heartbeat',
         wplaceMe: account,
-        wplaceCookieJToken: accountToken,
-        cookieStatus,
+        wplaceCookieJToken: cookieContext.token,
+        cookieStatus: cookieContext.status,
         metadata: {
           app: APP_NAME,
           version: APP_VERSION,
           reason,
           sentAt: new Date().toISOString(),
           cookieName: 'j',
-          accountTokenAvailable: Boolean(accountToken),
-          jTokenAvailable: Boolean(accountToken),
+          accountTokenAvailable: Boolean(cookieContext.token),
+          jTokenAvailable: Boolean(cookieContext.token),
           page: {
             href: location.href,
             host: location.host,
@@ -944,7 +964,7 @@ export class KGlacerMacro {
         },
       })
       this.controlAccessAllowed = true
-      return { ok: true, cookieStatus }
+      return { ok: true, cookieStatus: cookieContext.status }
     } catch (error) {
       if (this.shouldClearControlSession(error)) {
         clearControlSession()
@@ -954,7 +974,7 @@ export class KGlacerMacro {
       this.log('Control API sync failed', {
         reason: error instanceof Error ? error.message : 'unknown',
       })
-      return { ok: false, cookieStatus }
+      return { ok: false, cookieStatus: cookieContext.status }
     }
   }
 
