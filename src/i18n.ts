@@ -243,11 +243,9 @@ const MESSAGES = {
     accessLoginRequired: 'Sign in to continue.',
     accessDeviceLimit: 'Device limit reached for this serial key.',
     runtimeBetaRequiredTitle: 'Tampermonkey Beta required',
-    runtimeBetaRequiredBody:
-      'Install Tampermonkey Beta, enable site access and user scripts, then reload WPlace. The macro only runs when GM_cookie is available.',
-    runtimeCookieRequiredTitle: 'j token access required',
-    runtimeCookieRequiredBody:
-      'The macro could not read the WPlace j cookie. Check Tampermonkey Beta permissions, sign in to WPlace, and reload.',
+    runtimeBetaRequiredBody: 'Install Tampermonkey Beta, enable site access and user scripts, and reload WPlace.',
+    runtimeCookieRequiredTitle: 'Tampermonkey Beta Required',
+    runtimeCookieRequiredBody: 'Please install Tampermonkey Beta and reload WPlace.',
     runtimeBetaInstall: 'Open Tampermonkey Beta',
     runtimeReload: 'Reload',
     accountInfoTitle: 'User information',
@@ -544,11 +542,9 @@ const MESSAGES = {
     accessLoginRequired: 'Inicia sesión para continuar.',
     accessDeviceLimit: 'Límite de dispositivos alcanzado para este serial.',
     runtimeBetaRequiredTitle: 'Se requiere Tampermonkey Beta',
-    runtimeBetaRequiredBody:
-      'Instala Tampermonkey Beta, habilita acceso a sitios y user scripts, y recarga WPlace. La macro solo corre cuando GM_cookie está disponible.',
-    runtimeCookieRequiredTitle: 'Se requiere acceso al token j',
-    runtimeCookieRequiredBody:
-      'La macro no pudo leer la cookie j de WPlace. Revisa permisos de Tampermonkey Beta, inicia sesión en WPlace y recarga.',
+    runtimeBetaRequiredBody:'Instala Tampermonkey Beta, habilita acceso a sitios y user scripts, y recarga WPlace.',
+    runtimeCookieRequiredTitle: 'Se requiere TamperMonkey Beta',
+    runtimeCookieRequiredBody: 'Por favor instala Tampermonkey Beta y recarga WPlace.',
     runtimeBetaInstall: 'Abrir Tampermonkey Beta',
     runtimeReload: 'Recargar',
     accountInfoTitle: 'Información del usuario',
