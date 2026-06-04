@@ -15,7 +15,7 @@ Macro para apoyar el pintado en **wplace.live**.
    <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
 4. Recarga **wplace.live**.
 
-La macro requiere Tampermonkey Beta para correr.
+En desktop la macro requiere Tampermonkey Beta. En mobile no se bloquea por este requisito.
 
 ## Uso
 
@@ -55,7 +55,7 @@ Painting helper macro for **wplace.live**.
    <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
 4. Reload **wplace.live**.
 
-The macro requires Tampermonkey Beta to run.
+On desktop the macro requires Tampermonkey Beta. On mobile this requirement does not block the macro.
 
 ## Usage
 

@@ -149,10 +149,12 @@ export class Widget extends Base {
   protected autoFarmIntervalId?: number
   protected autoFarmConfig?: AutoFarmConfig
   protected autoFarmTickRunning = false
+  protected autoFarmPendingTick = false
   protected autoFarmNextTickAt?: number
   protected autoOverlayIntervalId?: number
   protected autoOverlayConfig?: AutoOverlayConfig
   protected autoOverlayTickRunning = false
+  protected autoOverlayPendingTick = false
   protected autoOverlayNextTickAt?: number
   protected statusRefreshIntervalId?: number
   protected challengeWatcherObserver?: MutationObserver
@@ -1848,6 +1850,7 @@ export class Widget extends Base {
     clearInterval(this.autoFarmIntervalId)
     this.autoFarmIntervalId = undefined
     this.autoFarmNextTickAt = undefined
+    this.autoFarmPendingTick = false
     this.refreshAutoFarmStatusText()
     this.trackAction('auto_farm_stopped', {
       source: 'widget',
@@ -1860,6 +1863,7 @@ export class Widget extends Base {
     clearInterval(this.autoOverlayIntervalId)
     this.autoOverlayIntervalId = undefined
     this.autoOverlayNextTickAt = undefined
+    this.autoOverlayPendingTick = false
     this.refreshAutoOverlayStatusText()
     this.trackAction('auto_draw_stopped', {
       source: 'widget',
@@ -1880,6 +1884,10 @@ export class Widget extends Base {
     this.stopAutoFarm()
     this.autoFarmNextTickAt = Date.now() + this.autoFarmConfig.timerMs
     this.autoFarmIntervalId = window.setInterval(() => {
+      if (this.autoFarmTickRunning) {
+        this.autoFarmPendingTick = true
+        return
+      }
       this.autoFarmNextTickAt = Date.now() + this.autoFarmConfig!.timerMs
       void this.runAutoFarmCycle()
     }, this.autoFarmConfig.timerMs)
@@ -1905,6 +1913,10 @@ export class Widget extends Base {
     this.stopAutoOverlay()
     this.autoOverlayNextTickAt = Date.now() + this.autoOverlayConfig.timerMs
     this.autoOverlayIntervalId = window.setInterval(() => {
+      if (this.autoOverlayTickRunning) {
+        this.autoOverlayPendingTick = true
+        return
+      }
       this.autoOverlayNextTickAt = Date.now() + this.autoOverlayConfig!.timerMs
       void this.runAutoOverlayCycle()
     }, this.autoOverlayConfig.timerMs)
@@ -1952,6 +1964,12 @@ export class Widget extends Base {
       throw error
     } finally {
       this.autoFarmTickRunning = false
+      if (this.autoFarmPendingTick && this.autoFarmIntervalId) {
+        this.autoFarmPendingTick = false
+        this.autoFarmNextTickAt = Date.now() + this.autoFarmConfig.timerMs
+        this.refreshAutoFarmStatusText()
+        void this.runAutoFarmCycle()
+      }
     }
   }
 
@@ -1990,6 +2008,12 @@ export class Widget extends Base {
       throw error
     } finally {
       this.autoOverlayTickRunning = false
+      if (this.autoOverlayPendingTick && this.autoOverlayIntervalId) {
+        this.autoOverlayPendingTick = false
+        this.autoOverlayNextTickAt = Date.now() + this.autoOverlayConfig.timerMs
+        this.refreshAutoOverlayStatusText()
+        void this.runAutoOverlayCycle()
+      }
     }
   }
 
@@ -2947,7 +2971,7 @@ export class Widget extends Base {
           })
           return
         }
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 150))
       }
     })
   }
@@ -2957,8 +2981,10 @@ export class Widget extends Base {
       source: 'widget',
       drawButtonEnabled: !this.$draw.disabled,
     })
-    if (!this.$draw.disabled) await this.bot.draw()
+    if (!this.$draw.disabled)
+      await this.bot.draw({ refreshMapAfterDraw: false })
     await this.waitAndClickPaintButton()
+    void this.bot.refreshMapAfterPaint('draw_and_paint')
     this.trackAction('draw_and_paint_completed', {
       source: 'widget',
     })
@@ -3028,7 +3054,7 @@ export class Widget extends Base {
         buttonText: candidate.textContent.trim(),
       })
       this.triggerNativePaintClick(candidate)
-      const outcome = await this.waitForPaintAttemptOutcome(6_000)
+      const outcome = await this.waitForPaintAttemptOutcome(2_500)
       this.trackAction('native_paint_attempt_result', {
         source: 'widget',
         attempt: attempt + 1,
@@ -3052,17 +3078,48 @@ export class Widget extends Base {
   }
 
   protected async waitForPaintAttemptOutcome(timeoutMs: number) {
-    const startedAt = Date.now()
-    while (Date.now() - startedAt <= timeoutMs) {
-      if (this.isChallengeBlockingPaint()) return 'challenge' as const
-      const button = this.findNativePaintButton()
-      if (button && (button.disabled || button.ariaDisabled === 'true')) {
-        const delayedChallenge = await this.waitForDelayedChallenge(1_200)
-        return delayedChallenge ? ('challenge' as const) : ('painted' as const)
+    return new Promise<'painted' | 'challenge' | 'unknown'>((resolve) => {
+      let settled = false
+      const finish = (outcome: 'painted' | 'challenge' | 'unknown') => {
+        if (settled) return
+        settled = true
+        globalThis.removeEventListener(
+          'kgm:paint-response',
+          onPaintResponse as EventListener,
+        )
+        resolve(outcome)
       }
-      await new Promise((resolve) => setTimeout(resolve, 200))
-    }
-    return 'unknown' as const
+      const onPaintResponse = (event: CustomEvent<{ ok?: boolean }>) => {
+        if (event.detail.ok) finish('painted')
+      }
+      globalThis.addEventListener(
+        'kgm:paint-response',
+        onPaintResponse as EventListener,
+      )
+
+      const startedAt = Date.now()
+      const poll = async () => {
+        while (Date.now() - startedAt <= timeoutMs) {
+          if (this.isChallengeBlockingPaint()) {
+            finish('challenge')
+            return
+          }
+          const button = this.findNativePaintButton()
+          if (button && (button.disabled || button.ariaDisabled === 'true')) {
+            const delayedChallenge = await this.waitForDelayedChallenge(700)
+            finish(delayedChallenge ? 'challenge' : 'painted')
+            return
+          }
+          await new Promise((pollResolve) => setTimeout(pollResolve, 120))
+        }
+        finish('unknown')
+      }
+
+      void poll()
+      window.setTimeout(() => {
+        finish('unknown')
+      }, timeoutMs + 100)
+    })
   }
 
   protected async waitForDelayedChallenge(windowMs: number) {

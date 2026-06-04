@@ -249,7 +249,6 @@ export async function checkControlAccess(input: {
     ...input.session,
     access: payload,
   }
-  saveControlSession(nextSession)
 
   if (!response.ok || payload.allowed === false)
     throw new ControlApiError(
@@ -258,6 +257,7 @@ export async function checkControlAccess(input: {
       response.status,
     )
 
+  saveControlSession(nextSession)
   return nextSession
 }
 

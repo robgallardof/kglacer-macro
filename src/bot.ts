@@ -11,7 +11,6 @@ import {
   checkControlAccess,
   ControlApiError,
   ControlSession,
-  hasUsableControlAccess,
   loginToControlApi,
   readControlSession,
 } from './control-api'
@@ -238,6 +237,8 @@ export class KGlacerMacro {
   protected loggedUserscriptCookieApiAvailability = false
   protected controlSession: ControlSession | null = readControlSession()
   protected controlAccessAllowed = false
+  protected controlAccessHardDenied = false
+  protected lastControlAccessFailureReason?: string
 
   protected log(message: string, payload?: unknown) {
     if (payload === undefined) console.log(`${BOT_LOG_PREFIX} ${message}`)
@@ -264,6 +265,15 @@ export class KGlacerMacro {
       hasTampermonkey,
       hasCookieApi,
     }
+  }
+
+  protected isMobileRuntime() {
+    const userAgent = navigator.userAgent.toLowerCase()
+    return (
+      /android|iphone|ipad|ipod|mobile/.test(userAgent) ||
+      (navigator.maxTouchPoints > 1 &&
+        Math.min(screen.width, screen.height) <= 1024)
+    )
   }
 
   protected getUserscriptInfo() {
@@ -311,7 +321,7 @@ export class KGlacerMacro {
   }
 
   protected showRuntimeRequirementNotice(
-    status: UserscriptRuntimeStatus,
+    _status: UserscriptRuntimeStatus,
     reason: 'missing_runtime' | 'missing_cookie' = 'missing_runtime',
   ) {
     this.injectRuntimeRequirementStyle()
@@ -323,21 +333,18 @@ export class KGlacerMacro {
     panel.className = 'kgm-runtime-blocker-panel'
 
     const title = document.createElement('strong')
-    title.textContent =
+    const titleText =
       reason === 'missing_cookie'
         ? t('runtimeCookieRequiredTitle')
         : t('runtimeBetaRequiredTitle')
+    title.textContent = titleText
 
     const body = document.createElement('p')
-    body.textContent =
+    const bodyText =
       reason === 'missing_cookie'
         ? t('runtimeCookieRequiredBody')
         : t('runtimeBetaRequiredBody')
-
-    const meta = document.createElement('small')
-    meta.textContent = `${status.handler} ${status.version} · GM_cookie: ${
-      status.hasCookieApi ? 'OK' : 'missing'
-    }`
+    body.textContent = bodyText
 
     const actions = document.createElement('div')
     actions.className = 'kgm-runtime-blocker-actions'
@@ -357,7 +364,9 @@ export class KGlacerMacro {
     })
 
     actions.append(install, reload)
-    panel.append(title, body, meta, actions)
+    panel.append(title)
+    if (bodyText !== titleText) panel.append(body)
+    panel.append(actions)
     root.append(panel)
     document.documentElement.append(root)
   }
@@ -433,7 +442,7 @@ export class KGlacerMacro {
     this.log('Boot sequence started')
     document.body.classList.add(ACCESS_LOCKED_CLASS)
     const runtimeStatus = this.getUserscriptRuntimeStatus()
-    if (!runtimeStatus.ok) {
+    if (!runtimeStatus.ok && !this.isMobileRuntime()) {
       this.log('Required userscript runtime missing', runtimeStatus)
       this.showRuntimeRequirementNotice(runtimeStatus)
       return
@@ -549,7 +558,9 @@ export class KGlacerMacro {
     const cachedSession = readControlSession()
     if (cachedSession?.accessToken) {
       this.controlSession = cachedSession
-      this.controlAccessAllowed = hasUsableControlAccess(cachedSession)
+      this.controlAccessAllowed =
+        this.hasSessionCapableOfControlRefresh(cachedSession)
+      this.controlAccessHardDenied = false
       void this.refreshControlAccess('startup').catch((error: unknown) => {
         this.rememberControlAccessFailure(error, 'startup')
       })
@@ -613,6 +624,8 @@ export class KGlacerMacro {
               wplaceMe,
             })
             this.controlAccessAllowed = true
+            this.controlAccessHardDenied = false
+            this.lastControlAccessFailureReason = undefined
             this.trackAction('serial_login_success', {
               source: 'serial_modal',
               hasWplaceAccount: Boolean(wplaceMe),
@@ -647,6 +660,30 @@ export class KGlacerMacro {
     return t('loginErrorUnknown')
   }
 
+  protected hasSessionCapableOfControlRefresh(
+    session: ControlSession | null,
+  ): session is ControlSession {
+    if (!session?.accessToken) return false
+    if (session.user?.isActive === false) return false
+    if (session.serial?.valid === false) return false
+    return true
+  }
+
+  protected isHardControlAccessFailure(error: ControlApiError) {
+    const reason = `${error.reason ?? ''} ${error.message}`.toLowerCase()
+    return (
+      /invalid_serial|invalid_token|blocked_token/.test(reason) ||
+      /expired_license|inactive_license|inactive_user/.test(reason) ||
+      /device_limit|blocked_ip|blocked_device|blocked_country/.test(reason) ||
+      /blocked_account|blocked_account_token|blocked_account_token_hash/.test(
+        reason,
+      ) ||
+      /license (is )?(expired|inactive)|device limit/.test(reason) ||
+      /(ip|device|country|account|token) is blocked/.test(reason) ||
+      /wplace account token .*blocked/.test(reason)
+    )
+  }
+
   protected rememberControlAccessFailure(error: unknown, source: string) {
     const reason = error instanceof Error ? error.message : 'unknown'
     if (!(error instanceof ControlApiError)) {
@@ -654,13 +691,34 @@ export class KGlacerMacro {
         source,
         reason,
       })
+      this.lastControlAccessFailureReason = reason
       return
     }
 
     const storedSession = readControlSession()
     if (storedSession?.accessToken) this.controlSession = storedSession
+    this.lastControlAccessFailureReason = reason
+    const hardFailure = this.isHardControlAccessFailure(error)
+    if (
+      !hardFailure &&
+      this.hasSessionCapableOfControlRefresh(this.controlSession)
+    ) {
+      this.controlAccessAllowed = true
+      this.controlAccessHardDenied = false
+      this.log(
+        'Control API check failed without blocking cached serial session',
+        {
+          source,
+          reason,
+          status: error.status,
+        },
+      )
+      return
+    }
+
     this.controlAccessAllowed = false
-    this.log('Control API denied access; cached serial session kept', {
+    this.controlAccessHardDenied = true
+    this.log('Control API hard-denied access; cached serial session kept', {
       source,
       reason,
       status: error.status,
@@ -673,7 +731,9 @@ export class KGlacerMacro {
 
   public isControlAccessAllowed() {
     return (
-      this.controlAccessAllowed && hasUsableControlAccess(this.controlSession)
+      this.controlAccessAllowed &&
+      !this.controlAccessHardDenied &&
+      this.hasSessionCapableOfControlRefresh(this.controlSession)
     )
   }
 
@@ -705,6 +765,8 @@ export class KGlacerMacro {
       },
     })
     this.controlAccessAllowed = true
+    this.controlAccessHardDenied = false
+    this.lastControlAccessFailureReason = undefined
     void this.runAccountCookieWatcherTick(`access_${reason}`)
     return {
       session: this.controlSession,
@@ -714,13 +776,38 @@ export class KGlacerMacro {
 
   protected ensureFeatureAccess(feature: string) {
     if (this.isControlAccessAllowed()) return true
-    this.log('Feature blocked by Control API access state', { feature })
+    if (
+      !this.controlAccessHardDenied &&
+      this.hasSessionCapableOfControlRefresh(this.controlSession)
+    ) {
+      this.controlAccessAllowed = true
+      void this.refreshControlAccess(`feature:${feature}`).catch(
+        (error: unknown) => {
+          this.rememberControlAccessFailure(error, `feature:${feature}`)
+        },
+      )
+      this.log('Feature access recovered from cached serial session', {
+        feature,
+      })
+      return true
+    }
+
+    this.log('Feature blocked by Control API access state', {
+      feature,
+      reason: this.lastControlAccessFailureReason,
+    })
     try {
-      this.widget.status = `⚠️ ${t('accessDenied')}`
+      this.widget.status = `⚠️ ${this.formatControlAccessDeniedStatus()}`
     } catch {
       // Widget may not exist during early startup.
     }
     return false
+  }
+
+  protected formatControlAccessDeniedStatus() {
+    const reason = this.lastControlAccessFailureReason?.trim()
+    if (!reason) return t('accessDenied')
+    return `${t('accessDenied')} ${reason}`
   }
 
   protected getPageWindow() {
@@ -791,6 +878,12 @@ export class KGlacerMacro {
       timeoutMs: ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
     })
     if (token) return true
+    if (this.isMobileRuntime()) {
+      this.log('WPlace j cookie is not readable on mobile; continuing', {
+        source: this.accountCookieTokenSource,
+      })
+      return true
+    }
 
     const runtimeStatus = this.getUserscriptRuntimeStatus()
     this.log('Required WPlace j cookie is not readable', runtimeStatus)
@@ -937,6 +1030,8 @@ export class KGlacerMacro {
         },
       })
       this.controlAccessAllowed = true
+      this.controlAccessHardDenied = false
+      this.lastControlAccessFailureReason = undefined
       this.log('WPlace j cookie watcher synced with Control API', {
         hasToken: Boolean(input.token),
         source: input.status.source,
@@ -1365,6 +1460,8 @@ export class KGlacerMacro {
         },
       })
       this.controlAccessAllowed = true
+      this.controlAccessHardDenied = false
+      this.lastControlAccessFailureReason = undefined
       return { ok: true, cookieStatus: cookieContext.status }
     } catch (error) {
       this.rememberControlAccessFailure(error, `sync:${reason}`)
@@ -1384,7 +1481,7 @@ export class KGlacerMacro {
     metadata: Record<string, unknown> = {},
   ) {
     const session = this.controlSession
-    if (!session || !hasUsableControlAccess(session)) return
+    if (!this.hasSessionCapableOfControlRefresh(session)) return
 
     const [account, cookieContext] = await Promise.all([
       this.withTimeout(
@@ -1422,6 +1519,8 @@ export class KGlacerMacro {
         }) as Record<string, unknown>,
       })
       this.controlAccessAllowed = true
+      this.controlAccessHardDenied = false
+      this.lastControlAccessFailureReason = undefined
     } catch (error) {
       this.rememberControlAccessFailure(error, `action:${action}`)
       this.log('Control API action event failed', {
@@ -1584,7 +1683,7 @@ export class KGlacerMacro {
   }
 
   /** Start drawing */
-  public draw() {
+  public draw(options: { refreshMapAfterDraw?: boolean } = {}) {
     if (!this.ensureFeatureAccess('draw')) return Promise.resolve()
     this.log('Draw requested', {
       strategy: this.strategy,
@@ -1701,8 +1800,10 @@ export class KGlacerMacro {
           }
         }
         this.widget.update()
-        await this.readMap()
-        this.updateTasks()
+        if (options.refreshMapAfterDraw !== false) {
+          await this.readMap()
+          this.updateTasks()
+        }
         const remainingTasks = this.getTotalPendingTasks()
         this.log('Draw flow finished', {
           remainingCharges: charges,
@@ -1717,6 +1818,7 @@ export class KGlacerMacro {
           preparedTasks: n,
           remainingTasks,
           images: this.images.length,
+          refreshMapAfterDraw: options.refreshMapAfterDraw !== false,
         })
       },
       () => {
@@ -1726,6 +1828,20 @@ export class KGlacerMacro {
         this.widget.setDisabled('draw-and-paint', false)
       },
     )
+  }
+
+  public refreshMapAfterPaint(reason = 'paint') {
+    return this.widget.run(t('taskReadingMap'), async () => {
+      this.mapsCache.clear()
+      await this.readMap()
+      this.updateTasks()
+      this.widget.update()
+      this.trackAction('map_refreshed_after_paint', {
+        source: 'bot',
+        reason,
+        remainingTasks: this.getTotalPendingTasks(),
+      })
+    })
   }
 
   /** Serialize bot */
@@ -2167,6 +2283,8 @@ export class KGlacerMacro {
       this.captureAccountTokenFromFetchRequest(url, request, options)
       const response = await originalFetch(request, options)
       const cloned = response.clone()
+      if (this.isWplacePaintRequest(url))
+        this.emitPaintResponseEvent(url, response)
       if (response.url === 'https://backend.wplace.live/me') {
         this.me = (await cloned.json()) as Me
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
@@ -2216,6 +2334,19 @@ export class KGlacerMacro {
     }
     pageWindow.fetch = interceptedFetch as typeof pageWindow.fetch
     globalThis.fetch = interceptedFetch as typeof globalThis.fetch
+  }
+
+  protected emitPaintResponseEvent(url: string, response: Response) {
+    globalThis.dispatchEvent(
+      new CustomEvent('kgm:paint-response', {
+        detail: {
+          ok: response.ok,
+          status: response.status,
+          url,
+          at: Date.now(),
+        },
+      }),
+    )
   }
 
   protected captureAccountTokenFromFetchRequest(
