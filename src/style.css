@@ -1309,6 +1309,23 @@
   padding: 14px;
 }
 
+.update-required-dialog {
+  --kgm-modal-width: 460px;
+
+  padding: 14px;
+}
+
+.update-required-dialog .kgm-modal-head {
+  padding-right: 2px;
+}
+
+.update-required-text {
+  margin: 0 0 14px;
+  color: #c8d3ee;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .autofarm-form {
   display: grid;
   gap: 12px;

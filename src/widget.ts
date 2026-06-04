@@ -32,6 +32,10 @@ const PUBLIC_IP_CHECK_ENDPOINTS = [
 ] as const
 const LOGO_URL =
   'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/img/logo.svg'
+const SCRIPT_VERSION_URL =
+  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/src/version.ts'
+const SCRIPT_UPDATE_URL =
+  'https://raw.githubusercontent.com/robgallardof/kglacer-macro/refs/heads/main/dist.user.js'
 const COLOR_CONVERTER_URL =
   'https://pepoafonso.github.io/color_converter_wplace/es/index.html'
 const SAMUEL_ARCHIVE_URL = 'https://wplace.samuelscheit.com/'
@@ -1154,16 +1158,7 @@ export class Widget extends Base {
     $dialog
       .querySelector<HTMLButtonElement>('.script-update')!
       .addEventListener('click', () => {
-        this.trackAction('script_update_link_opened', {
-          source: 'settings_modal',
-          targetUrl:
-            'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
-        })
-        globalThis.open(
-          'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
-          '_blank',
-          'noopener,noreferrer',
-        )
+        this.openScriptUpdateUrl('settings_modal')
       })
     $locale.addEventListener('change', () => {
       this.applyLocaleToUI($locale.value as 'en' | 'es')
@@ -1346,7 +1341,7 @@ export class Widget extends Base {
         .getAccountCookieStatus({
           force: true,
           exhaustive: true,
-          timeoutMs: 2000,
+          timeoutMs: 3000,
         })
         .catch(() => ({
           hasToken: false,
@@ -2831,31 +2826,60 @@ export class Widget extends Base {
       controller.abort()
     }, 1800)
     try {
-      const response = await fetch(
-        'https://raw.githubusercontent.com/robgallardof/kglacer-macro/main/src/version.ts',
-        { signal: controller.signal },
-      )
+      const response = await fetch(SCRIPT_VERSION_URL, {
+        cache: 'no-store',
+        signal: controller.signal,
+      })
       if (!response.ok) return
       const source = await response.text()
       const match = /APP_VERSION = '([^']+)'/.exec(source)
       const remoteVersion = match?.[1]
       if (!remoteVersion) return
       if (this.compareSemver(remoteVersion, APP_VERSION) <= 0) return
-      const key = `kglacer-macro:update-notice:${remoteVersion}`
-      if (localStorage.getItem(key) === 'dismissed') return
-      const ok = confirm(
-        `Hay una versión nueva (${remoteVersion}) disponible. Tu versión actual es ${APP_VERSION}. ¿Quieres actualizar ahora?`,
-      )
-      if (ok)
-        this.openUrlInNewTab(
-          'https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js',
-        )
-      else localStorage.setItem(key, 'dismissed')
+      this.showRequiredUpdateDialog(remoteVersion)
     } catch {
       // Ignore update checks when the remote version cannot be reached.
     } finally {
       clearTimeout(timeoutId)
     }
+  }
+
+  protected showRequiredUpdateDialog(remoteVersion: string) {
+    if (document.querySelector('.update-required-dialog')) return
+
+    const $dialog = document.createElement('dialog')
+    $dialog.className = 'kgm-modal update-required-dialog'
+    $dialog.innerHTML = `<div class="kgm-modal-head">
+  <strong data-i18n="scriptUpdateRequiredTitle">Update required</strong>
+</div>
+<p class="update-required-text">${t('scriptUpdateRequiredBody')
+      .replace('{remoteVersion}', remoteVersion)
+      .replace('{currentVersion}', APP_VERSION)}</p>
+<button type="button" class="challenge-button update-required-button">
+  <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+  <span data-i18n="scriptUpdateOpenUrl">Open update URL</span>
+</button>`
+    document.body.append($dialog)
+    applyTranslations($dialog)
+    $dialog.addEventListener('cancel', (event) => {
+      event.preventDefault()
+    })
+    $dialog
+      .querySelector<HTMLButtonElement>('.update-required-button')!
+      .addEventListener('click', () => {
+        this.openScriptUpdateUrl('required_update_modal', remoteVersion)
+      })
+    $dialog.showModal()
+  }
+
+  protected openScriptUpdateUrl(source: string, remoteVersion?: string) {
+    this.trackAction('script_update_link_opened', {
+      source,
+      targetUrl: SCRIPT_UPDATE_URL,
+      currentVersion: APP_VERSION,
+      remoteVersion: remoteVersion ?? null,
+    })
+    this.openUrlInNewTab(SCRIPT_UPDATE_URL)
   }
 
   protected compareSemver(a: string, b: string) {

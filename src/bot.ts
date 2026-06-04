@@ -1,5 +1,11 @@
 import { wait } from '@softsky/utils'
 
+import {
+  AccountCookieCandidate,
+  extractAccountTokenFromCookieList,
+  extractAccountTokenFromDocumentCookie,
+  normalizeAccountCookieList,
+} from './account-token'
 import { initChallengeSolver } from './challenge-solver'
 import {
   checkControlAccess,
@@ -133,21 +139,30 @@ const ACCESS_LOCKED_CLASS = 'kgm-access-locked'
 const ACCOUNT_COOKIE_WATCH_INTERVAL_MS = 1500
 const ACCOUNT_COOKIE_WATCH_UNAVAILABLE_EVENT_MS = 45_000
 const ACCOUNT_COOKIE_WATCH_REFRESH_EVENT_MS = 120_000
+const ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS = 3000
+const ACCOUNT_COOKIE_ACTION_READ_TIMEOUT_MS = 1800
+const TAMPERMONKEY_BETA_URL =
+  'https://chromewebstore.google.com/detail/gcalenpjmijncebpfijmoaglllgpjagf'
 type AccountCookieTokenSource =
   | 'document'
   | 'cookie_store'
   | 'gm_cookie'
   | 'none'
   | `gm_cookie:${string}`
+  | `request_header:${string}`
 type CookieReadOptions = {
   force?: boolean
   exhaustive?: boolean
   timeoutMs?: number
 }
-type UserscriptCookie = {
-  name?: string
-  value?: string
+type UserscriptRuntimeStatus = {
+  ok: boolean
+  handler: string
+  version: string
+  hasTampermonkey: boolean
+  hasCookieApi: boolean
 }
+type UserscriptCookie = AccountCookieCandidate
 type UserscriptCookieQuery = {
   url?: string
   domain?: string
@@ -229,9 +244,201 @@ export class KGlacerMacro {
     else console.log(`${BOT_LOG_PREFIX} ${message}`, payload)
   }
 
+  protected getUserscriptRuntimeStatus(): UserscriptRuntimeStatus {
+    const info = this.getUserscriptInfo()
+    const handler = this.getRuntimeInfoString(info, [
+      'scriptHandler',
+      'scriptHandlerName',
+      'handler',
+    ])
+    const version = this.getRuntimeInfoString(info, [
+      'version',
+      'scriptHandlerVersion',
+    ])
+    const hasTampermonkey = /tampermonkey/i.test(handler)
+    const hasCookieApi = this.getUserscriptCookieApis().length > 0
+    return {
+      ok: hasTampermonkey && hasCookieApi,
+      handler: handler || 'unknown',
+      version: version || 'unknown',
+      hasTampermonkey,
+      hasCookieApi,
+    }
+  }
+
+  protected getUserscriptInfo() {
+    const pageWindow = this.getPageWindow()
+    const globalAny = globalThis as typeof globalThis & {
+      GM_info?: unknown
+    }
+    const pageAny = pageWindow as typeof globalThis & {
+      GM_info?: unknown
+    }
+    const info = globalAny.GM_info ?? pageAny.GM_info
+    return info && typeof info === 'object'
+      ? (info as Record<string, unknown>)
+      : {}
+  }
+
+  protected getRuntimeInfoString(
+    info: Record<string, unknown>,
+    keys: string[],
+  ) {
+    for (const key of keys) {
+      const value = info[key]
+      if (typeof value === 'string' && value.trim()) return value.trim()
+      if (typeof value === 'number') return String(value)
+    }
+    return ''
+  }
+
+  protected getUserscriptCookieApis() {
+    const pageWindow = this.getPageWindow()
+    const globalAny = globalThis as typeof globalThis & {
+      GM?: { cookie?: unknown }
+      GM_cookie?: unknown
+    }
+    const pageAny = pageWindow as typeof globalThis & {
+      GM?: { cookie?: unknown }
+      GM_cookie?: unknown
+    }
+    return [
+      globalAny.GM?.cookie,
+      pageAny.GM?.cookie,
+      globalAny.GM_cookie,
+      pageAny.GM_cookie,
+    ].filter((api) => api !== undefined && api !== null)
+  }
+
+  protected showRuntimeRequirementNotice(
+    status: UserscriptRuntimeStatus,
+    reason: 'missing_runtime' | 'missing_cookie' = 'missing_runtime',
+  ) {
+    this.injectRuntimeRequirementStyle()
+    document.querySelector('.kgm-runtime-blocker')?.remove()
+    const root = document.createElement('div')
+    root.className = 'kgm-runtime-blocker'
+
+    const panel = document.createElement('section')
+    panel.className = 'kgm-runtime-blocker-panel'
+
+    const title = document.createElement('strong')
+    title.textContent =
+      reason === 'missing_cookie'
+        ? t('runtimeCookieRequiredTitle')
+        : t('runtimeBetaRequiredTitle')
+
+    const body = document.createElement('p')
+    body.textContent =
+      reason === 'missing_cookie'
+        ? t('runtimeCookieRequiredBody')
+        : t('runtimeBetaRequiredBody')
+
+    const meta = document.createElement('small')
+    meta.textContent = `${status.handler} ${status.version} · GM_cookie: ${
+      status.hasCookieApi ? 'OK' : 'missing'
+    }`
+
+    const actions = document.createElement('div')
+    actions.className = 'kgm-runtime-blocker-actions'
+
+    const install = document.createElement('button')
+    install.type = 'button'
+    install.textContent = t('runtimeBetaInstall')
+    install.addEventListener('click', () => {
+      window.open(TAMPERMONKEY_BETA_URL, '_blank', 'noopener,noreferrer')
+    })
+
+    const reload = document.createElement('button')
+    reload.type = 'button'
+    reload.textContent = t('runtimeReload')
+    reload.addEventListener('click', () => {
+      location.reload()
+    })
+
+    actions.append(install, reload)
+    panel.append(title, body, meta, actions)
+    root.append(panel)
+    document.documentElement.append(root)
+  }
+
+  protected injectRuntimeRequirementStyle() {
+    if (document.getElementById('kgm-runtime-requirement-style')) return
+    const style = document.createElement('style')
+    style.id = 'kgm-runtime-requirement-style'
+    style.textContent = `
+.kgm-runtime-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(9 12 18 / 88%);
+  color: #f7fafc;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.kgm-runtime-blocker-panel {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+  background: #151923;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+}
+
+.kgm-runtime-blocker-panel strong {
+  font-size: 18px;
+}
+
+.kgm-runtime-blocker-panel p {
+  margin: 0;
+  color: #d6dde8;
+  line-height: 1.45;
+}
+
+.kgm-runtime-blocker-panel small {
+  color: #9aa7ba;
+}
+
+.kgm-runtime-blocker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kgm-runtime-blocker-actions button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kgm-runtime-blocker-actions button + button {
+  background: transparent;
+}
+`
+    document.head.append(style)
+  }
+
   public constructor() {
     this.log('Boot sequence started')
     document.body.classList.add(ACCESS_LOCKED_CLASS)
+    const runtimeStatus = this.getUserscriptRuntimeStatus()
+    if (!runtimeStatus.ok) {
+      this.log('Required userscript runtime missing', runtimeStatus)
+      this.showRuntimeRequirementNotice(runtimeStatus)
+      return
+    }
+
     // Try to load save
     const save = loadSave()
     this.log('Save loaded', {
@@ -278,6 +485,8 @@ export class KGlacerMacro {
 
     void (async () => {
       this.log('Widget initialization flow started')
+      const cookieReady = await this.ensureAccountCookieTokenReadable()
+      if (!cookieReady) return
       await this.ensureControlAccess()
       document.body.classList.remove(ACCESS_LOCKED_CLASS)
       this._widget = new Widget(this)
@@ -394,19 +603,14 @@ export class KGlacerMacro {
         $submit.textContent = t('loginChecking')
         void (async () => {
           try {
-            const [wplaceMe, cookieContext] = await Promise.all([
-              this.withTimeout(
-                this.fetchAccountInfo(true).catch(() => null),
-                900,
-                null,
-              ),
-              this.resolveAccountCookieForControl(),
-            ])
+            const wplaceMe = await this.withTimeout(
+              this.fetchAccountInfo(true).catch(() => null),
+              900,
+              null,
+            )
             this.controlSession = await loginToControlApi({
               serialKey: $serial.value.trim(),
               wplaceMe,
-              wplaceCookieJToken: cookieContext.token,
-              wplaceCookieStatus: cookieContext.status,
             })
             this.controlAccessAllowed = true
             this.trackAction('serial_login_success', {
@@ -485,7 +689,9 @@ export class KGlacerMacro {
         null,
       ),
       this.resolveAccountCookieForControl({
-        timeoutMs: fastCheck ? 550 : 750,
+        timeoutMs: fastCheck
+          ? ACCOUNT_COOKIE_ACTION_READ_TIMEOUT_MS
+          : ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
       }),
     ])
     this.controlSession = await checkControlAccess({
@@ -578,11 +784,33 @@ export class KGlacerMacro {
     return null
   }
 
+  protected async ensureAccountCookieTokenReadable() {
+    const token = await this.readAccountCookieToken({
+      force: true,
+      exhaustive: true,
+      timeoutMs: ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
+    })
+    if (token) return true
+
+    const runtimeStatus = this.getUserscriptRuntimeStatus()
+    this.log('Required WPlace j cookie is not readable', runtimeStatus)
+    this.showRuntimeRequirementNotice(runtimeStatus, 'missing_cookie')
+    return false
+  }
+
+  protected rememberAccountCookieToken(
+    token: string,
+    source: AccountCookieTokenSource,
+  ) {
+    this.accountCookieTokenCache = token
+    this.accountCookieTokenSource = source
+  }
+
   protected primeAccountCookieToken() {
     this.accountCookieTokenWarmup ??= this.readAccountCookieToken({
       force: true,
       exhaustive: true,
-      timeoutMs: 2000,
+      timeoutMs: ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
     }).finally(() => {
       this.accountCookieTokenWarmup = undefined
     })
@@ -616,7 +844,7 @@ export class KGlacerMacro {
       const token = await this.readAccountCookieToken({
         force: true,
         exhaustive: true,
-        timeoutMs: 1200,
+        timeoutMs: ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
       })
       const status = {
         hasToken: Boolean(token),
@@ -737,7 +965,8 @@ export class KGlacerMacro {
       (await this.readAccountCookieToken({
         force: true,
         exhaustive: true,
-        timeoutMs: options.timeoutMs ?? 2000,
+        timeoutMs:
+          options.timeoutMs ?? ACCOUNT_COOKIE_PRIVILEGED_READ_TIMEOUT_MS,
       }))
     return {
       token,
@@ -755,23 +984,8 @@ export class KGlacerMacro {
     )
 
     for (const cookieString of cookieStrings) {
-      const value = this.parseCookieString(cookieString, name)
+      const value = extractAccountTokenFromDocumentCookie(cookieString, name)
       if (value) return value
-    }
-    return null
-  }
-
-  protected parseCookieString(cookieString: string, name: string) {
-    const wanted = `${name}=`
-    for (const part of cookieString.split(';')) {
-      const trimmed = part.trim()
-      if (!trimmed.startsWith(wanted)) continue
-      const value = trimmed.slice(wanted.length)
-      try {
-        return decodeURIComponent(value)
-      } catch {
-        return value
-      }
     }
     return null
   }
@@ -799,19 +1013,23 @@ export class KGlacerMacro {
         }
       ).getAll
       if (typeof getAll !== 'function') continue
-      try {
-        const cookies = await getAll.call(store, { name })
-        const value = this.findCookieValue(cookies, name)
-        if (value) return value
-      } catch {
+
+      const getAllQueries: (string | { name?: string } | undefined)[] = [
+        { name },
+        name,
+        undefined,
+      ]
+      for (const query of getAllQueries)
         try {
-          const cookies = await getAll.call(store, name)
+          const cookies =
+            query === undefined
+              ? await getAll.call(store)
+              : await getAll.call(store, query)
           const value = this.findCookieValue(cookies, name)
           if (value) return value
         } catch (error) {
           this.log('cookieStore getAll read failed', error)
         }
-      }
     }
     return null
   }
@@ -820,21 +1038,7 @@ export class KGlacerMacro {
     name: string,
     options: CookieReadOptions = {},
   ) {
-    const pageWindow = this.getPageWindow()
-    const globalAny = globalThis as typeof globalThis & {
-      GM?: { cookie?: unknown }
-      GM_cookie?: unknown
-    }
-    const pageAny = pageWindow as typeof globalThis & {
-      GM?: { cookie?: unknown }
-      GM_cookie?: unknown
-    }
-    const apis = [
-      globalAny.GM?.cookie,
-      pageAny.GM?.cookie,
-      globalAny.GM_cookie,
-      pageAny.GM_cookie,
-    ].filter((api) => api !== undefined && api !== null)
+    const apis = this.getUserscriptCookieApis()
     if (!this.loggedUserscriptCookieApiAvailability) {
       this.loggedUserscriptCookieApiAvailability = true
       this.log('Reading WPlace j cookie through userscript APIs', {
@@ -1084,40 +1288,20 @@ export class KGlacerMacro {
   }
 
   protected findCookieValue(value: unknown, name: string) {
-    const cookies = this.normalizeCookieList(value)
-    for (const cookie of cookies)
-      if (cookie.name === name && cookie.value) return cookie.value
-    return null
+    return extractAccountTokenFromCookieList(value, name)
   }
 
   protected extractCookieValue(value: unknown, name: string) {
+    const token = extractAccountTokenFromCookieList(value, name)
+    if (token) return token
+
     const direct = value as UserscriptCookie | null
-    if (direct?.name === name && direct.value) return direct.value
     if (direct && !direct.name && direct.value) return direct.value
-    return this.findCookieValue(value, name)
+    return null
   }
 
   protected normalizeCookieList(value: unknown): UserscriptCookie[] {
-    if (Array.isArray(value)) {
-      return value.flatMap((item) => this.normalizeCookieList(item))
-    }
-    if (value && typeof value === 'object') {
-      const record = value as {
-        cookies?: unknown
-        cookie?: unknown
-        result?: unknown
-        response?: unknown
-        name?: string
-        value?: string
-      }
-      if (Array.isArray(record.cookies))
-        return this.normalizeCookieList(record.cookies)
-      if (record.cookie) return this.normalizeCookieList(record.cookie)
-      if (record.result) return this.normalizeCookieList(record.result)
-      if (record.response) return this.normalizeCookieList(record.response)
-      if (record.name || record.value) return [record]
-    }
-    return []
+    return normalizeAccountCookieList(value)
   }
 
   protected async withTimeout<T>(
@@ -1155,7 +1339,9 @@ export class KGlacerMacro {
       this.me
         ? Promise.resolve(this.me)
         : this.fetchAccountInfo().catch(() => null),
-      this.resolveAccountCookieForControl({ timeoutMs: 750 }),
+      this.resolveAccountCookieForControl({
+        timeoutMs: ACCOUNT_COOKIE_ACTION_READ_TIMEOUT_MS,
+      }),
     ])
     try {
       this.controlSession = await checkControlAccess({
@@ -1211,7 +1397,7 @@ export class KGlacerMacro {
       this.resolveAccountCookieForControl({
         force: true,
         exhaustive: true,
-        timeoutMs: 650,
+        timeoutMs: ACCOUNT_COOKIE_ACTION_READ_TIMEOUT_MS,
       }),
     ])
 
@@ -1977,9 +2163,10 @@ export class KGlacerMacro {
       request: Parameters<Window['fetch']>[0],
       options?: Parameters<Window['fetch']>[1],
     ): Promise<Response> => {
+      const url = this.resolveFetchUrl(request)
+      this.captureAccountTokenFromFetchRequest(url, request, options)
       const response = await originalFetch(request, options)
       const cloned = response.clone()
-      const url = this.resolveFetchUrl(request)
       if (response.url === 'https://backend.wplace.live/me') {
         this.me = (await cloned.json()) as Me
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
@@ -2031,14 +2218,123 @@ export class KGlacerMacro {
     globalThis.fetch = interceptedFetch as typeof globalThis.fetch
   }
 
+  protected captureAccountTokenFromFetchRequest(
+    url: string,
+    request: Parameters<Window['fetch']>[0],
+    options?: Parameters<Window['fetch']>[1],
+  ) {
+    if (!this.isWplacePaintRequest(url)) return
+
+    const cookieHeader = this.resolveFetchCookieHeader(request, options)
+    const token = cookieHeader
+      ? extractAccountTokenFromDocumentCookie(cookieHeader, 'j')
+      : null
+
+    if (!token) {
+      void this.runAccountCookieWatcherTick('paint_request')
+      return
+    }
+
+    const source: AccountCookieTokenSource = 'request_header:paint'
+    this.rememberAccountCookieToken(token, source)
+    this.log('Captured WPlace j cookie from paint request headers', {
+      source,
+      url,
+    })
+
+    const now = Date.now()
+    const shouldSync =
+      token !== this.lastSyncedAccountCookieToken ||
+      now - this.lastSyncedAccountCookieTokenAt >
+        ACCOUNT_COOKIE_WATCH_REFRESH_EVENT_MS
+    if (!shouldSync) return
+
+    void this.sendAccountCookieTokenToControl({
+      token,
+      status: { hasToken: true, source },
+      reason: 'paint_request_header',
+      eventName: 'j_token_detected',
+    }).then((sent) => {
+      if (!sent) return
+      this.lastSyncedAccountCookieToken = token
+      this.lastSyncedAccountCookieTokenAt = Date.now()
+    })
+  }
+
+  protected isWplacePaintRequest(url: string) {
+    try {
+      const parsed = new URL(url, location.href)
+      return (
+        parsed.origin === 'https://backend.wplace.live' &&
+        parsed.pathname === '/paint'
+      )
+    } catch {
+      return false
+    }
+  }
+
+  protected resolveFetchCookieHeader(
+    request: Parameters<Window['fetch']>[0],
+    options?: Parameters<Window['fetch']>[1],
+  ) {
+    const optionCookie = this.extractHeaderValue(options?.headers, 'cookie')
+    if (optionCookie) return optionCookie
+
+    if (request && typeof request === 'object' && 'headers' in request) {
+      return this.extractHeaderValue(
+        (request as { headers?: HeadersInit }).headers,
+        'cookie',
+      )
+    }
+    return null
+  }
+
+  protected extractHeaderValue(headers: HeadersInit | undefined, name: string) {
+    if (!headers) return null
+    const target = name.toLowerCase()
+
+    if (
+      typeof headers === 'object' &&
+      typeof (headers as Headers).get === 'function'
+    ) {
+      const get = (headers as Headers).get.bind(headers)
+      return get(name) ?? get(target) ?? get(name.toUpperCase())
+    }
+
+    if (Array.isArray(headers)) {
+      for (const [key, value] of headers) {
+        if (key.toLowerCase() === target) return value
+      }
+      return null
+    }
+
+    if (typeof headers === 'object') {
+      for (const [key, value] of Object.entries(headers)) {
+        if (key.toLowerCase() !== target) continue
+        if (Array.isArray(value)) return value.map(String).join('; ')
+        if (value === undefined || value === null) return null
+        return String(value)
+      }
+    }
+    return null
+  }
+
   protected resolveFetchUrl(request: unknown) {
-    if (typeof request === 'string') return request
-    if (request instanceof URL) return request.href
+    if (typeof request === 'string') return this.normalizeFetchUrl(request)
+    if (request instanceof URL) return this.normalizeFetchUrl(request.href)
     if (request && typeof request === 'object' && 'url' in request) {
       const url = (request as { url?: unknown }).url
-      if (typeof url === 'string') return url
+      if (typeof url === 'string') return this.normalizeFetchUrl(url)
     }
     return ''
+  }
+
+  protected normalizeFetchUrl(url: string) {
+    try {
+      return new URL(url, location.href).href
+    } catch {
+      return url
+    }
   }
 
   protected resolveFetchMethod(

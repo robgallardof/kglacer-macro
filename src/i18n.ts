@@ -148,6 +148,10 @@ const MESSAGES = {
     shieldCheckChoices: 'Profile choices loaded',
     shieldCheckNavigator: 'Navigator spoofing reachable',
     scriptUpdate: 'Update script',
+    scriptUpdateRequiredTitle: 'Update required',
+    scriptUpdateRequiredBody:
+      'A new version ({remoteVersion}) is available. Your current version is {currentVersion}. Update to keep using the macro.',
+    scriptUpdateOpenUrl: 'Open update URL',
     proxyTest: 'Test proxy',
     proxyTesting: 'Testing proxy…',
     proxyOk: 'Proxy OK',
@@ -238,6 +242,14 @@ const MESSAGES = {
     accessDenied: 'Access denied by Control API.',
     accessLoginRequired: 'Sign in to continue.',
     accessDeviceLimit: 'Device limit reached for this serial key.',
+    runtimeBetaRequiredTitle: 'Tampermonkey Beta required',
+    runtimeBetaRequiredBody:
+      'Install Tampermonkey Beta, enable site access and user scripts, then reload WPlace. The macro only runs when GM_cookie is available.',
+    runtimeCookieRequiredTitle: 'j token access required',
+    runtimeCookieRequiredBody:
+      'The macro could not read the WPlace j cookie. Check Tampermonkey Beta permissions, sign in to WPlace, and reload.',
+    runtimeBetaInstall: 'Open Tampermonkey Beta',
+    runtimeReload: 'Reload',
     accountInfoTitle: 'User information',
     accountInfoRefresh: 'Refresh information',
     accountInfoLoading: 'Loading information',
@@ -436,6 +448,10 @@ const MESSAGES = {
     shieldCheckChoices: 'Perfiles cargados',
     shieldCheckNavigator: 'Spoof de navegador accesible',
     scriptUpdate: 'Actualizar script',
+    scriptUpdateRequiredTitle: 'Actualización requerida',
+    scriptUpdateRequiredBody:
+      'Hay una versión nueva ({remoteVersion}) disponible. Tu versión actual es {currentVersion}. Actualiza para seguir usando la macro.',
+    scriptUpdateOpenUrl: 'Abrir URL de actualización',
     proxyTest: 'Test proxy',
     proxyTesting: 'Probando proxy…',
     proxyOk: 'Proxy OK',
@@ -527,6 +543,14 @@ const MESSAGES = {
     accessDenied: 'Acceso denegado por Control API.',
     accessLoginRequired: 'Inicia sesión para continuar.',
     accessDeviceLimit: 'Límite de dispositivos alcanzado para este serial.',
+    runtimeBetaRequiredTitle: 'Se requiere Tampermonkey Beta',
+    runtimeBetaRequiredBody:
+      'Instala Tampermonkey Beta, habilita acceso a sitios y user scripts, y recarga WPlace. La macro solo corre cuando GM_cookie está disponible.',
+    runtimeCookieRequiredTitle: 'Se requiere acceso al token j',
+    runtimeCookieRequiredBody:
+      'La macro no pudo leer la cookie j de WPlace. Revisa permisos de Tampermonkey Beta, inicia sesión en WPlace y recarga.',
+    runtimeBetaInstall: 'Abrir Tampermonkey Beta',
+    runtimeReload: 'Recargar',
     accountInfoTitle: 'Información del usuario',
     accountInfoRefresh: 'Actualizar información',
     accountInfoLoading: 'Cargando información',

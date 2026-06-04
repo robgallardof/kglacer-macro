@@ -143,13 +143,8 @@ export function hasUsableControlAccess(session: ControlSession | null) {
 export async function loginToControlApi(input: {
   serialKey: string
   wplaceMe: unknown
-  wplaceCookieJToken: string | null
-  wplaceCookieStatus?: AccountCookieStatus
 }) {
   const client = await collectClientMetadata()
-  const tokenSource = input.wplaceCookieJToken
-    ? (input.wplaceCookieStatus?.source ?? 'detected')
-    : 'none'
   const response = await fetch(CONTROL_API_LOGIN_URL, {
     method: 'POST',
     cache: 'no-store',
@@ -165,20 +160,10 @@ export async function loginToControlApi(input: {
       client,
       wplace: {
         me: input.wplaceMe,
-        cookieJToken: input.wplaceCookieJToken,
-        cookieJTokenSource: tokenSource,
       },
-      wplaceCookieJToken: input.wplaceCookieJToken,
-      wplaceCookieJTokenSource: tokenSource,
-      accountToken: input.wplaceCookieJToken,
-      accountTokenSource: tokenSource,
       metadata: {
-        accountTokenSource: tokenSource,
-        hasWplaceCookieJToken: Boolean(input.wplaceCookieJToken),
-        wplaceCookieJTokenSource: tokenSource,
-        wplaceCookieJTokenStatus: input.wplaceCookieJToken
-          ? 'detected'
-          : 'unavailable',
+        hasWplaceAccount: Boolean(input.wplaceMe),
+        accountTokenUse: 'post_login_account_sync_only',
       },
     }),
   })

@@ -15,6 +15,7 @@
 // @include      https://wplace.live/*
 // @include      https://*.wplace.live/*
 // @grant        unsafeWindow
+// @grant        GM_info
 // @grant        GM.cookie
 // @grant        GM_cookie
 // @connect      wplace.live
