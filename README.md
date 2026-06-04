@@ -15,7 +15,7 @@ Macro para apoyar el pintado en **wplace.live**.
    <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
 4. Recarga **wplace.live**.
 
-La macro requiere Tampermonkey Beta porque necesita `GM_cookie` para leer la cookie `j` de WPlace. Si esa API o el token no estan disponibles, la macro no se ejecuta.
+La macro requiere Tampermonkey Beta para correr.
 
 ## Uso
 
@@ -55,7 +55,7 @@ Painting helper macro for **wplace.live**.
    <https://github.com/robgallardof/kglacer-macro/raw/refs/heads/main/dist.user.js>
 4. Reload **wplace.live**.
 
-The macro requires Tampermonkey Beta because it needs `GM_cookie` to read WPlace's `j` cookie. If that API or token is unavailable, the macro will not run.
+The macro requires Tampermonkey Beta to run.
 
 ## Usage
 
