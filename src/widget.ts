@@ -538,6 +538,9 @@ export class Widget extends Base {
           this.bot.updateTasks()
           this.update()
           botImage.update()
+          window.setTimeout(() => {
+            globalThis.location.reload()
+          }, 120)
         } catch (error) {
           this.trackAction('image_load_failed', {
             source: 'file_picker',
