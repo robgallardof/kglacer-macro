@@ -1,4 +1,4 @@
-import { Me, KGlacerMacro } from './bot'
+import type { Me, KGlacerMacro } from './bot'
 
 export type Position = {
   x: number
@@ -54,11 +54,20 @@ addFavoriteLocation({
 //   }
 // }
 
-export function extractScreenPositionFromStar($star: HTMLDivElement) {
-  const [x, y] = $star.style.transform
-    .slice(32, -31)
-    .split(', ')
-    .map((x) => Number.parseFloat(x)) as [number, number]
+export function extractScreenPositionFromStar(
+  $star: HTMLDivElement | undefined,
+) {
+  const match = /translate(?:3d)?\(\s*([-+\d.e]+)px\s*,\s*([-+\d.e]+)px/i.exec(
+    $star?.style.transform ?? '',
+  )
+  if (!match)
+    throw new Error(
+      'Map anchor unavailable. Reload Wplace and keep favorites visible.',
+    )
+  const x = Number(match[1])
+  const y = Number(match[2])
+  if (!Number.isFinite(x) || !Number.isFinite(y))
+    throw new Error('Invalid map anchor position')
   return { x, y }
 }
 
@@ -125,8 +134,8 @@ export class WorldPosition {
   /** Pixel size around with world position. Calculated on every read */
   public get pixelSize() {
     return (
-      (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]!).x -
-        extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]!).x) /
+      (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]).x -
+        extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]).x) /
       (FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!.x -
         FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!.x)
     )
@@ -177,7 +186,7 @@ export class WorldPosition {
   public toScreenPosition(): Position {
     const worldPosition = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!
     const screenPosition = extractScreenPositionFromStar(
-      this.bot.$stars[this.anchor1Index]!,
+      this.bot.$stars[this.anchor1Index],
     )
     return {
       x: (this.globalX - worldPosition.x) * this.pixelSize + screenPosition.x,

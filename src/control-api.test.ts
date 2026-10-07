@@ -152,3 +152,28 @@ describe('control api session cache', () => {
     expect(readControlSession()?.access?.mode).toBe('licensed')
   })
 })
+
+test('backs off server errors and preserves the licensed session', async () => {
+  const session = { ...validSession, accessToken: 'backoff-test-token' }
+  saveControlSession(session)
+  let requests = 0
+  defineGlobal('fetch', () => {
+    requests++
+    return Promise.resolve(
+      new Response(JSON.stringify({ reason: 'Internal API error.' }), {
+        status: 500,
+      }),
+    )
+  })
+  const firstError: unknown = await checkControlAccess({ session }).catch(
+    (error: unknown) => error,
+  )
+  const retryError: unknown = await checkControlAccess({ session }).catch(
+    (error: unknown) => error,
+  )
+  expect(firstError).toBeInstanceOf(Error)
+  expect((firstError as Error).message).toContain('Internal API error.')
+  expect((retryError as Error).message).toContain('retry later')
+  expect(requests).toBe(1)
+  expect(readControlSession()?.access?.allowed).toBe(true)
+})

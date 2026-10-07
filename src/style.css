@@ -31,10 +31,10 @@
   --action-palette: #ff9f43;
 }
 
-.text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center:nth-child(
-    -n + FAKE_FAVORITE_LOCATIONS
-  ) {
-  display: none;
+.maplibregl-marker[title*='KGLACER_MACRO_FAVORITE'],
+.maplibregl-marker[aria-label*='KGLACER_MACRO_FAVORITE'] {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .wwidget {

@@ -15,12 +15,14 @@ export class Pixels {
     data: ReturnType<Pixels['toJSON']>,
   ) {
     const image = new Image()
-    image.src = data.url.startsWith('http')
+    const source = data.url.startsWith('http')
       ? await fetch(data.url, { cache: 'no-store' })
           .then((x) => x.blob())
           .then((X) => URL.createObjectURL(X))
       : data.url
-    await promisifyEventSource(image, ['load'], ['error'])
+    const loaded = promisifyEventSource(image, ['load'], ['error'])
+    image.src = source
+    await loaded
     return new Pixels(bot, image, data.width, data.exactColor)
   }
 

@@ -1953,12 +1953,17 @@ export class KGlacerMacro {
 
   /** Find anchor data for screen postition */
   public findAnchorsForScreen(position: Position) {
+    this.updateStars()
+    if (this.$stars.length < 2)
+      throw new Error(
+        'No se encontraron los marcadores del mapa. Recarga Wplace y activa los favoritos.',
+      )
     let anchorIndex = 0
     let minI2 = 1
     let min1 = Infinity
     let min2 = Infinity
     for (let index = 0; index < this.$stars.length; index++) {
-      const { x, y } = extractScreenPositionFromStar(this.$stars[index]!)
+      const { x, y } = extractScreenPositionFromStar(this.$stars[index])
       if (x < position.x && y < position.y) {
         const delta = position.x - x + (position.y - y)
         if (delta < min1) {
@@ -1974,14 +1979,14 @@ export class KGlacerMacro {
       }
     }
     const anchorScreenPosition = extractScreenPositionFromStar(
-      this.$stars[anchorIndex]!,
+      this.$stars[anchorIndex],
     )
     const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex]!
     return {
       anchorScreenPosition,
       anchorWorldPosition,
       pixelSize:
-        (extractScreenPositionFromStar(this.$stars[minI2]!).x -
+        (extractScreenPositionFromStar(this.$stars[minI2]).x -
           anchorScreenPosition.x) /
         (FAVORITE_LOCATIONS_POSITIONS[minI2]!.x - anchorWorldPosition.x),
     }
@@ -2573,7 +2578,7 @@ export class KGlacerMacro {
   protected updateStars() {
     this.$stars = [
       ...document.querySelectorAll<HTMLDivElement>(
-        '.text-yellow-400.cursor-pointer.z-10.maplibregl-marker.maplibregl-marker-anchor-center',
+        '.maplibregl-marker[title*="KGLACER_MACRO_FAVORITE"], .maplibregl-marker[aria-label*="KGLACER_MACRO_FAVORITE"]',
       ),
     ].slice(0, FAVORITE_LOCATIONS.length)
     this.log('Star cache updated', { stars: this.$stars.length })

@@ -236,7 +236,7 @@ export class Widget extends Base {
       this.trackAction('add_image_button_clicked', {
         source: 'widget_button',
       })
-      void this.addImage()
+      void this.addImage().catch(() => undefined)
     })
     this.$openConfig.addEventListener('click', () => {
       this.trackAction('settings_opened', {
@@ -447,12 +447,16 @@ export class Widget extends Base {
       async () => {
         let fileSummary: ReturnType<Widget['fileTelemetry']> | undefined
         try {
-          await this.bot.updateColors()
           const input = document.createElement('input')
           input.type = 'file'
           input.accept = `image/*,.${SETTINGS_EXTENSION},.wplace`
+          const selected = promisifyEventSource(
+            input,
+            ['change'],
+            ['cancel', 'error'],
+          )
           input.click()
-          await promisifyEventSource(input, ['change'], ['cancel', 'error'])
+          await selected
           const file = input.files?.[0]
           if (!file) throw new NoImageError(this.bot)
           fileSummary = this.fileTelemetry(file)
@@ -465,6 +469,7 @@ export class Widget extends Base {
             size: file.size,
             type: file.type,
           })
+          await this.bot.updateColors()
           let botImage
           if (file.name.endsWith(`.${SETTINGS_EXTENSION}`)) {
             botImage = await BotImage.fromJSON(
@@ -480,8 +485,9 @@ export class Widget extends Base {
             if (!raw.image?.dataUrl)
               throw new Error('Invalid .wplace file: image.dataUrl missing')
             const image = new Image()
+            const loaded = promisifyEventSource(image, ['load'], ['error'])
             image.src = raw.image.dataUrl
-            await promisifyEventSource(image, ['load'], ['error'])
+            await loaded
             await this.waitForStableViewportProjection()
             botImage = new BotImage(
               this.bot,
@@ -492,17 +498,19 @@ export class Widget extends Base {
               new Pixels(this.bot, image),
             )
             if (typeof raw.opacity === 'number')
-              botImage.opacity = Math.max(0, Math.min(1, raw.opacity))
+              botImage.opacity = Math.max(0, Math.min(1, raw.opacity)) * 100
           } else {
             const reader = new FileReader()
+            const read = promisifyEventSource(reader, ['load'], ['error'])
             reader.readAsDataURL(file)
-            await promisifyEventSource(reader, ['load'], ['error'])
+            await read
             const optimizedDataURL = await this.compressImageBeforeLoad(
               reader.result as string,
             )
             const image = new Image()
+            const loaded = promisifyEventSource(image, ['load'], ['error'])
             image.src = optimizedDataURL
-            await promisifyEventSource(image, ['load'], ['error'])
+            await loaded
             await this.waitForStableViewportProjection()
             botImage = new BotImage(
               this.bot,
@@ -529,9 +537,7 @@ export class Widget extends Base {
           save(this.bot, true)
           this.bot.updateTasks()
           this.update()
-          window.setTimeout(() => {
-            globalThis.location.reload()
-          }, 120)
+          botImage.update()
         } catch (error) {
           this.trackAction('image_load_failed', {
             source: 'file_picker',
@@ -777,8 +783,9 @@ export class Widget extends Base {
 
   protected async compressImageBeforeLoad(dataUrl: string) {
     const image = new Image()
+    const loaded = promisifyEventSource(image, ['load'], ['error'])
     image.src = dataUrl
-    await promisifyEventSource(image, ['load'], ['error'])
+    await loaded
     const shouldCompress =
       image.naturalWidth * image.naturalHeight > 3_000_000 ||
       dataUrl.length > 3_000_000
@@ -2812,7 +2819,7 @@ export class Widget extends Base {
         source: 'keyboard',
         shortcut: 'addImage',
       })
-      void this.addImage()
+      void this.addImage().catch(() => undefined)
       return
     }
     if (matchesShortcut(event, SHORTCUTS.draw) && !this.$draw.disabled) {

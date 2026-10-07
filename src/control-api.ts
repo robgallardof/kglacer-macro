@@ -192,6 +192,8 @@ export async function loginToControlApi(input: {
   return session
 }
 
+const checkRetryAfter = new Map<string, number>()
+
 export async function checkControlAccess(input: {
   session: ControlSession
   eventType?: ControlCheckEventType
@@ -200,6 +202,13 @@ export async function checkControlAccess(input: {
   cookieStatus?: AccountCookieStatus
   metadata?: Record<string, unknown>
 }) {
+  const retryAfter = checkRetryAfter.get(input.session.accessToken) ?? 0
+  if (Date.now() < retryAfter)
+    throw new ControlApiError(
+      'Control API temporarily unavailable; retry later',
+      'server_backoff',
+      503,
+    )
   const client = await collectClientMetadata()
   const tokenSource = input.wplaceCookieJToken
     ? (input.cookieStatus?.source ?? 'detected')
@@ -244,6 +253,10 @@ export async function checkControlAccess(input: {
   const payload = (await response.json().catch(() => ({}))) as NonNullable<
     ControlSession['access']
   >
+
+  if (response.status >= 500 || response.status === 429)
+    checkRetryAfter.set(input.session.accessToken, Date.now() + 60_000)
+  else checkRetryAfter.delete(input.session.accessToken)
 
   const nextSession: ControlSession = {
     ...input.session,
