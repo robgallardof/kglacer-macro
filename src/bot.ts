@@ -503,8 +503,8 @@ export class KGlacerMacro {
         // Waiting for all of website to load
         await this.waitForElement('login', '.avatar.center-absolute.absolute')
         await this.waitForElement(
-          'pixel count',
-          '.btn.btn-primary.btn-lg.relative.z-30 canvas',
+          'paint button',
+          '.btn.btn-primary.btn-lg.relative.z-30',
         )
         const $canvasContainer = await this.waitForElement(
           'canvas',
@@ -1719,6 +1719,7 @@ export class KGlacerMacro {
         const me = (await fetch('https://backend.wplace.live/me', {
           credentials: 'include',
         }).then((x) => x.json())) as Me
+        this.me = me
         let charges = Math.floor(me.charges.count)
         const startCharges = charges
         this.log('Charges fetched', { charges })
@@ -1743,6 +1744,7 @@ export class KGlacerMacro {
                 imageIndex < this.images.length;
                 imageIndex++
               ) {
+                if (charges <= 0) break
                 const task = this.images[imageIndex]!.tasks.shift()
                 if (!task) continue
                 this.drawTask(task)
@@ -1757,23 +1759,22 @@ export class KGlacerMacro {
           case BotStrategy.PERCENTAGE: {
             for (let taskIndex = 0; taskIndex < n && charges > 0; taskIndex++) {
               let minPercent = 1
-              let minImage!: BotImage
+              let minImage: BotImage | undefined
               for (
                 let imageIndex = 0;
                 imageIndex < this.images.length;
                 imageIndex++
               ) {
                 const image = this.images[imageIndex]!
-                const percent =
-                  1 -
-                  image.tasks.length /
-                    (image.pixels.pixels.length *
-                      image.pixels.pixels[0]!.length)
+                const total = image.getProgress().total
+                if (!image.tasks.length || total === 0) continue
+                const percent = 1 - image.tasks.length / total
                 if (percent < minPercent) {
                   minPercent = percent
                   minImage = image
                 }
               }
+              if (!minImage) break
               this.drawTask(minImage.tasks.shift()!)
               charges--
               await wait(1)
@@ -1787,11 +1788,8 @@ export class KGlacerMacro {
               imageIndex++
             ) {
               const image = this.images[imageIndex]!
-              for (
-                let task = image.tasks.shift();
-                task && charges > 0;
-                task = image.tasks.shift()
-              ) {
+              while (charges > 0 && image.tasks.length > 0) {
+                const task = image.tasks.shift()!
                 this.drawTask(task)
                 charges--
                 await wait(1)
@@ -1833,7 +1831,12 @@ export class KGlacerMacro {
   public refreshMapAfterPaint(reason = 'paint') {
     return this.widget.run(t('taskReadingMap'), async () => {
       this.mapsCache.clear()
-      await this.readMap()
+      await Promise.all([
+        this.readMap(),
+        this.fetchAccountInfo(true).catch((error: unknown) => {
+          this.log('Account refresh after paint failed', error)
+        }),
+      ])
       this.updateTasks()
       this.widget.update()
       this.trackAction('map_refreshed_after_paint', {
@@ -2261,8 +2264,8 @@ export class KGlacerMacro {
         ) {
           const image = this.images[imageIndex]!
           if (!image.tasks.length) continue
-          const total =
-            image.pixels.pixels.length * image.pixels.pixels[0]!.length
+          const total = image.getProgress().total
+          if (total === 0) continue
           const percent = 1 - image.tasks.length / total
           if (percent < minPercent) {
             minPercent = percent

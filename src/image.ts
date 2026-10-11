@@ -7,6 +7,11 @@ import { COLORS_RGB, colorToCSS } from './colors'
 import { applyTranslations, t } from './i18n'
 import html from './image.html' with { type: 'text' }
 import { Pixels } from './pixels'
+import {
+  computeImageProgress,
+  estimatePaintTimeMs,
+  formatPaintEta,
+} from './progress'
 import { save } from './save'
 import { SETTINGS_EXTENSION } from './version'
 import { Position, WorldPosition } from './world-position'
@@ -111,6 +116,9 @@ export class BotImage extends Base {
 
   /** Pixels left to draw */
   public tasks: DrawTask[] = []
+
+  /** Unmatched pixels from the last map read, independent of prepared tasks. */
+  protected pendingByColor?: Map<number, number>
 
   /** Moving/resizing image */
   protected moveInfo?: {
@@ -263,6 +271,7 @@ export class BotImage extends Base {
     this.registerEvent(this.$resetSize, 'click', () => {
       this.pixels.width = this.pixels.image.naturalWidth
       this.pixels.update()
+      this.pendingByColor = undefined
       this.updateColors()
       this.update()
       save(this.bot)
@@ -275,6 +284,8 @@ export class BotImage extends Base {
     // drawTransparent
     this.registerEvent(this.$drawTransparent, 'click', () => {
       this.drawTransparentPixels = this.$drawTransparent.checked
+      this.updateTasks()
+      this.updateColors()
       save(this.bot)
       this.trackAction('image_draw_transparent_changed', {
         enabled: this.drawTransparentPixels,
@@ -284,6 +295,7 @@ export class BotImage extends Base {
     this.registerEvent(this.$skipUnavailable, 'click', () => {
       this.skipUnavailableColors = this.$skipUnavailable.checked
       this.updateTasks()
+      this.updateColors()
       save(this.bot)
       this.trackAction('image_skip_unavailable_changed', {
         enabled: this.skipUnavailableColors,
@@ -467,8 +479,13 @@ export class BotImage extends Base {
         return position.getMapColor()
       },
     })
+    this.pendingByColor = new Map<number, number>()
     for (let index = 0; index < pendingPixels.length; index++) {
       const pending = pendingPixels[index]!
+      this.pendingByColor.set(
+        pending.color,
+        (this.pendingByColor.get(pending.color) ?? 0) + 1,
+      )
       position.globalX = this.position.globalX + pending.x
       position.globalY = this.position.globalY + pending.y
       this.tasks.push({
@@ -484,6 +501,42 @@ export class BotImage extends Base {
       )
     this.update()
     this.bot.widget.update()
+  }
+
+  public getProgress() {
+    const disabledColors = new Set<number>()
+    for (const color of this.colors)
+      if (
+        color.disabled ||
+        (this.skipUnavailableColors &&
+          this.bot.unavailableColors.has(color.realColor))
+      )
+        disabledColors.add(color.realColor)
+    return computeImageProgress({
+      colorAmounts: this.pixels.colors,
+      pendingByColor: this.pendingByColor,
+      disabledColors,
+      drawTransparentPixels: this.drawTransparentPixels,
+    })
+  }
+
+  /** Update existing cards without rebuilding them during map movement. */
+  public refreshProgress() {
+    const progress = this.getProgress()
+    const eta = formatPaintEta(
+      estimatePaintTimeMs(progress.remaining, this.bot.me?.charges),
+    )
+    this.$progressText.textContent = `${progress.matched}/${progress.total} ${progress.percent}% ETA: ${eta}`
+    this.$progressLine.style.transform = `scaleX(${progress.percent / 100})`
+    if (!this.$colorsDialog.open) return
+    for (const element of this.$colorsDialogList.querySelectorAll<HTMLElement>(
+      '[data-color-progress]',
+    )) {
+      const color = progress.byColor.get(Number(element.dataset.colorProgress))
+      element.textContent = color?.enabled
+        ? `${color.matched}/${color.total} · ${color.percent}% ${t('pixelsMatched')}`
+        : t('progressExcluded')
+    }
   }
 
   /** Update image (NOT PIXELS) */
@@ -503,11 +556,7 @@ export class BotImage extends Base {
     this.$drawTransparent.checked = this.drawTransparentPixels
     this.$drawColorsInOrder.checked = this.drawColorsInOrder
     this.$skipUnavailable.checked = this.skipUnavailableColors
-    const maxTasks = this.pixels.pixels.length * this.pixels.pixels[0]!.length
-    const doneTasks = Math.max(0, maxTasks - this.tasks.length)
-    const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
-    this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(this.tasks.length / 120) | 0}h`
-    this.$progressLine.style.transform = `scaleX(${percent / 100})`
+    this.refreshProgress()
     this.$canvas.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
     for (const handle of this.element.querySelectorAll<HTMLElement>('.resize'))
       handle.classList[this.lock ? 'add' : 'remove']('no-pointer-events')
@@ -539,6 +588,7 @@ export class BotImage extends Base {
     this.$colorsDialog.style.top = ''
     this.$colorsDialog.style.margin = 'auto'
     this.$colorsDialog.showModal()
+    this.refreshProgress()
     this.$colorSearch.focus()
   }
 
@@ -1144,6 +1194,7 @@ export class BotImage extends Base {
 <span class="drag" title="${t('up')} / ${t('down')}">⋮⋮</span>
 <span class="swatch"></span>
 <span class="meta">
+  <span class="color-progress" data-color-progress="${color.realColor}"></span>
   <span class="coverage">${width.toFixed(1)}%</span>
   <span class="hex">${hex.toUpperCase()}</span>
   <span class="state">${effectivelyDisabled ? t('disabled') : t('enabled')}</span>
@@ -1211,6 +1262,7 @@ export class BotImage extends Base {
       if (!searchValue || searchTokens.toLowerCase().includes(searchValue))
         this.$colorsDialogList.append($chip)
     }
+    this.refreshProgress()
   }
 
   protected syncColorBulkToggle() {
@@ -2299,6 +2351,7 @@ export class BotImage extends Base {
       this.moveInfo = undefined
       this.position.updateAnchor()
       this.pixels.update()
+      this.pendingByColor = undefined
       this.updateColors()
       save(this.bot)
       this.trackAction(mode === 'resize' ? 'image_resized' : 'image_moved', {
@@ -2317,6 +2370,7 @@ export class BotImage extends Base {
   /** Resize/move image */
   protected move(event: MouseEvent) {
     if (!this.moveInfo) return
+    this.pendingByColor = undefined
     const deltaX = Math.round(
       (event.clientX - this.moveInfo.clientX) / this.position.pixelSize,
     )

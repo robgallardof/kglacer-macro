@@ -12,6 +12,7 @@ import { KGlacerMacroError, NoImageError } from './errors'
 import { applyTranslations, getLocale, setLocale, t } from './i18n'
 import { BotImage } from './image'
 import { Pixels } from './pixels'
+import { estimatePaintTimeMs, formatPaintEta } from './progress'
 import { save } from './save'
 import { getShieldEnabled, setShieldEnabled } from './shield'
 import { SHORTCUTS, isEditableTarget, matchesShortcut } from './shortcuts'
@@ -371,6 +372,7 @@ export class Widget extends Base {
       this.refreshAutoFarmStatusText()
       this.refreshAutoOverlayStatusText()
       this.refreshProgress()
+      for (const image of this.bot.images) image.refreshProgress()
     }, 1000)
     this.open = true
     window.setTimeout(() => {
@@ -984,12 +986,16 @@ export class Widget extends Base {
     let totalTasks = 0
     for (let index = 0; index < this.bot.images.length; index++) {
       const image = this.bot.images[index]!
-      maxTasks += image.pixels.pixels.length * image.pixels.pixels[0]!.length
-      totalTasks += image.tasks.length
+      const progress = image.getProgress()
+      maxTasks += progress.total
+      totalTasks += progress.remaining
     }
     const doneTasks = Math.max(0, maxTasks - totalTasks)
     const percent = maxTasks > 0 ? ((doneTasks / maxTasks) * 100) | 0 : 0
-    this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${(totalTasks / 120) | 0}h`
+    const eta = formatPaintEta(
+      estimatePaintTimeMs(totalTasks, this.bot.me?.charges),
+    )
+    this.$progressText.textContent = `${doneTasks}/${maxTasks} ${percent}% ETA: ${eta}`
     this.$progressLine.style.transform = `scaleX(${percent / 100})`
   }
 
@@ -2004,6 +2010,7 @@ export class Widget extends Base {
         return
       }
       await this.waitAndClickPaintButton()
+      await this.bot.refreshMapAfterPaint('auto_draw')
       this.trackAction('auto_draw_cycle_completed', {
         source: 'widget',
         pixels,
@@ -2994,7 +3001,7 @@ export class Widget extends Base {
     if (!this.$draw.disabled)
       await this.bot.draw({ refreshMapAfterDraw: false })
     await this.waitAndClickPaintButton()
-    void this.bot.refreshMapAfterPaint('draw_and_paint')
+    await this.bot.refreshMapAfterPaint('draw_and_paint')
     this.trackAction('draw_and_paint_completed', {
       source: 'widget',
     })
@@ -3002,6 +3009,7 @@ export class Widget extends Base {
 
   protected findNativePaintButton() {
     const selectors = [
+      '.paint-actions button',
       'button.btn.btn-primary.btn-lg.sm\\:btn-xl.relative',
       'button.btn.btn-primary.btn-lg.relative',
       'button.btn.btn-primary.btn-lg.relative.z-30',

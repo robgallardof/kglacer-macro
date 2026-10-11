@@ -33,6 +33,8 @@ En desktop la macro requiere Tampermonkey Beta. En mobile no se bloquea por este
 - La macro lee los colores actuales del mapa.
 - Compara la imagen con el mapa y solo conserva los pixeles que siguen pendientes.
 - Respeta colores desactivados y la opcion de pintar solo colores disponibles.
+- El progreso general y por color cuenta los píxeles que coinciden con el mapa; excluye colores desactivados y la transparencia cuando no se pinta.
+- El tiempo estimado descuenta las cargas disponibles y usa el tiempo de regeneración de la cuenta.
 - Las estrategias cambian el orden de pintado, no los colores de la imagen.
 - El panel de colores permite activar, desactivar y reordenar prioridades.
 
@@ -73,5 +75,7 @@ On desktop the macro requires Tampermonkey Beta. On mobile this requirement does
 - The macro reads current map colors.
 - It compares the image against the map and keeps only pixels that are still pending.
 - It respects disabled colors and the paint-only-available-colors option.
+- Overall and per-color progress counts pixels matching the map, excluding disabled colors and transparency when not painted.
+- Estimated waiting time accounts for available charges and the account regeneration rate.
 - Strategies change paint order, not the image colors.
 - The color panel can enable, disable, and reorder paint priority.
