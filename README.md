@@ -20,6 +20,8 @@ Macro para apoyar el pintado en **wplace.live**.
 4. Recarga **wplace.live**.
 
 En desktop la macro requiere Tampermonkey Beta. En mobile no se bloquea por este requisito.
+<p align="center"><img src="assets/readme-builder/kit/wave.svg" alt="" width="100%" /></p>
+
 
 ## Uso
 
@@ -31,6 +33,8 @@ En desktop la macro requiere Tampermonkey Beta. En mobile no se bloquea por este
 6. Usa **Draw** para preparar/pintar los pixeles pendientes.
 7. Usa **Draw + Paint** para esperar el cooldown y pulsar el boton nativo de pintar.
 8. Usa **Auto farm** o **Auto draw** si quieres ciclos automaticos por temporizador.
+<p align="center"><img src="assets/readme-builder/kit/wave.svg" alt="" width="100%" /></p>
+
 
 ## Como pinta
 
@@ -47,6 +51,8 @@ En desktop la macro requiere Tampermonkey Beta. En mobile no se bloquea por este
 # English
 
 Painting helper macro for **wplace.live**.
+<p align="center"><img src="assets/readme-builder/kit/wave.svg" alt="" width="100%" /></p>
+
 
 ## Install
 
@@ -62,6 +68,8 @@ Painting helper macro for **wplace.live**.
 4. Reload **wplace.live**.
 
 On desktop the macro requires Tampermonkey Beta. On mobile this requirement does not block the macro.
+<p align="center"><img src="assets/readme-builder/kit/wave.svg" alt="" width="100%" /></p>
+
 
 ## Usage
 
@@ -73,6 +81,8 @@ On desktop the macro requires Tampermonkey Beta. On mobile this requirement does
 6. Use **Draw** to prepare/paint pending pixels.
 7. Use **Draw + Paint** to wait for cooldown and click the native paint button.
 8. Use **Auto farm** or **Auto draw** for timed automatic cycles.
+<p align="center"><img src="assets/readme-builder/kit/wave.svg" alt="" width="100%" /></p>
+
 
 ## How Painting Works
 
@@ -84,7 +94,7 @@ On desktop the macro requires Tampermonkey Beta. On mobile this requirement does
 - Strategies change paint order, not the image colors.
 - The color panel can enable, disable, and reorder paint priority.
 
-<p align="center"><a href="#top">Volver al inicio</a></p>
+<p align="center"><a href="#top"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme-builder/kit/btn-volver-al-inicio-outline-sm-dark.svg" /><img src="assets/readme-builder/kit/btn-volver-al-inicio-outline-sm-light.svg" alt="Volver al inicio" height="34" /></picture></a></p>
 
 <!-- readme-builder:signature:start -->
 <p align="center"><a href="https://github.com/robgallardof"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/brand/signature-es-dark.svg" /><img src="assets/readme/brand/signature-es-light.svg" alt="kglacer-macro / Roberto Gallardo" width="100%" /></picture></a></p>
