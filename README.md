@@ -1,4 +1,8 @@
-# kglacer-macro
+<a id="top"></a>
+
+<h1 align="center">kglacer-macro</h1>
+
+<p align="center">Una ayuda para pintar en WPlace: carga una imagen, colócala en el mapa y elige cómo avanzar.</p>
 
 Macro para apoyar el pintado en **wplace.live**.
 
@@ -79,3 +83,9 @@ On desktop the macro requires Tampermonkey Beta. On mobile this requirement does
 - Estimated waiting time accounts for available charges and the account regeneration rate.
 - Strategies change paint order, not the image colors.
 - The color panel can enable, disable, and reorder paint priority.
+
+<p align="center"><a href="#top">Volver al inicio</a></p>
+
+<!-- readme-builder:signature:start -->
+<p align="center"><a href="https://github.com/robgallardof"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/brand/signature-es-dark.svg" /><img src="assets/readme/brand/signature-es-light.svg" alt="kglacer-macro / Roberto Gallardo" width="100%" /></picture></a></p>
+<!-- readme-builder:signature:end -->
