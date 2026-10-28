@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 
-import { extractScreenPositionFromStar } from './world-position'
+import {
+  extractScreenPositionFromStar,
+  FAVORITE_LOCATIONS,
+  resolveMapAnchors,
+  WORLD_PIXEL_SIZE,
+  WorldPosition,
+} from './world-position'
+
+import type { KGlacerMacro } from './bot'
 
 const marker = (transform: string) =>
   ({ style: { transform } }) as HTMLDivElement
@@ -41,5 +49,75 @@ describe('map anchor position', () => {
     expect(() => extractScreenPositionFromStar(marker(''))).toThrow(
       'Map anchor unavailable',
     )
+  })
+})
+
+describe('favorite marker matching', () => {
+  const namedMarker = (name: string, transform: string) =>
+    ({
+      title: '',
+      style: { transform },
+      getAttribute: (attribute: string) =>
+        attribute === 'aria-label' ? name : null,
+    }) as unknown as HTMLDivElement
+
+  test('uses known personal favorites when injected markers are absent, regardless of DOM order', () => {
+    const first = namedMarker(
+      'Location 1',
+      'translate(-50%, -50%) translate(-25319px, -22154px)',
+    )
+    const second = namedMarker(
+      'Location 2',
+      'translate(-50%, -50%) translate(-12968px, 1372px)',
+    )
+    const unrelated = namedMarker('Team HQ', 'translate(1503px, -15px)')
+    const favorites = [
+      ...FAVORITE_LOCATIONS,
+      { id: 1, name: 'Location 1', latitude: 60, longitude: -90 },
+      { id: 2, name: 'Location 2', latitude: 0, longitude: 0 },
+    ]
+    const anchors = resolveMapAnchors([unrelated, second, first], favorites)
+    expect(anchors.markers).toEqual([first, second])
+    expect(anchors.positions[0]!.x).toBeCloseTo(WORLD_PIXEL_SIZE / 4)
+    const bot = {
+      $stars: anchors.markers,
+      anchorWorldPositions: anchors.positions,
+    } as KGlacerMacro
+    const position = new WorldPosition(
+      bot,
+      anchors.positions[0]!.x,
+      anchors.positions[0]!.y,
+    )
+    expect(position.toScreenPosition()).toEqual({ x: -25319, y: -22154 })
+    expect(position.pixelSize).toBeGreaterThan(0)
+  })
+
+  test('retains support for injected favorites and their known coordinates', () => {
+    const markers = [
+      namedMarker('KGLACER_MACRO_FAVORITE', 'translate(0px,0px)'),
+      namedMarker('KGLACER_MACRO_FAVORITE', 'translate(100px,100px)'),
+    ]
+    const anchors = resolveMapAnchors(markers, FAVORITE_LOCATIONS)
+    expect(anchors.markers).toEqual(markers)
+    expect(anchors.positions).toHaveLength(2)
+  })
+
+  test('rejects unrelated, ambiguous, and unpositioned markers', () => {
+    const favorite = { id: 1, name: 'Location 1', latitude: 0, longitude: 0 }
+    expect(
+      resolveMapAnchors(
+        [namedMarker('Other', 'translate(1px,2px)')],
+        [favorite],
+      ).markers,
+    ).toEqual([])
+    expect(
+      resolveMapAnchors([namedMarker('Location 1', '')], [favorite]).markers,
+    ).toEqual([])
+    expect(
+      resolveMapAnchors(
+        [namedMarker('Location 1', 'translate(1px,2px)')],
+        [favorite, { ...favorite, id: 2, longitude: 90 }],
+      ).markers,
+    ).toEqual([])
   })
 })

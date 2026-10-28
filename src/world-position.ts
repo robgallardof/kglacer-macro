@@ -9,6 +9,69 @@ export const WORLD_TILE_SIZE = 1000
 export const WORLD_TILES = 2048
 export const WORLD_PIXEL_SIZE = WORLD_TILE_SIZE * WORLD_TILES
 
+/** Match markers to known coordinates, never to their DOM order alone. */
+export function resolveMapAnchors(
+  markers: HTMLDivElement[],
+  favorites: Me['favoriteLocations'],
+) {
+  const used = new Set<HTMLDivElement>()
+  const anchors = favorites.flatMap((favorite) => {
+    if (
+      !Number.isFinite(favorite.latitude) ||
+      !Number.isFinite(favorite.longitude)
+    )
+      return []
+    const name =
+      favorite.name.trim() ||
+      `${favorite.latitude.toFixed(4)}, ${favorite.longitude.toFixed(4)}`
+    if (
+      name !== 'KGLACER_MACRO_FAVORITE' &&
+      favorites.filter((item) => item.name.trim() === name).length > 1
+    )
+      return []
+    const marker = markers.find(
+      (element) =>
+        !used.has(element) &&
+        [
+          element.title,
+          element.getAttribute('aria-label'),
+          element.getAttribute('data-tooltip'),
+        ].includes(name),
+    )
+    if (!marker) return []
+    try {
+      extractScreenPositionFromStar(marker)
+    } catch {
+      return []
+    }
+    used.add(marker)
+    const latitude = (favorite.latitude * Math.PI) / 180
+    return [
+      {
+        marker,
+        position: {
+          x: ((favorite.longitude + 180) / 360) * WORLD_PIXEL_SIZE,
+          y:
+            ((1 - Math.log(Math.tan(Math.PI / 4 + latitude / 2)) / Math.PI) /
+              2) *
+            WORLD_PIXEL_SIZE,
+        },
+      },
+    ]
+  })
+  // Widely separated anchors reduce the effect of rounded screen coordinates.
+  anchors.sort((a, b) => a.position.x - b.position.x)
+  if (anchors.length < 2) return { markers: [], positions: [] }
+  const first = anchors[0]!
+  const last = anchors[anchors.length - 1]!
+  if (last.position.x - first.position.x < 1)
+    return { markers: [], positions: [] }
+  return {
+    markers: [first.marker, last.marker],
+    positions: [first.position, last.position],
+  }
+}
+
 // === Favoriote Locations ===
 export const FAVORITE_LOCATIONS_POSITIONS: Position[] = []
 export const FAVORITE_LOCATIONS: Me['favoriteLocations'] = []
@@ -136,8 +199,8 @@ export class WorldPosition {
     return (
       (extractScreenPositionFromStar(this.bot.$stars[this.anchor2Index]).x -
         extractScreenPositionFromStar(this.bot.$stars[this.anchor1Index]).x) /
-      (FAVORITE_LOCATIONS_POSITIONS[this.anchor2Index]!.x -
-        FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!.x)
+      (this.bot.anchorWorldPositions[this.anchor2Index]!.x -
+        this.bot.anchorWorldPositions[this.anchor1Index]!.x)
     )
   }
 
@@ -162,29 +225,11 @@ export class WorldPosition {
   public updateAnchor() {
     this.anchor1Index = 0
     this.anchor2Index = 1
-    let min1 = Infinity
-    let min2 = Infinity
-    for (let index = 0; index < FAVORITE_LOCATIONS_POSITIONS.length; index++) {
-      const { x, y } = FAVORITE_LOCATIONS_POSITIONS[index]!
-      if (x < this.globalX && y < this.globalY) {
-        const delta = this.globalX - x + (this.globalY - y)
-        if (delta < min1) {
-          min1 = delta
-          this.anchor1Index = index
-        }
-      } else if (x > this.globalX && y > this.globalY) {
-        const delta = x - this.globalX + (y - this.globalY)
-        if (delta < min2) {
-          min2 = delta
-          this.anchor2Index = index
-        }
-      }
-    }
   }
 
   /** Get screen position */
   public toScreenPosition(): Position {
-    const worldPosition = FAVORITE_LOCATIONS_POSITIONS[this.anchor1Index]!
+    const worldPosition = this.bot.anchorWorldPositions[this.anchor1Index]!
     const screenPosition = extractScreenPositionFromStar(
       this.bot.$stars[this.anchor1Index],
     )

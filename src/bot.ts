@@ -33,7 +33,7 @@ import {
   addFavoriteLocation,
   extractScreenPositionFromStar,
   FAVORITE_LOCATIONS,
-  FAVORITE_LOCATIONS_POSITIONS,
+  resolveMapAnchors,
   Position,
   WorldPosition,
 } from './world-position'
@@ -203,6 +203,8 @@ export class KGlacerMacro {
 
   /** Cached stars elements */
   public $stars: HTMLDivElement[] = []
+
+  public anchorWorldPositions: Position[] = []
 
   /** Strategy how to distribute draw calls between images */
   public strategy = BotStrategy.SEQUENTIAL
@@ -1955,43 +1957,25 @@ export class KGlacerMacro {
   }
 
   /** Find anchor data for screen postition */
-  public findAnchorsForScreen(position: Position) {
+  public findAnchorsForScreen(_position: Position) {
     this.updateStars()
     if (this.$stars.length < 2)
       throw new Error(
         'No se encontraron los marcadores del mapa. Recarga Wplace y activa los favoritos.',
       )
-    let anchorIndex = 0
-    let minI2 = 1
-    let min1 = Infinity
-    let min2 = Infinity
-    for (let index = 0; index < this.$stars.length; index++) {
-      const { x, y } = extractScreenPositionFromStar(this.$stars[index])
-      if (x < position.x && y < position.y) {
-        const delta = position.x - x + (position.y - y)
-        if (delta < min1) {
-          min1 = delta
-          anchorIndex = index
-        }
-      } else if (x > position.x && y > position.y) {
-        const delta = x - position.x + (y - position.y)
-        if (delta < min2) {
-          min2 = delta
-          minI2 = index
-        }
-      }
-    }
+    const anchorIndex = 0
+    const minI2 = 1
     const anchorScreenPosition = extractScreenPositionFromStar(
       this.$stars[anchorIndex],
     )
-    const anchorWorldPosition = FAVORITE_LOCATIONS_POSITIONS[anchorIndex]!
+    const anchorWorldPosition = this.anchorWorldPositions[anchorIndex]!
     return {
       anchorScreenPosition,
       anchorWorldPosition,
       pixelSize:
         (extractScreenPositionFromStar(this.$stars[minI2]).x -
           anchorScreenPosition.x) /
-        (FAVORITE_LOCATIONS_POSITIONS[minI2]!.x - anchorWorldPosition.x),
+        (this.anchorWorldPositions[minI2]!.x - anchorWorldPosition.x),
     }
   }
 
@@ -2289,15 +2273,22 @@ export class KGlacerMacro {
     ): Promise<Response> => {
       const url = this.resolveFetchUrl(request)
       this.captureAccountTokenFromFetchRequest(url, request, options)
-      const response = await originalFetch(request, options)
+      let response = await originalFetch(request, options)
       const cloned = response.clone()
       if (this.isWplacePaintRequest(url))
         this.emitPaintResponseEvent(url, response)
       if (response.url === 'https://backend.wplace.live/me') {
         this.me = (await cloned.json()) as Me
         this.me.favoriteLocations.unshift(...FAVORITE_LOCATIONS)
-        this.me.maxFavoriteLocations = Infinity
-        response.json = () => Promise.resolve(this.me)
+        this.me.maxFavoriteLocations = Number.MAX_SAFE_INTEGER
+        const headers = new Headers(response.headers)
+        headers.delete('content-length')
+        headers.delete('content-encoding')
+        response = new Response(JSON.stringify(this.me), {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        })
         this.log('Patched /me response with favorite locations', {
           totalFavorites: this.me.favoriteLocations.length,
         })
@@ -2579,11 +2570,12 @@ export class KGlacerMacro {
 
   /** Simply update $stars property */
   protected updateStars() {
-    this.$stars = [
-      ...document.querySelectorAll<HTMLDivElement>(
-        '.maplibregl-marker[title*="KGLACER_MACRO_FAVORITE"], .maplibregl-marker[aria-label*="KGLACER_MACRO_FAVORITE"]',
-      ),
-    ].slice(0, FAVORITE_LOCATIONS.length)
+    const anchors = resolveMapAnchors(
+      [...document.querySelectorAll<HTMLDivElement>('.maplibregl-marker')],
+      this.me?.favoriteLocations ?? FAVORITE_LOCATIONS,
+    )
+    this.$stars = anchors.markers
+    this.anchorWorldPositions = anchors.positions
     this.log('Star cache updated', { stars: this.$stars.length })
   }
 
